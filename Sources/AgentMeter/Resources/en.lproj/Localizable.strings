@@ -76,6 +76,8 @@
 	<string>Background opacity</string>
 	<key>Balance works through the limited rate-limits endpoint.</key>
 	<string>Balance works through the limited rate-limits endpoint.</string>
+	<key>Based on AgentMeter by Felix Torres (MIT License).</key>
+	<string>Based on AgentMeter by Felix Torres (MIT License).</string>
 	<key>Billed through</key>
 	<string>Billed through</string>
 	<key>Cache creation tokens</key>

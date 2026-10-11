@@ -35,7 +35,7 @@ struct AboutView: View {
             Divider().padding(.horizontal, 24)
 
             VStack(spacing: 2) {
-                Text(L("Based on Allowance Bar by Felix Torres (MIT License)."))
+                Text(L("Based on AgentMeter by Felix Torres (MIT License)."))
                 Text(L("Auto-updates powered by Sparkle (MIT License)."))
                 Text(L("Provider endpoint research credits CodexBar by Peter Steinberger."))
             }

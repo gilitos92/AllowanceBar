@@ -1145,6 +1145,22 @@
         }
       }
     },
+    "Based on AgentMeter by Felix Torres (MIT License).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Based on AgentMeter by Felix Torres (MIT License)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basado en AgentMeter de Felix Torres (licencia MIT)."
+          }
+        }
+      }
+    },
     "Billed through": {
       "localizations": {
         "en": {

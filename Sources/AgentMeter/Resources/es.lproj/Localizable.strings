@@ -134,6 +134,8 @@
 	<string>Alerta de saldo por debajo de</string>
 	<key>Balance works through the limited rate-limits endpoint.</key>
 	<string>El saldo funciona a través del punto de acceso limitado de límites de uso.</string>
+	<key>Based on AgentMeter by Felix Torres (MIT License).</key>
+	<string>Basado en AgentMeter de Felix Torres (licencia MIT).</string>
 	<key>Billed through</key>
 	<string>Facturado por</string>
 	<key>Cache creation tokens</key>
