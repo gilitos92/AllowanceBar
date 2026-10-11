@@ -20,7 +20,7 @@ APP_NAME="Allowance Bar"
 EXECUTABLE="AllowanceBar"
 BUNDLE_ID="com.ggv.AllowanceBar"
 CLI_NAME="allowancebar"
-VERSION="${ALLOWANCEBAR_VERSION:-2.0.5}"
+VERSION="${ALLOWANCEBAR_VERSION:-2.0.6}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 # Compile Spanish strings from the catalog; en.lproj is checked in separately.
