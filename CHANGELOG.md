@@ -7,6 +7,13 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.0.6] — 2026-10-11
+
+### Fixed
+- The About window credits AgentMeter by Felix Torres again (it said
+  "Allowance Bar" since 2.0.0), and the credit line is now translated into
+  Spanish.
+
 ## [2.0.5] — 2026-10-10
 
 ### Changed
