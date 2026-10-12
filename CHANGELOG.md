@@ -7,6 +7,13 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.2.1] — 2026-10-11
+
+### Changed
+- The README now includes light and dark Nano window screenshots, how to
+  open and expand the panel, its hover controls, and its independent
+  show-all-limits setting.
+
 ## [2.2.0] — 2026-10-11
 
 ### Added

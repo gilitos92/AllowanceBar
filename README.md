@@ -23,6 +23,7 @@ appreciated. Entirely optional.
 | Menu bar dropdown | <img src="Resources/screenshot-dropdown-light.png" alt="Allowance Bar menu bar dropdown in light mode" width="360" /> | <img src="Resources/screenshot-dropdown-dark.png" alt="Allowance Bar menu bar dropdown in dark mode" width="360" /> |
 | Full window | <img src="Resources/screenshot-details-light.png" alt="Allowance Bar full Usage Details window in light mode" width="360" /> | <img src="Resources/screenshot-details-dark.png" alt="Allowance Bar full Usage Details window in dark mode" width="360" /> |
 | Mini window | <img src="Resources/screenshot-mini-light.png" alt="Allowance Bar compact mini window in light mode" width="360" /> | <img src="Resources/screenshot-mini-dark.png" alt="Allowance Bar compact mini window in dark mode" width="360" /> |
+| Nano window | <img src="Resources/screenshot-nano-light.png" alt="Allowance Bar nano window in light mode" width="360" /> | <img src="Resources/screenshot-nano-dark.png" alt="Allowance Bar nano window in dark mode" width="360" /> |
 
 **A floating usage window that stays where you can see it.** Most usage
 meters live only in the menu bar: you click, look, and the numbers disappear.
@@ -33,8 +34,19 @@ every limit visible while you work:
   and balances. One click collapses it into a small, chrome-free **mini
   panel** with one meter per limit (for example 5-hour and weekly) and the
   time until each resets. The **nano panel** is smaller still: only the menu
-  bar text, e.g. `Cx 50% · Cl 30%`. Hover it to show the window controls
-  above the text. Drag either panel anywhere; one click expands it again.
+  bar text, e.g. `Cx 80% (89%) · Cl 52% (58%)`. Choose **Nano View** in
+  the full window's toolbar or the mini panel's controls. Hover the nano
+  panel to show Close, Keep on Top, Show on All Desktops, Opacity, and
+  Expand above the text without moving it. Drag either panel anywhere
+  outside the buttons. Expand returns nano to mini, then mini to full.
+- **Choose how many limits nano shows.** In **Settings → Display**, turn on
+  **Show all limits in the nano window** to show each provider's limits in
+  dropdown order. For Codex and Claude, `80% (89%)` means the 5-hour limit
+  followed by the weekly limit in parentheses. This setting is independent
+  of **Show all limits in the menu bar**, so nano can show every limit while
+  the menu bar stays brief. Percentages follow **Count direction**: used
+  or remaining. With the icon-only menu bar style, nano still
+  shows text for every provider enabled in the menu bar.
 - **Keep on Top.** The window stays above other windows, even when you switch
   apps.
 - **Show on All Desktops.** It follows you to every desktop (Space) and over
