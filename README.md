@@ -5,7 +5,8 @@ visible at a glance — Codex/ChatGPT (one or several accounts), Cursor, Claude
 Code, and Gemini, Claude API spending and token usage, plus pay-as-you-go balances for OpenRouter, DeepSeek, Kimi,
 Z.ai, and Venice — with a dropdown showing detailed meters, reset countdowns,
 and balances. Keep every limit on screen in a floating window that stays
-above your work, full size or as a compact mini panel. Your coding agents can
+above your work, full size, as a compact mini panel, or as a nano panel with
+just the menu bar text. Your coding agents can
 read the same numbers through a small read-only CLI.
 
 <a href="https://www.buymeacoffee.com/gilitos92">
@@ -28,10 +29,12 @@ meters live only in the menu bar: you click, look, and the numbers disappear.
 Allowance Bar's Usage Details window (⌘D, or `allowancebar://details`) keeps
 every limit visible while you work:
 
-- **Two sizes.** The full window shows every provider's meters, reset times,
+- **Three sizes.** The full window shows every provider's meters, reset times,
   and balances. One click collapses it into a small, chrome-free **mini
   panel** with one meter per limit (for example 5-hour and weekly) and the
-  time until each resets. Drag it anywhere; one click expands it again.
+  time until each resets. The **nano panel** is smaller still: only the menu
+  bar text, e.g. `Cx 50% · Cl 30%`. Hover it to show the window controls
+  above the text. Drag either panel anywhere; one click expands it again.
 - **Keep on Top.** The window stays above other windows, even when you switch
   apps.
 - **Show on All Desktops.** It follows you to every desktop (Space) and over

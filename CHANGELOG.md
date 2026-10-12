@@ -7,6 +7,24 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-10-11
+
+### Added
+- **Nano panel** for the Usage Details window: the smallest view, showing
+  only the menu bar text, e.g. `Cx 50% · Cl 30%`, in the same colors.
+  Hovering shows the window controls (Close, Keep on Top, Show on All
+  Desktops, Opacity, Expand) above the text, which stays in place. Drag
+  anywhere outside the buttons to move it. Open it with **Nano View** in the
+  full window's toolbar or the mini panel's controls. With the icon-only menu
+  bar style it lists every menu bar provider. VoiceOver reads the same
+  summary as the menu bar.
+- Settings › Display › "Show all limits in the nano window", separate from
+  the menu bar setting. It starts out matching the menu bar setting.
+
+### Fixed
+- Dragging the mini or nano panel quickly no longer makes it jump away from
+  the pointer.
+
 ## [2.1.0] — 2026-10-11
 
 ### Added
