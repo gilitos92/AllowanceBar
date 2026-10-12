@@ -29,6 +29,13 @@ private final class RotatingMockOAuthServer {
         return refreshCount
     }
 
+    func simulateClaudeCodeRenewal() {
+        lock.lock()
+        defer { lock.unlock() }
+        currentAccessToken = "A1"
+        currentRefreshToken = "R1"
+    }
+
     func respond(to request: URLRequest) -> (Int, Data) {
         lock.lock()
         defer { lock.unlock() }
@@ -86,6 +93,21 @@ private final class RotatingMockOAuthURLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+private actor MockClaudeKeychainReader {
+    var data: Data?
+    private var services: [String] = []
+
+    init(data: Data?) { self.data = data }
+
+    func read(service: String) -> Data? {
+        services.append(service)
+        return data
+    }
+
+    func replace(with data: Data) { self.data = data }
+    func requestedServices() -> [String] { services }
+}
+
 final class ClaudeProviderTests: XCTestCase {
     private func makeCredentialsFile(expiresAt: Double) throws -> (directory: URL, file: URL) {
         let directory = FileManager.default.temporaryDirectory
@@ -137,13 +159,113 @@ final class ClaudeProviderTests: XCTestCase {
         let session = makeSession()
         defer { session.invalidateAndCancel() }
         RotatingMockOAuthURLProtocol.server.reset()
-        let provider = ClaudeProvider(credentialsPath: credentials.file.path, session: session)
+        let reader = MockClaudeKeychainReader(data: nil)
+        let provider = ClaudeProvider(
+            credentialsPath: credentials.file.path,
+            session: session,
+            keychainReader: { await reader.read(service: $0) }
+        )
 
         let usage = try await provider.fetch()
 
         XCTAssertEqual(usage.windows.map(\.usedPercent), [12.5])
         XCTAssertEqual(RotatingMockOAuthURLProtocol.server.successfulRefreshCount(), 0)
         XCTAssertEqual(RotatingMockOAuthURLProtocol.server.requestLog(), ["GET /api/oauth/usage"])
+        let requestedServices = await reader.requestedServices()
+        XCTAssertEqual(requestedServices, [], "A credentials file should not trigger a Keychain read")
+    }
+
+    private func keychainCredentials(accessToken: String = "A0", expiresAt: Double? = nil) -> Data {
+        let expiry = expiresAt ?? Date().addingTimeInterval(3_600).timeIntervalSince1970 * 1_000
+        return Data("""
+        {"claudeAiOauth":{"accessToken":"\(accessToken)","refreshToken":"R0","expiresAt":\(expiry),"subscriptionType":"max"}}
+        """.utf8)
+    }
+
+    func testKeychainCredentialsAreReadFreshAfterClaudeCodeRenewal() async throws {
+        let reader = MockClaudeKeychainReader(data: keychainCredentials())
+        let session = makeSession()
+        defer { session.invalidateAndCancel() }
+        RotatingMockOAuthURLProtocol.server.reset()
+        let provider = ClaudeProvider(
+            credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
+            keychainService: "test-service",
+            session: session,
+            keychainReader: { await reader.read(service: $0) }
+        )
+
+        let initialUsage = try await provider.fetch()
+        RotatingMockOAuthURLProtocol.server.simulateClaudeCodeRenewal()
+        await reader.replace(with: keychainCredentials(accessToken: "A1"))
+        let renewedUsage = try await provider.fetch()
+
+        XCTAssertEqual(initialUsage.windows.map(\.usedPercent), [12.5])
+        XCTAssertEqual(renewedUsage.windows.map(\.usedPercent), [12.5])
+        let requestedServices = await reader.requestedServices()
+        XCTAssertEqual(requestedServices, ["test-service", "test-service"])
+        XCTAssertEqual(RotatingMockOAuthURLProtocol.server.successfulRefreshCount(), 0)
+        XCTAssertEqual(RotatingMockOAuthURLProtocol.server.requestLog(), ["GET /api/oauth/usage", "GET /api/oauth/usage"])
+    }
+
+    func testExpiredKeychainCredentialsDoNotRefreshOrFetchUsage() async throws {
+        let data = keychainCredentials(expiresAt: 1)
+        let session = makeSession()
+        defer { session.invalidateAndCancel() }
+        RotatingMockOAuthURLProtocol.server.reset()
+        let provider = ClaudeProvider(
+            credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
+            session: session,
+            keychainReader: { _ in data }
+        )
+
+        do {
+            _ = try await provider.fetch()
+            XCTFail("Expired Keychain credentials should require Claude Code renewal")
+        } catch let error as ClaudeError {
+            guard case .refreshRequired = error else { return XCTFail("Unexpected error: \(error)") }
+        }
+        XCTAssertEqual(RotatingMockOAuthURLProtocol.server.requestLog(), [])
+    }
+
+    func testMissingOrInvalidKeychainCredentialsReportNotSignedIn() async throws {
+        for data in [nil, Data("invalid credential document".utf8)] as [Data?] {
+            let provider = ClaudeProvider(
+                credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
+                keychainReader: { _ in data }
+            )
+            do {
+                _ = try await provider.loadCredentials()
+                XCTFail("Missing or invalid credentials should report not signed in")
+            } catch let error as ClaudeError {
+                guard case .notSignedIn = error else { return XCTFail("Unexpected error: \(error)") }
+            }
+        }
+    }
+
+    func testKeychainReaderFailureIsNotReportedAsSignedOut() async throws {
+        let provider = ClaudeProvider(
+            credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
+            keychainReader: { _ in throw URLError(.timedOut) }
+        )
+        do {
+            _ = try await provider.loadCredentials()
+            XCTFail("Keychain reader failures should explain access failure")
+        } catch let error as ClaudeError {
+            guard case .keychainUnavailable = error else { return XCTFail("Unexpected error: \(error)") }
+        }
+    }
+
+    func testCancelledKeychainReadPropagatesCancellation() async throws {
+        let provider = ClaudeProvider(
+            credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
+            keychainReader: { _ in throw CancellationError() }
+        )
+        do {
+            _ = try await provider.loadCredentials()
+            XCTFail("Cancellation must propagate")
+        } catch is CancellationError {
+            // Cancellation is distinct from a missing or unreadable credential.
+        }
     }
 
     func testDecodeCredentialsMillisecondExpiry() throws {

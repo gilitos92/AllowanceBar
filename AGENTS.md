@@ -100,7 +100,12 @@ announcement drafts, environment specifics) and complements this file.
   with fallbacks to `individualUsage.overall` and `teamUsage.pooled`
   (used/limit cents) for team/enterprise accounts.
 - **Claude**: OAuth creds from `~/.claude/.credentials.json`, falling back to
-  Keychain item `Claude Code-credentials`. `expiresAt` is in **milliseconds**.
+  Keychain item `Claude Code-credentials` via `/usr/bin/security
+  find-generic-password` (`ClaudeKeychainReader`, five-second timeout,
+  cancellable, stdout held in memory only). Direct Security.framework secret
+  reads are avoided: Claude renewals can reset the app's partition grant even
+  while its trusted-app entry remains. Detection is a metadata-only,
+  no-interaction Security.framework query. `expiresAt` is in **milliseconds**.
   Usage: `GET https://api.anthropic.com/api/oauth/usage` with
   `anthropic-beta: oauth-2025-04-20` and a `claude-code/x.y.z` User-Agent;
   windows `five_hour`/`seven_day`/`seven_day_opus` with `utilization` percent

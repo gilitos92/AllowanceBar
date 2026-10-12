@@ -208,6 +208,8 @@
 	<string>Copiar comando de inicio de sesión</string>
 	<key>Could not connect to Claude API reporting</key>
 	<string>No se pudo conectar a los informes de Claude API</string>
+	<key>Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar</key>
+	<string>No se pudieron leer las credenciales de Claude Code del Llavero. Desbloquea tu llavero de inicio de sesión y actualiza Allowance Bar</string>
 	<key>Could not read session file</key>
 	<string>No se pudo leer el archivo de sesión</string>
 	<key>Could not remove the API key from Keychain. Please try again.</key>

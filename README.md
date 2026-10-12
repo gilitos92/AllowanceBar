@@ -74,7 +74,7 @@ Cx 5% · CxW 62% · Cu 20% · Cl 40% · OR $8.06
 |----------|--------|-------------------|
 | **Codex** (`Cx`, `CxW`, …) | Your own Codex CLI via its app-server protocol; session logs as offline fallback | Live limits, plan, and signed-in email, polled every 5 minutes through a ~1-second `codex app-server` call. **Multiple accounts**: sign in extra Codex homes and each gets its own meter. Optional subscription renewal-date tracking with reminders. See [docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md). |
 | **Cursor** (`Cu`) | `cursor.com/api/usage-summary` | Uses the session token Cursor stores locally; included/auto/API usage + billing reset. Team/enterprise pools supported. |
-| **Claude** (`Cl`) | `api.anthropic.com/api/oauth/usage` | Uses the Claude Code OAuth token (credentials file or Keychain); 5h + weekly (+Opus) windows. |
+| **Claude** (`Cl`) | `api.anthropic.com/api/oauth/usage` | Uses the Claude Code OAuth token (credentials file or Keychain via Apple's `security` tool); 5h + weekly (+Opus) windows. |
 | **Claude API** (`ClA`) | Anthropic organization Usage & Cost API | Paste an organization reporting key; shows current UTC calendar-month spending and input/output/cache tokens. Prepaid credits are unavailable via the public API; a link opens Console billing. |
 | **Gemini** (`Ge`) | Cloud Code quota API | Uses the Gemini CLI OAuth token (`~/.gemini/oauth_creds.json`); Pro/Flash/Flash-Lite daily quotas. |
 | **OpenRouter** (`OR`) | `openrouter.ai/api/v1/credits` + `/api/v1/key` | Connect via OAuth (provisions a dedicated, revocable key) or paste a key; shows account credits when permitted, otherwise the key's limit/remaining balance or current-month spend. |
@@ -166,9 +166,13 @@ Allowance Bar is open source (MIT) so you can verify exactly what it does:
   protocol; Codex handles auth and talks to OpenAI itself. Session-log
   parsing remains as a fully offline fallback. Allowance Bar never performs
   logins — you sign in extra accounts with `codex login` yourself.
-- Nothing runs in the background besides the menu bar app itself: the Codex
-  helper exits after each ~1-second query, and the `allowancebar` CLI is a
-  read-only client that never sees credentials.
+- Helpers run only for their query: the Codex helper exits after each
+  ~1-second query, and Apple's `/usr/bin/security` reads Claude Code's
+  Keychain item into memory with a five-second timeout. Using the same
+  trusted tool as Claude Code avoids permission prompts caused by its token
+  renewals resetting Allowance Bar's separate grant. A locked Keychain or a
+  reset grant for Apple's tool can still require authorization. The
+  `allowancebar` CLI is a read-only client that never sees credentials.
 - No analytics, no telemetry, no accounts.
 
 ## Requirements
