@@ -346,6 +346,8 @@
 	<string>Modo</string>
 	<key>Month to date (UTC)</key>
 	<string>Mes hasta la fecha (UTC)</string>
+	<key>Nano View</key>
+	<string>Vista nano</string>
 	<key>No %@ API key set — add one in Settings</key>
 	<string>No hay clave de API de %@ — agrega una en Ajustes</string>
 	<key>No Codex session logs found</key>
@@ -468,6 +470,8 @@
 	<string>Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex.</string>
 	<key>Shows your 5-hour and token quotas.</key>
 	<string>Muestra tus cuotas de 5 horas y de tokens.</string>
+	<key>Shrink into a tiny panel with only the menu bar text.</key>
+	<string>Reduce la ventana a un panel diminuto con solo el texto de la barra de menús.</string>
 	<key>Spending capped — Allowance Bar can read usage within this limit.</key>
 	<string>Gasto limitado — Allowance Bar puede leer el uso dentro de este límite.</string>
 	<key>Stale since %@</key>

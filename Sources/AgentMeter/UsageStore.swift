@@ -202,6 +202,16 @@ final class UsageStore: ObservableObject {
         }
     }
 
+    /// The menu bar text for the nano Usage Details panel. With the icon-only
+    /// menu bar style it falls back to every menu bar provider, since a lone
+    /// icon would tell nothing.
+    var nanoEntries: [(text: String, severity: MenuBarSeverity)] {
+        guard settings.menuBarStyle == .icon else { return menuBarEntries }
+        let providers = titleProviders
+        guard !providers.isEmpty else { return [("Allowance Bar", .normal)] }
+        return providers.map { providerMenuBarEntry(for: $0) }
+    }
+
     /// One menu-bar-style entry per visible provider for the compact Usage
     /// Details window. Unlike `menuBarEntries`, it ignores the menu bar style
     /// and per-provider menu bar visibility.

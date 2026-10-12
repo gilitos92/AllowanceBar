@@ -73,6 +73,17 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(usageDetailsCompact, forKey: Keys.usageDetailsCompact) }
     }
 
+    /// The smallest Usage Details panel: only the menu bar text. Takes
+    /// precedence over `usageDetailsCompact`.
+    @Published var usageDetailsNano: Bool {
+        didSet { defaults.set(usageDetailsNano, forKey: Keys.usageDetailsNano) }
+    }
+
+    /// Either chrome-free panel (compact or nano) is showing.
+    var usageDetailsChromeless: Bool {
+        usageDetailsCompact || usageDetailsNano
+    }
+
     /// Opacity of the Usage Details window's translucent background, 0...1.
     /// Text and meters stay fully opaque.
     @Published var usageDetailsBackgroundOpacity: Double {
@@ -145,6 +156,7 @@ final class SettingsStore: ObservableObject {
         static let usageDetailsAlwaysOnTop = "usageDetailsAlwaysOnTop"
         static let usageDetailsOnAllSpaces = "usageDetailsOnAllSpaces"
         static let usageDetailsCompact = "usageDetailsCompact"
+        static let usageDetailsNano = "usageDetailsNano"
         static let usageDetailsBackgroundOpacity = "usageDetailsBackgroundOpacity"
         static let usageDetailsClearGlass = "usageDetailsClearGlass"
         static let codexExtraAccounts = "codexExtraAccounts"
@@ -184,6 +196,7 @@ final class SettingsStore: ObservableObject {
         self.usageDetailsAlwaysOnTop = defaults.bool(forKey: Keys.usageDetailsAlwaysOnTop)
         self.usageDetailsOnAllSpaces = defaults.bool(forKey: Keys.usageDetailsOnAllSpaces)
         self.usageDetailsCompact = defaults.bool(forKey: Keys.usageDetailsCompact)
+        self.usageDetailsNano = defaults.bool(forKey: Keys.usageDetailsNano)
         if defaults.object(forKey: Keys.usageDetailsBackgroundOpacity) != nil {
             self.usageDetailsBackgroundOpacity = min(1, max(0, defaults.double(forKey: Keys.usageDetailsBackgroundOpacity)))
         } else {

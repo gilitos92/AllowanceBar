@@ -11,7 +11,16 @@ struct UsageDetailsView: View {
 
     var body: some View {
         Group {
-            if settings.usageDetailsCompact {
+            if settings.usageDetailsNano {
+                NanoUsageView(
+                    entries: store.nanoEntries,
+                    accessibilityDescription: store.menuBarAccessibilityDescription,
+                    settings: settings,
+                    isPointerInside: isPointerInside,
+                    close: { dismissWindow(id: "usage-details") }
+                )
+                .padding(.bottom, -titleBarInset)
+            } else if settings.usageDetailsCompact {
                 CompactUsageView(
                     entries: store.compactEntries,
                     settings: settings,
@@ -31,12 +40,12 @@ struct UsageDetailsView: View {
         .background(MenuMaterialBackground(opacity: settings.usageDetailsBackgroundOpacity).ignoresSafeArea())
         .background(WindowLevelSetter(alwaysOnTop: settings.usageDetailsAlwaysOnTop,
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
-                                      compact: settings.usageDetailsCompact,
+                                      compact: settings.usageDetailsChromeless,
                                       onPointerInsideChange: { isPointerInside = $0 },
                                       onTitleBarHeightChange: { titleBarInset = $0 }))
-        // The compact panel has no title bar controls; its own hover controls
-        // replace the toolbar.
-        .toolbar(settings.usageDetailsCompact ? .hidden : .visible, for: .windowToolbar)
+        // The compact and nano panels have no title bar controls; their own
+        // hover controls replace the toolbar.
+        .toolbar(settings.usageDetailsChromeless ? .hidden : .visible, for: .windowToolbar)
         .toolbar { windowOptions }
     }
 
@@ -85,11 +94,18 @@ struct UsageDetailsView: View {
                     help: L("Collapse into a small panel with each provider's limits."),
                     large: true
                 ) { settings.usageDetailsCompact = true }
+                CompactControlButton(
+                    title: L("Nano View"),
+                    symbol: "arrow.down.right.and.arrow.up.left",
+                    isOn: false,
+                    help: L("Shrink into a tiny panel with only the menu bar text."),
+                    large: true
+                ) { settings.usageDetailsNano = true }
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .glassEffect(.regular.interactive(), in: Capsule())
-            // One toolbar item hosts all four buttons; without its own label
+            // One toolbar item hosts all five buttons; without its own label
             // the item's first label ("Keep on Top") was read for every button.
             .accessibilityElement(children: .contain)
             .accessibilityLabel(L("Window Options"))
@@ -127,6 +143,14 @@ struct UsageDetailsView: View {
                 offSymbol: "rectangle.compress.vertical",
                 onSymbol: "rectangle.compress.vertical",
                 isOn: $settings.usageDetailsCompact
+            )
+
+            WindowOptionButton(
+                title: L("Nano View"),
+                help: L("Shrink into a tiny panel with only the menu bar text."),
+                offSymbol: "arrow.down.right.and.arrow.up.left",
+                onSymbol: "arrow.down.right.and.arrow.up.left",
+                isOn: $settings.usageDetailsNano
             )
         }
     }
@@ -201,6 +225,90 @@ private struct CompactUsageView: View {
     }
 
     private var controls: some View {
+        PanelControls(settings: settings, isAdjustingOpacity: $isAdjustingOpacity, close: close)
+    }
+}
+
+/// The smallest Usage Details panel: only the menu bar text, e.g.
+/// "Cx 50% · Cl 30%". While the pointer is over it, the window controls
+/// replace the text; with VoiceOver they sit beside it.
+private struct NanoUsageView: View {
+    let entries: [(text: String, severity: MenuBarSeverity)]
+    let accessibilityDescription: String
+    @ObservedObject var settings: SettingsStore
+    let isPointerInside: Bool
+    let close: () -> Void
+    @State private var isAdjustingOpacity = false
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+
+    private var showsControls: Bool {
+        isPointerInside || isAdjustingOpacity
+    }
+
+    var body: some View {
+        Group {
+            if voiceOverEnabled {
+                HStack(spacing: 6) {
+                    title
+                    controls
+                }
+            } else {
+                // Both layers keep their size so the window does not resize
+                // when the controls appear.
+                ZStack {
+                    title
+                        .opacity(showsControls ? 0 : 1)
+                    controls
+                        .opacity(showsControls ? 1 : 0)
+                        .allowsHitTesting(showsControls)
+                }
+                .animation(.easeOut(duration: 0.15), value: showsControls)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .fixedSize()
+        // The panel has no title bar, so it sits flush with the window edges.
+        .ignoresSafeArea()
+    }
+
+    private var controls: some View {
+        PanelControls(settings: settings, isAdjustingOpacity: $isAdjustingOpacity, close: close)
+            .controlSize(.small)
+    }
+
+    /// Same text and colors as the menu bar title. Severity is never shown by
+    /// color alone, so warning, critical and stale entries also get a symbol.
+    private var title: some View {
+        entries.enumerated().reduce(Text(verbatim: "")) { text, item in
+            let (index, entry) = item
+            let color = Color(nsColor: MenuBarTitleRenderer.nsColor(for: entry.severity))
+            var result = text
+            if index > 0 {
+                result = result + Text(verbatim: " · ").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+            }
+            result = result + Text(verbatim: entry.text).foregroundStyle(color)
+            if let symbol = entry.severity.symbolName {
+                result = result + Text(verbatim: " ") + Text(Image(systemName: symbol)).foregroundStyle(color)
+            }
+            return result
+        }
+        .font(.system(size: 12).monospacedDigit())
+        .lineLimit(1)
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+}
+
+/// Hover controls shared by the compact and nano panels.
+private struct PanelControls: View {
+    @ObservedObject var settings: SettingsStore
+    @Binding var isAdjustingOpacity: Bool
+    let close: () -> Void
+    @Environment(\.controlSize) private var controlSize
+
+    var body: some View {
         HStack(spacing: 2) {
             CompactControlButton(title: L("Close"), symbol: "xmark", isOn: false, action: close)
             CompactControlButton(
@@ -220,13 +328,28 @@ private struct CompactUsageView: View {
                 compact: true,
                 isPresented: $isAdjustingOpacity
             )
+            if !settings.usageDetailsNano {
+                CompactControlButton(
+                    title: L("Nano View"),
+                    symbol: "arrow.down.right.and.arrow.up.left",
+                    isOn: false
+                ) { settings.usageDetailsNano = true }
+            }
             CompactControlButton(
                 title: L("Expand"),
                 symbol: "rectangle.expand.vertical",
                 isOn: false
-            ) { settings.usageDetailsCompact = false }
+            ) {
+                // The nano panel expands one step, to the compact panel.
+                if settings.usageDetailsNano {
+                    settings.usageDetailsCompact = true
+                    settings.usageDetailsNano = false
+                } else {
+                    settings.usageDetailsCompact = false
+                }
+            }
         }
-        .padding(3)
+        .padding(controlSize == .small ? 2 : 3)
         .background(.regularMaterial, in: Capsule())
     }
 }
@@ -241,12 +364,16 @@ private struct CompactControlButton: View {
     var large = false
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
+    /// `.small` in the nano panel.
+    @Environment(\.controlSize) private var controlSize
+
+    private var small: Bool { !large && controlSize == .small }
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: large ? 15 : 12, weight: .semibold))
-                .frame(width: large ? 30 : 20, height: large ? 28 : 20)
+                .font(.system(size: large ? 15 : small ? 10 : 12, weight: .semibold))
+                .frame(width: large ? 30 : small ? 17 : 20, height: large ? 28 : small ? 17 : 20)
                 .contentShape(Rectangle())
                 .foregroundStyle(isOn && isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
         }
@@ -288,7 +415,7 @@ private struct CompactProviderRow: View {
             Text(entry.summary)
                 .font(.callout.monospacedDigit().weight(.semibold))
                 .foregroundStyle(color)
-            if let symbol = Self.symbolName(for: entry.severity) {
+            if let symbol = entry.severity.symbolName {
                 Image(systemName: symbol).font(.subheadline.weight(.medium)).foregroundStyle(color)
             }
         }
@@ -297,8 +424,11 @@ private struct CompactProviderRow: View {
         .accessibilityLabel(entry.accessibilityLabel)
     }
 
-    private static func symbolName(for severity: MenuBarSeverity) -> String? {
-        switch severity {
+}
+
+private extension MenuBarSeverity {
+    var symbolName: String? {
+        switch self {
         case .normal: nil
         case .warning: UsageMeterSeverity.warning.symbolName
         case .critical: UsageMeterSeverity.critical.symbolName
