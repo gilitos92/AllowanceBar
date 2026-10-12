@@ -7,6 +7,13 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.2.2] — 2026-10-11
+
+### Fixed
+- The mini and nano panels can be dragged past the screen edges again
+  instead of bouncing back inward. Showing or hiding the nano panel's hover
+  controls no longer pulls a panel back on screen either.
+
 ## [2.2.1] — 2026-10-11
 
 ### Changed

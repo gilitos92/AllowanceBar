@@ -685,8 +685,8 @@ struct WindowLevelSetter: NSViewRepresentable {
         private var fullSizeContentBeforeCompact: Bool?
         private var dragMonitor: Any?
         private var mouseDownLocation: NSPoint?
-        /// Pointer and window origin, in screen coordinates, when a drag began.
-        private var dragStart: (pointer: NSPoint, origin: NSPoint)?
+        private var isDragging = false
+        private var dragEndTimer: Timer?
         private var pointerTrackingArea: NSTrackingArea?
         private weak var pointerTrackingView: NSView?
         var onPointerInsideChange: (Bool) -> Void = { _ in }
@@ -698,6 +698,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         deinit {
             chromeObservers.forEach(NotificationCenter.default.removeObserver)
             if let dragMonitor { NSEvent.removeMonitor(dragMonitor) }
+            dragEndTimer?.invalidate()
             if let pointerTrackingArea { pointerTrackingView?.removeTrackingArea(pointerTrackingArea) }
         }
 
@@ -739,7 +740,10 @@ struct WindowLevelSetter: NSViewRepresentable {
         }
 
         /// Content-sized windows resize from their top-left corner; move the
-        /// window so its bottom-right corner stays put instead, within the screen.
+        /// window so its bottom-right corner stays put instead. Growing must not
+        /// push the left or top edge off the screen, but a panel the user dragged
+        /// past a screen edge stays there instead of bouncing back when the
+        /// hover controls show or hide.
         private func keepAnchorEdgesIfNeeded() {
             guard let window else { return }
             let frame = window.frame
@@ -747,8 +751,8 @@ struct WindowLevelSetter: NSViewRepresentable {
             guard anchorsBottomRight, compact, let old = lastFrame, frame.size != old.size else { return }
             var origin = NSPoint(x: old.maxX - frame.width, y: old.minY)
             if let screen = window.screen?.visibleFrame {
-                origin.x = min(max(origin.x, screen.minX), screen.maxX - frame.width)
-                origin.y = min(max(origin.y, screen.minY), screen.maxY - frame.height)
+                if old.minX >= screen.minX { origin.x = max(origin.x, screen.minX) }
+                if old.maxY <= screen.maxY { origin.y = min(origin.y, screen.maxY - frame.height) }
             }
             guard origin != frame.origin else { return }
             window.setFrameOrigin(origin)
@@ -810,7 +814,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         override func mouseExited(with event: NSEvent) {
             // A fast drag can outrun the window for a moment; hiding the
             // controls then would resize the panel mid-drag.
-            guard dragStart == nil else { return }
+            guard !isDragging else { return }
             onPointerInsideChange(false)
         }
 
@@ -839,10 +843,12 @@ struct WindowLevelSetter: NSViewRepresentable {
         /// works over the reserved title bar strip, and an inactive window's
         /// first click never reaches SwiftUI gestures. While compact, any drag
         /// inside the window moves it, even when another app is active.
-        /// The window follows the pointer directly rather than through
-        /// `performDrag`, which lagged behind fast drags: the pointer left the
-        /// window, the nano panel hid its controls and resized mid-drag, and
-        /// the window jumped away from the pointer.
+        /// Each drag starts one window server drag, like a title bar drag, so
+        /// the window follows the pointer past screen edges. Moving the window
+        /// from code instead gets it pushed back on screen mid-drag. Starting a
+        /// new drag on every event lagged behind fast drags, and the controls
+        /// stay shown until the button is released so the panel never resizes
+        /// under the pointer.
         private func updateDragMonitor() {
             if compact, dragMonitor == nil {
                 dragMonitor = NSEvent.addLocalMonitorForEvents(
@@ -852,29 +858,22 @@ struct WindowLevelSetter: NSViewRepresentable {
                     switch event.type {
                     case .leftMouseDown:
                         mouseDownLocation = event.locationInWindow
-                        dragStart = nil
                         return event
                     case .leftMouseDragged:
-                        if dragStart == nil {
-                            // Small pointer jitter during a click must not start
-                            // a drag, or the click never reaches the panel's buttons.
-                            if let start = mouseDownLocation {
-                                let distance = hypot(event.locationInWindow.x - start.x,
-                                                     event.locationInWindow.y - start.y)
-                                guard distance >= 3 else { return event }
-                            }
-                            dragStart = (NSEvent.mouseLocation, window.frame.origin)
+                        guard !isDragging else { return nil }
+                        // Small pointer jitter during a click must not start
+                        // a drag, or the click never reaches the panel's buttons.
+                        if let start = mouseDownLocation {
+                            let distance = hypot(event.locationInWindow.x - start.x,
+                                                 event.locationInWindow.y - start.y)
+                            guard distance >= 3 else { return event }
                         }
-                        guard let start = dragStart else { return event }
-                        let pointer = NSEvent.mouseLocation
-                        window.setFrameOrigin(NSPoint(x: start.origin.x + pointer.x - start.pointer.x,
-                                                      y: start.origin.y + pointer.y - start.pointer.y))
+                        beginDrag(of: window, with: event)
                         return nil
                     default:
                         // A drag's mouse-up must not click the button it began on.
-                        guard dragStart != nil else { return event }
-                        dragStart = nil
-                        onPointerInsideChange(window.frame.contains(NSEvent.mouseLocation))
+                        guard isDragging else { return event }
+                        endDrag()
                         return nil
                     }
                 }
@@ -882,6 +881,28 @@ struct WindowLevelSetter: NSViewRepresentable {
                 NSEvent.removeMonitor(monitor)
                 dragMonitor = nil
             }
+        }
+
+        private func beginDrag(of window: NSWindow, with event: NSEvent) {
+            isDragging = true
+            window.performDrag(with: event)
+            // The window server keeps the drag's mouse-up, so watch the button.
+            dragEndTimer?.invalidate()
+            let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+                guard NSEvent.pressedMouseButtons & 1 == 0 else { return }
+                MainActor.assumeIsolated { self?.endDrag() }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            dragEndTimer = timer
+        }
+
+        private func endDrag() {
+            guard isDragging else { return }
+            isDragging = false
+            dragEndTimer?.invalidate()
+            dragEndTimer = nil
+            mouseDownLocation = nil
+            onPointerInsideChange(window?.frame.contains(NSEvent.mouseLocation) ?? false)
         }
 
         /// The full-size SwiftUI content can end up ordered above the title
