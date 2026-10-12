@@ -458,10 +458,14 @@
 	<string>Guardada</string>
 	<key>Settings…</key>
 	<string>Ajustes…</string>
+	<key>Show all limits in the menu bar</key>
+	<string>Mostrar todos los límites en la barra de menús</string>
 	<key>Show in menu bar</key>
 	<string>Mostrar en la barra de menús</string>
 	<key>Show on All Desktops</key>
 	<string>Mostrar en todos los escritorios</string>
+	<key>Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits.</key>
+	<string>Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex.</string>
 	<key>Shows your 5-hour and token quotas.</key>
 	<string>Muestra tus cuotas de 5 horas y de tokens.</string>
 	<key>Spending capped — Allowance Bar can read usage within this limit.</key>

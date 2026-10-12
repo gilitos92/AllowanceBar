@@ -145,6 +145,61 @@ final class DisplaySettingsTests: XCTestCase {
         XCTAssertEqual(usage.menuSummary(direction: .remaining), "16%")
     }
 
+    func testMenuSummaryAllWindowsListsEveryWindowInOrder() {
+        let usage = ProviderUsage(
+            planName: nil,
+            windows: [
+                UsageWindow(label: "5h limit", usedPercent: 8, resetsAt: nil),
+                UsageWindow(label: "Weekly limit", usedPercent: 40, resetsAt: nil),
+                UsageWindow(label: "Weekly (Opus)", usedPercent: 27, resetsAt: nil),
+            ],
+            asOf: nil
+        )
+        XCTAssertEqual(usage.menuSummary(direction: .used), "40%")
+        XCTAssertEqual(usage.menuSummary(direction: .used, allWindows: true), "8% (40%, 27%)")
+        XCTAssertEqual(usage.menuSummary(direction: .remaining, allWindows: true), "92% (60%, 73%)")
+    }
+
+    func testMenuSummaryAllWindowsSingleWindowHasNoParentheses() {
+        let usage = ProviderUsage(
+            planName: nil,
+            windows: [UsageWindow(label: "Key limit", usedPercent: 12, resetsAt: nil)],
+            asOf: nil
+        )
+        XCTAssertEqual(usage.menuSummary(direction: .used, allWindows: true), "12%")
+    }
+
+    func testAccessibilitySummaryAllWindowsNamesEachLimit() {
+        let usage = ProviderUsage(
+            planName: nil,
+            windows: [
+                UsageWindow(label: "5h limit", usedPercent: 8, resetsAt: nil),
+                UsageWindow(label: "Weekly limit", usedPercent: 40, resetsAt: nil),
+            ],
+            asOf: nil
+        )
+        let segment = MenuBarAccessibilitySummary.providerSegment(
+            displayName: "Codex",
+            state: .ready(usage),
+            countDirection: .used,
+            balanceThreshold: 5,
+            allWindows: true
+        )
+        XCTAssertEqual(segment, "Codex: 5h limit, 8% used; Weekly limit, 40% used")
+    }
+
+    @MainActor
+    func testMenuBarShowsAllLimitsDefaultsOffAndPersists() {
+        let suite = "DisplaySettingsTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let settings = SettingsStore(defaults: defaults)
+        XCTAssertFalse(settings.menuBarShowsAllLimits)
+        settings.menuBarShowsAllLimits = true
+        XCTAssertTrue(SettingsStore(defaults: defaults).menuBarShowsAllLimits)
+    }
+
     func testMenuSummaryBalanceProvider() {
         let usage = ProviderUsage(
             planName: nil,

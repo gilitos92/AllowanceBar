@@ -198,7 +198,15 @@ struct ProviderUsage: Equatable {
     }
 
     /// Menu bar summary: percent when windows exist, balance otherwise.
-    func menuSummary(direction: CountDirection) -> String? {
+    /// With `allWindows`, every window shows in provider order: the first one
+    /// plain and the rest in parentheses, e.g. "8% (35%)".
+    func menuSummary(direction: CountDirection, allWindows: Bool = false) -> String? {
+        if allWindows, let first = windows.first, windows.count > 1 {
+            let rest = windows.dropFirst()
+                .map { direction.percentLabel($0.usedPercent, menuBar: true) }
+                .joined(separator: ", ")
+            return "\(direction.percentLabel(first.usedPercent, menuBar: true)) (\(rest))"
+        }
         if let worst = worstWindow {
             return direction.percentLabel(worst.usedPercent, menuBar: true)
         }
