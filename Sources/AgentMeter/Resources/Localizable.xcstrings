@@ -2285,6 +2285,26 @@
         }
       }
     },
+    "Show all limits in the menu bar": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar todos los límites en la barra de menús"
+          }
+        }
+      }
+    },
+    "Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex."
+          }
+        }
+      }
+    },
     "Mode": {
       "localizations": {
         "es": {

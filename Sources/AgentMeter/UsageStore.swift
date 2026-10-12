@@ -256,7 +256,8 @@ final class UsageStore: ObservableObject {
                 )
             },
             countDirection: settings.countDirection,
-            balanceThreshold: settings.balanceNotificationThreshold
+            balanceThreshold: settings.balanceNotificationThreshold,
+            allWindows: settings.menuBarShowsAllLimits
         )
     }
 
@@ -288,17 +289,17 @@ final class UsageStore: ObservableObject {
     }
 
     private func providerEntryText(for provider: any UsageProvider, state: ProviderState) -> String {
-        "\(provider.shortCode) \(providerSummaryText(for: state))"
+        "\(provider.shortCode) \(providerSummaryText(for: state, allWindows: settings.menuBarShowsAllLimits))"
     }
 
-    private func providerSummaryText(for state: ProviderState) -> String {
+    private func providerSummaryText(for state: ProviderState, allWindows: Bool = false) -> String {
         switch state {
         case .loading:
             return "…"
         case .error:
             return "!"
         case .ready(let usage), .stale(let usage, _, _):
-            return usage.menuSummary(direction: settings.countDirection) ?? "?"
+            return usage.menuSummary(direction: settings.countDirection, allWindows: allWindows) ?? "?"
         }
     }
 

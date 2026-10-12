@@ -7,6 +7,14 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-10-11
+
+### Added
+- Settings › Display › "Show all limits in the menu bar": each provider shows
+  every limit in dropdown order, e.g. `Cx 8% (35%)` for the Codex 5-hour and
+  weekly limits, instead of only the most constrained one. VoiceOver names
+  each limit. Off by default.
+
 ## [2.0.6] — 2026-10-11
 
 ### Fixed

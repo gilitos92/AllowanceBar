@@ -799,6 +799,11 @@ private struct DisplaySettingsTab: View {
                     Text(L("Icon only")).tag(MenuBarStyle.icon)
                 }
                 .pickerStyle(.segmented)
+
+                Toggle(L("Show all limits in the menu bar"), isOn: $settings.menuBarShowsAllLimits)
+                    .disabled(settings.menuBarStyle == .icon)
+            } footer: {
+                Text(L("Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits."))
             }
         }
         .formStyle(.grouped)

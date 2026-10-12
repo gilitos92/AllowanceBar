@@ -10,7 +10,8 @@ enum MenuBarAccessibilitySummary {
     nonisolated static func build(
         providers: [ProviderInput],
         countDirection: CountDirection,
-        balanceThreshold: Double
+        balanceThreshold: Double,
+        allWindows: Bool = false
     ) -> String {
         guard !providers.isEmpty else { return L("Allowance Bar") }
 
@@ -19,7 +20,8 @@ enum MenuBarAccessibilitySummary {
                 displayName: $0.displayName,
                 state: $0.state,
                 countDirection: countDirection,
-                balanceThreshold: balanceThreshold
+                balanceThreshold: balanceThreshold,
+                allWindows: allWindows
             )
         }
         return ([L("Allowance Bar")] + segments).joined(separator: ". ")
@@ -29,7 +31,8 @@ enum MenuBarAccessibilitySummary {
         displayName: String,
         state: ProviderState,
         countDirection: CountDirection,
-        balanceThreshold: Double
+        balanceThreshold: Double,
+        allWindows: Bool = false
     ) -> String {
         switch state {
         case .loading:
@@ -40,7 +43,8 @@ enum MenuBarAccessibilitySummary {
             if let value = usageValue(
                 usage: usage,
                 countDirection: countDirection,
-                balanceThreshold: balanceThreshold
+                balanceThreshold: balanceThreshold,
+                allWindows: allWindows
             ) {
                 return appendQualifier(
                     String(format: L("%@: %@"), displayName, value),
@@ -52,7 +56,8 @@ enum MenuBarAccessibilitySummary {
             let value = usageValue(
                 usage: usage,
                 countDirection: countDirection,
-                balanceThreshold: balanceThreshold
+                balanceThreshold: balanceThreshold,
+                allWindows: allWindows
             ) ?? L("No usage data")
             return String(format: L("%@: %@"), displayName, value)
         }
@@ -61,14 +66,16 @@ enum MenuBarAccessibilitySummary {
     nonisolated private static func usageValue(
         usage: ProviderUsage,
         countDirection: CountDirection,
-        balanceThreshold: Double
+        balanceThreshold: Double,
+        allWindows: Bool
     ) -> String? {
+        if allWindows, usage.windows.count > 1 {
+            return usage.windows
+                .map { "\($0.label), \(windowPhrase($0, countDirection: countDirection))" }
+                .joined(separator: "; ")
+        }
         if let worst = usage.worstWindow {
-            var text = countDirection.accessibilityPercentPhrase(worst.usedPercent)
-            if let qualifier = UsageMeterSeverity.forUsedPercent(worst.usedPercent).qualifier {
-                text = appendQualifier(text, qualifier)
-            }
-            return text
+            return windowPhrase(worst, countDirection: countDirection)
         }
         if let balance = usage.balance {
             var text = balance.accessibilityPhrase
@@ -78,6 +85,17 @@ enum MenuBarAccessibilitySummary {
             return text
         }
         return nil
+    }
+
+    nonisolated private static func windowPhrase(
+        _ window: UsageWindow,
+        countDirection: CountDirection
+    ) -> String {
+        var text = countDirection.accessibilityPercentPhrase(window.usedPercent)
+        if let qualifier = UsageMeterSeverity.forUsedPercent(window.usedPercent).qualifier {
+            text = appendQualifier(text, qualifier)
+        }
+        return text
     }
 
     nonisolated static func appendQualifier(_ text: String, _ qualifier: String) -> String {

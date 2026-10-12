@@ -59,6 +59,12 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(menuBarStyle.rawValue, forKey: Keys.menuBarStyle) }
     }
 
+    /// Menu bar shows every limit window per provider, e.g. "Cx 8% (35%)",
+    /// instead of only the most constrained one.
+    @Published var menuBarShowsAllLimits: Bool {
+        didSet { defaults.set(menuBarShowsAllLimits, forKey: Keys.menuBarShowsAllLimits) }
+    }
+
     @Published var usageDetailsAlwaysOnTop: Bool {
         didSet { defaults.set(usageDetailsAlwaysOnTop, forKey: Keys.usageDetailsAlwaysOnTop) }
     }
@@ -134,6 +140,7 @@ final class SettingsStore: ObservableObject {
         static let resetTimeStyle = "resetTimeStyle"
         static let balanceNotificationThreshold = "balanceNotificationThreshold"
         static let menuBarStyle = "menuBarStyle"
+        static let menuBarShowsAllLimits = "menuBarShowsAllLimits"
         static let agentAccessEnabled = "agentAccessEnabled"
         static let usageDetailsAlwaysOnTop = "usageDetailsAlwaysOnTop"
         static let usageDetailsOnAllSpaces = "usageDetailsOnAllSpaces"
@@ -173,6 +180,7 @@ final class SettingsStore: ObservableObject {
         } else {
             self.menuBarStyle = .full
         }
+        self.menuBarShowsAllLimits = defaults.bool(forKey: Keys.menuBarShowsAllLimits)
         self.usageDetailsAlwaysOnTop = defaults.bool(forKey: Keys.usageDetailsAlwaysOnTop)
         self.usageDetailsOnAllSpaces = defaults.bool(forKey: Keys.usageDetailsOnAllSpaces)
         self.usageDetailsCompact = defaults.bool(forKey: Keys.usageDetailsCompact)
