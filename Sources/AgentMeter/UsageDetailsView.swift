@@ -11,7 +11,16 @@ struct UsageDetailsView: View {
 
     var body: some View {
         Group {
-            if settings.usageDetailsCompact {
+            if settings.usageDetailsNano {
+                NanoUsageView(
+                    entries: store.nanoEntries,
+                    accessibilityDescription: store.nanoAccessibilityDescription,
+                    settings: settings,
+                    isPointerInside: isPointerInside,
+                    close: { dismissWindow(id: "usage-details") }
+                )
+                .padding(.bottom, -titleBarInset)
+            } else if settings.usageDetailsCompact {
                 CompactUsageView(
                     entries: store.compactEntries,
                     settings: settings,
@@ -31,12 +40,13 @@ struct UsageDetailsView: View {
         .background(MenuMaterialBackground(opacity: settings.usageDetailsBackgroundOpacity).ignoresSafeArea())
         .background(WindowLevelSetter(alwaysOnTop: settings.usageDetailsAlwaysOnTop,
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
-                                      compact: settings.usageDetailsCompact,
+                                      compact: settings.usageDetailsChromeless,
+                                      anchorsBottomRight: settings.usageDetailsNano,
                                       onPointerInsideChange: { isPointerInside = $0 },
                                       onTitleBarHeightChange: { titleBarInset = $0 }))
-        // The compact panel has no title bar controls; its own hover controls
-        // replace the toolbar.
-        .toolbar(settings.usageDetailsCompact ? .hidden : .visible, for: .windowToolbar)
+        // The compact and nano panels have no title bar controls; their own
+        // hover controls replace the toolbar.
+        .toolbar(settings.usageDetailsChromeless ? .hidden : .visible, for: .windowToolbar)
         .toolbar { windowOptions }
     }
 
@@ -85,11 +95,18 @@ struct UsageDetailsView: View {
                     help: L("Collapse into a small panel with each provider's limits."),
                     large: true
                 ) { settings.usageDetailsCompact = true }
+                CompactControlButton(
+                    title: L("Nano View"),
+                    symbol: "arrow.down.right.and.arrow.up.left",
+                    isOn: false,
+                    help: L("Shrink into a tiny panel with only the menu bar text."),
+                    large: true
+                ) { settings.usageDetailsNano = true }
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .glassEffect(.regular.interactive(), in: Capsule())
-            // One toolbar item hosts all four buttons; without its own label
+            // One toolbar item hosts all five buttons; without its own label
             // the item's first label ("Keep on Top") was read for every button.
             .accessibilityElement(children: .contain)
             .accessibilityLabel(L("Window Options"))
@@ -127,6 +144,14 @@ struct UsageDetailsView: View {
                 offSymbol: "rectangle.compress.vertical",
                 onSymbol: "rectangle.compress.vertical",
                 isOn: $settings.usageDetailsCompact
+            )
+
+            WindowOptionButton(
+                title: L("Nano View"),
+                help: L("Shrink into a tiny panel with only the menu bar text."),
+                offSymbol: "arrow.down.right.and.arrow.up.left",
+                onSymbol: "arrow.down.right.and.arrow.up.left",
+                isOn: $settings.usageDetailsNano
             )
         }
     }
@@ -201,6 +226,81 @@ private struct CompactUsageView: View {
     }
 
     private var controls: some View {
+        PanelControls(settings: settings, isAdjustingOpacity: $isAdjustingOpacity, close: close)
+    }
+}
+
+/// The smallest Usage Details panel: only the menu bar text, e.g.
+/// "Cx 50% · Cl 30%". While the pointer is over it, or always with VoiceOver,
+/// the window controls appear above the text. Dragging anywhere else moves it.
+private struct NanoUsageView: View {
+    let entries: [(text: String, severity: MenuBarSeverity)]
+    let accessibilityDescription: String
+    @ObservedObject var settings: SettingsStore
+    let isPointerInside: Bool
+    let close: () -> Void
+    @State private var isAdjustingOpacity = false
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+
+    private var showsControls: Bool {
+        isPointerInside || isAdjustingOpacity || voiceOverEnabled
+    }
+
+    var body: some View {
+        // The window keeps its bottom and right edges in place (see
+        // `WindowLevelSetter`), so the text stays put and the controls grow
+        // the panel upward.
+        VStack(alignment: .trailing, spacing: 6) {
+            if showsControls {
+                controls
+            }
+            title
+        }
+        // Room around the text to grab the panel and drag it.
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .fixedSize()
+        // The panel has no title bar, so it sits flush with the window edges.
+        .ignoresSafeArea()
+    }
+
+    private var controls: some View {
+        PanelControls(settings: settings, isAdjustingOpacity: $isAdjustingOpacity, close: close)
+            .controlSize(.small)
+    }
+
+    /// Same text and colors as the menu bar title. Severity is never shown by
+    /// color alone, so warning, critical and stale entries also get a symbol.
+    private var title: some View {
+        entries.enumerated().reduce(Text(verbatim: "")) { text, item in
+            let (index, entry) = item
+            let color = Color(nsColor: MenuBarTitleRenderer.nsColor(for: entry.severity))
+            var result = text
+            if index > 0 {
+                result = result + Text(verbatim: " · ").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+            }
+            result = result + Text(verbatim: entry.text).foregroundStyle(color)
+            if let symbol = entry.severity.symbolName {
+                result = result + Text(verbatim: " ") + Text(Image(systemName: symbol)).foregroundStyle(color)
+            }
+            return result
+        }
+        .font(.system(size: 12).monospacedDigit())
+        .lineLimit(1)
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+}
+
+/// Hover controls shared by the compact and nano panels.
+private struct PanelControls: View {
+    @ObservedObject var settings: SettingsStore
+    @Binding var isAdjustingOpacity: Bool
+    let close: () -> Void
+    @Environment(\.controlSize) private var controlSize
+
+    var body: some View {
         HStack(spacing: 2) {
             CompactControlButton(title: L("Close"), symbol: "xmark", isOn: false, action: close)
             CompactControlButton(
@@ -220,13 +320,28 @@ private struct CompactUsageView: View {
                 compact: true,
                 isPresented: $isAdjustingOpacity
             )
+            if !settings.usageDetailsNano {
+                CompactControlButton(
+                    title: L("Nano View"),
+                    symbol: "arrow.down.right.and.arrow.up.left",
+                    isOn: false
+                ) { settings.usageDetailsNano = true }
+            }
             CompactControlButton(
                 title: L("Expand"),
                 symbol: "rectangle.expand.vertical",
                 isOn: false
-            ) { settings.usageDetailsCompact = false }
+            ) {
+                // The nano panel expands one step, to the compact panel.
+                if settings.usageDetailsNano {
+                    settings.usageDetailsCompact = true
+                    settings.usageDetailsNano = false
+                } else {
+                    settings.usageDetailsCompact = false
+                }
+            }
         }
-        .padding(3)
+        .padding(controlSize == .small ? 2 : 3)
         .background(.regularMaterial, in: Capsule())
     }
 }
@@ -241,12 +356,16 @@ private struct CompactControlButton: View {
     var large = false
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
+    /// `.small` in the nano panel.
+    @Environment(\.controlSize) private var controlSize
+
+    private var small: Bool { !large && controlSize == .small }
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: large ? 15 : 12, weight: .semibold))
-                .frame(width: large ? 30 : 20, height: large ? 28 : 20)
+                .font(.system(size: large ? 15 : small ? 10 : 12, weight: .semibold))
+                .frame(width: large ? 30 : small ? 17 : 20, height: large ? 28 : small ? 17 : 20)
                 .contentShape(Rectangle())
                 .foregroundStyle(isOn && isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
         }
@@ -288,7 +407,7 @@ private struct CompactProviderRow: View {
             Text(entry.summary)
                 .font(.callout.monospacedDigit().weight(.semibold))
                 .foregroundStyle(color)
-            if let symbol = Self.symbolName(for: entry.severity) {
+            if let symbol = entry.severity.symbolName {
                 Image(systemName: symbol).font(.subheadline.weight(.medium)).foregroundStyle(color)
             }
         }
@@ -297,8 +416,11 @@ private struct CompactProviderRow: View {
         .accessibilityLabel(entry.accessibilityLabel)
     }
 
-    private static func symbolName(for severity: MenuBarSeverity) -> String? {
-        switch severity {
+}
+
+private extension MenuBarSeverity {
+    var symbolName: String? {
+        switch self {
         case .normal: nil
         case .warning: UsageMeterSeverity.warning.symbolName
         case .critical: UsageMeterSeverity.critical.symbolName
@@ -517,6 +639,9 @@ struct WindowLevelSetter: NSViewRepresentable {
     let alwaysOnTop: Bool
     let onAllSpaces: Bool
     var compact = false
+    /// Keeps the window's bottom and right edges in place when its size
+    /// changes, so the nano panel grows upward and to the left.
+    var anchorsBottomRight = false
     /// Reports whether the pointer is anywhere over the window. SwiftUI's
     /// `onHover` lost the pointer over the compact panel's top strip, which
     /// hid its controls as soon as the pointer reached them.
@@ -538,6 +663,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         nsView.alwaysOnTop = alwaysOnTop
         nsView.onAllSpaces = onAllSpaces
         nsView.compact = compact
+        nsView.anchorsBottomRight = anchorsBottomRight
     }
 
     final class ProbeView: NSView {
@@ -554,9 +680,13 @@ struct WindowLevelSetter: NSViewRepresentable {
         var compact = false {
             didSet { applyLevel() }
         }
+        var anchorsBottomRight = false
+        private var lastFrame: NSRect?
         private var fullSizeContentBeforeCompact: Bool?
         private var dragMonitor: Any?
         private var mouseDownLocation: NSPoint?
+        /// Pointer and window origin, in screen coordinates, when a drag began.
+        private var dragStart: (pointer: NSPoint, origin: NSPoint)?
         private var pointerTrackingArea: NSTrackingArea?
         private weak var pointerTrackingView: NSView?
         var onPointerInsideChange: (Bool) -> Void = { _ in }
@@ -588,6 +718,14 @@ struct WindowLevelSetter: NSViewRepresentable {
             chromeObservers.forEach(NotificationCenter.default.removeObserver)
             chromeObservers = []
             guard let window else { return }
+            lastFrame = window.frame
+            for name in [NSWindow.didResizeNotification, NSWindow.didMoveNotification] {
+                chromeObservers.append(NotificationCenter.default.addObserver(
+                    forName: name, object: window, queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.keepAnchorEdgesIfNeeded() }
+                })
+            }
             for name in [NSWindow.didUpdateNotification, NSWindow.didResizeNotification] {
                 chromeObservers.append(NotificationCenter.default.addObserver(
                     forName: name, object: window, queue: .main
@@ -598,6 +736,22 @@ struct WindowLevelSetter: NSViewRepresentable {
                     }
                 })
             }
+        }
+
+        /// Content-sized windows resize from their top-left corner; move the
+        /// window so its bottom-right corner stays put instead, within the screen.
+        private func keepAnchorEdgesIfNeeded() {
+            guard let window else { return }
+            let frame = window.frame
+            defer { lastFrame = window.frame }
+            guard anchorsBottomRight, compact, let old = lastFrame, frame.size != old.size else { return }
+            var origin = NSPoint(x: old.maxX - frame.width, y: old.minY)
+            if let screen = window.screen?.visibleFrame {
+                origin.x = min(max(origin.x, screen.minX), screen.maxX - frame.width)
+                origin.y = min(max(origin.y, screen.minY), screen.maxY - frame.height)
+            }
+            guard origin != frame.origin else { return }
+            window.setFrameOrigin(origin)
         }
 
         private func restoreCompactChromeIfNeeded() {
@@ -654,6 +808,9 @@ struct WindowLevelSetter: NSViewRepresentable {
         }
 
         override func mouseExited(with event: NSEvent) {
+            // A fast drag can outrun the window for a moment; hiding the
+            // controls then would resize the panel mid-drag.
+            guard dragStart == nil else { return }
             onPointerInsideChange(false)
         }
 
@@ -682,24 +839,44 @@ struct WindowLevelSetter: NSViewRepresentable {
         /// works over the reserved title bar strip, and an inactive window's
         /// first click never reaches SwiftUI gestures. While compact, any drag
         /// inside the window moves it, even when another app is active.
+        /// The window follows the pointer directly rather than through
+        /// `performDrag`, which lagged behind fast drags: the pointer left the
+        /// window, the nano panel hid its controls and resized mid-drag, and
+        /// the window jumped away from the pointer.
         private func updateDragMonitor() {
             if compact, dragMonitor == nil {
                 dragMonitor = NSEvent.addLocalMonitorForEvents(
-                    matching: [.leftMouseDown, .leftMouseDragged]
+                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
                 ) { [weak self] event in
                     guard let self, let window, event.window === window else { return event }
-                    if event.type == .leftMouseDown {
+                    switch event.type {
+                    case .leftMouseDown:
                         mouseDownLocation = event.locationInWindow
+                        dragStart = nil
                         return event
+                    case .leftMouseDragged:
+                        if dragStart == nil {
+                            // Small pointer jitter during a click must not start
+                            // a drag, or the click never reaches the panel's buttons.
+                            if let start = mouseDownLocation {
+                                let distance = hypot(event.locationInWindow.x - start.x,
+                                                     event.locationInWindow.y - start.y)
+                                guard distance >= 3 else { return event }
+                            }
+                            dragStart = (NSEvent.mouseLocation, window.frame.origin)
+                        }
+                        guard let start = dragStart else { return event }
+                        let pointer = NSEvent.mouseLocation
+                        window.setFrameOrigin(NSPoint(x: start.origin.x + pointer.x - start.pointer.x,
+                                                      y: start.origin.y + pointer.y - start.pointer.y))
+                        return nil
+                    default:
+                        // A drag's mouse-up must not click the button it began on.
+                        guard dragStart != nil else { return event }
+                        dragStart = nil
+                        onPointerInsideChange(window.frame.contains(NSEvent.mouseLocation))
+                        return nil
                     }
-                    // Small pointer jitter during a click must not start a drag,
-                    // or the click never reaches the panel's buttons.
-                    if let start = mouseDownLocation {
-                        let distance = hypot(event.locationInWindow.x - start.x, event.locationInWindow.y - start.y)
-                        guard distance >= 3 else { return event }
-                    }
-                    window.performDrag(with: event)
-                    return nil
                 }
             } else if !compact, let monitor = dragMonitor {
                 NSEvent.removeMonitor(monitor)

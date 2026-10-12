@@ -29,6 +29,46 @@ final class CompactUsageTests: XCTestCase {
     }
 
     @MainActor
+    func testNanoEntriesMirrorMenuBarAndListEveryProviderForIconStyle() async throws {
+        let suite = "CompactUsageTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        settings.menuBarStyle = .compact
+        let store = UsageStore(settings: settings, providers: [
+            CompactProvider(id: "compact-a", usedPercent: 20),
+            CompactProvider(id: "compact-b", usedPercent: 70),
+        ])
+
+        let deadline = Date().addingTimeInterval(3)
+        while store.compactEntries.contains(where: { $0.summary == "…" }) {
+            guard Date() < deadline else { return XCTFail("providers did not finish loading") }
+            try await Task.sleep(nanoseconds: 1_000_000)
+        }
+
+        XCTAssertEqual(store.nanoEntries.map(\.text), store.menuBarEntries.map(\.text))
+        XCTAssertEqual(store.nanoEntries.count, 1)
+        settings.menuBarStyle = .icon
+        XCTAssertTrue(store.menuBarEntries.isEmpty)
+        XCTAssertEqual(store.nanoEntries.map(\.severity), [.normal, .warning])
+    }
+
+    @MainActor
+    func testNanoSettingDefaultsOffAndPersists() {
+        let suite = "CompactUsageTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let settings = SettingsStore(defaults: defaults)
+        XCTAssertFalse(settings.usageDetailsNano)
+        XCTAssertFalse(settings.usageDetailsChromeless)
+        settings.usageDetailsNano = true
+        let reloaded = SettingsStore(defaults: defaults)
+        XCTAssertTrue(reloaded.usageDetailsNano)
+        XCTAssertTrue(reloaded.usageDetailsChromeless)
+    }
+
+    @MainActor
     func testCompactSettingDefaultsOffAndPersists() {
         let suite = "CompactUsageTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

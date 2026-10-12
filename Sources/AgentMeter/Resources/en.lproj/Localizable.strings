@@ -218,6 +218,8 @@
 	<string>Menu bar monitor for AI coding usage limits.</string>
 	<key>Month to date (UTC)</key>
 	<string>Month to date (UTC)</string>
+	<key>Nano View</key>
+	<string>Nano View</string>
 	<key>Not confirmed yet — check the platform that bills you.</key>
 	<string>Not confirmed yet — check the platform that bills you.</string>
 	<key>Not signed in</key>
@@ -278,6 +280,8 @@
 	<string>Show on All Desktops</string>
 	<key>Shows your 5-hour and token quotas.</key>
 	<string>Shows your 5-hour and token quotas.</string>
+	<key>Shrink into a tiny panel with only the menu bar text.</key>
+	<string>Shrink into a tiny panel with only the menu bar text.</string>
 	<key>Spending capped — Allowance Bar can read usage within this limit.</key>
 	<string>Spending capped — Allowance Bar can read usage within this limit.</string>
 	<key>Standard API key</key>

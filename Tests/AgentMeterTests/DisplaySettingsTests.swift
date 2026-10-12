@@ -200,6 +200,21 @@ final class DisplaySettingsTests: XCTestCase {
         XCTAssertTrue(SettingsStore(defaults: defaults).menuBarShowsAllLimits)
     }
 
+    @MainActor
+    func testNanoShowsAllLimitsFollowsMenuBarUntilSetAndPersists() {
+        let suite = "DisplaySettingsTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        defaults.set(true, forKey: "menuBarShowsAllLimits")
+        let settings = SettingsStore(defaults: defaults)
+        XCTAssertTrue(settings.nanoShowsAllLimits)
+        settings.nanoShowsAllLimits = false
+        let reloaded = SettingsStore(defaults: defaults)
+        XCTAssertFalse(reloaded.nanoShowsAllLimits)
+        XCTAssertTrue(reloaded.menuBarShowsAllLimits)
+    }
+
     func testMenuSummaryBalanceProvider() {
         let usage = ProviderUsage(
             planName: nil,

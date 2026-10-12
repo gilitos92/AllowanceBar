@@ -802,6 +802,8 @@ private struct DisplaySettingsTab: View {
 
                 Toggle(L("Show all limits in the menu bar"), isOn: $settings.menuBarShowsAllLimits)
                     .disabled(settings.menuBarStyle == .icon)
+
+                Toggle(L("Show all limits in the nano window"), isOn: $settings.nanoShowsAllLimits)
             } footer: {
                 Text(L("Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits."))
             }

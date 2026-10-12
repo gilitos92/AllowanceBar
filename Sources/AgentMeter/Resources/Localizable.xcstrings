@@ -2285,6 +2285,16 @@
         }
       }
     },
+    "Show all limits in the nano window": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar todos los límites en la ventana nano"
+          }
+        }
+      }
+    },
     "Show all limits in the menu bar": {
       "localizations": {
         "es": {
@@ -3375,6 +3385,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Contrae la ventana en un panel pequeño con los límites de cada proveedor."
+          }
+        }
+      }
+    },
+    "Nano View": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nano View"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista nano"
+          }
+        }
+      }
+    },
+    "Shrink into a tiny panel with only the menu bar text.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shrink into a tiny panel with only the menu bar text."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reduce la ventana a un panel diminuto con solo el texto de la barra de menús."
           }
         }
       }
