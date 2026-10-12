@@ -265,8 +265,9 @@ private struct NanoUsageView: View {
                 .animation(.easeOut(duration: 0.15), value: showsControls)
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
+        // Room around the text to grab the panel and drag it.
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .fixedSize()
         // The panel has no title bar, so it sits flush with the window edges.
         .ignoresSafeArea()
