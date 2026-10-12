@@ -65,6 +65,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(menuBarShowsAllLimits, forKey: Keys.menuBarShowsAllLimits) }
     }
 
+    /// Same as `menuBarShowsAllLimits`, for the nano Usage Details panel.
+    @Published var nanoShowsAllLimits: Bool {
+        didSet { defaults.set(nanoShowsAllLimits, forKey: Keys.nanoShowsAllLimits) }
+    }
+
     @Published var usageDetailsAlwaysOnTop: Bool {
         didSet { defaults.set(usageDetailsAlwaysOnTop, forKey: Keys.usageDetailsAlwaysOnTop) }
     }
@@ -152,6 +157,7 @@ final class SettingsStore: ObservableObject {
         static let balanceNotificationThreshold = "balanceNotificationThreshold"
         static let menuBarStyle = "menuBarStyle"
         static let menuBarShowsAllLimits = "menuBarShowsAllLimits"
+        static let nanoShowsAllLimits = "nanoShowsAllLimits"
         static let agentAccessEnabled = "agentAccessEnabled"
         static let usageDetailsAlwaysOnTop = "usageDetailsAlwaysOnTop"
         static let usageDetailsOnAllSpaces = "usageDetailsOnAllSpaces"
@@ -193,6 +199,9 @@ final class SettingsStore: ObservableObject {
             self.menuBarStyle = .full
         }
         self.menuBarShowsAllLimits = defaults.bool(forKey: Keys.menuBarShowsAllLimits)
+        // Until set on its own, follows the menu bar setting it was split from.
+        self.nanoShowsAllLimits = defaults.object(forKey: Keys.nanoShowsAllLimits) as? Bool
+            ?? defaults.bool(forKey: Keys.menuBarShowsAllLimits)
         self.usageDetailsAlwaysOnTop = defaults.bool(forKey: Keys.usageDetailsAlwaysOnTop)
         self.usageDetailsOnAllSpaces = defaults.bool(forKey: Keys.usageDetailsOnAllSpaces)
         self.usageDetailsCompact = defaults.bool(forKey: Keys.usageDetailsCompact)

@@ -2285,6 +2285,16 @@
         }
       }
     },
+    "Show all limits in the nano window": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar todos los límites en la ventana nano"
+          }
+        }
+      }
+    },
     "Show all limits in the menu bar": {
       "localizations": {
         "es": {

@@ -186,30 +186,35 @@ final class UsageStore: ObservableObject {
 
     /// Colored menu bar segments with per-provider severity.
     var menuBarEntries: [(text: String, severity: MenuBarSeverity)] {
+        menuBarEntries(allWindows: settings.menuBarShowsAllLimits)
+    }
+
+    private func menuBarEntries(allWindows: Bool) -> [(text: String, severity: MenuBarSeverity)] {
         let providers = titleProviders
         guard !providers.isEmpty else { return [("Allowance Bar", .normal)] }
 
         switch settings.menuBarStyle {
         case .full:
-            return providers.map { providerMenuBarEntry(for: $0) }
+            return providers.map { providerMenuBarEntry(for: $0, allWindows: allWindows) }
         case .compact:
-            if let entry = mostConstrainedMenuBarEntry(from: providers) {
+            if let entry = mostConstrainedMenuBarEntry(from: providers, allWindows: allWindows) {
                 return [entry]
             }
-            return providers.map { providerMenuBarEntry(for: $0) }
+            return providers.map { providerMenuBarEntry(for: $0, allWindows: allWindows) }
         case .icon:
             return []
         }
     }
 
-    /// The menu bar text for the nano Usage Details panel. With the icon-only
-    /// menu bar style it falls back to every menu bar provider, since a lone
-    /// icon would tell nothing.
+    /// The menu bar text for the nano Usage Details panel, with its own
+    /// all-limits setting. With the icon-only menu bar style it falls back to
+    /// every menu bar provider, since a lone icon would tell nothing.
     var nanoEntries: [(text: String, severity: MenuBarSeverity)] {
-        guard settings.menuBarStyle == .icon else { return menuBarEntries }
+        let allWindows = settings.nanoShowsAllLimits
+        guard settings.menuBarStyle == .icon else { return menuBarEntries(allWindows: allWindows) }
         let providers = titleProviders
         guard !providers.isEmpty else { return [("Allowance Bar", .normal)] }
-        return providers.map { providerMenuBarEntry(for: $0) }
+        return providers.map { providerMenuBarEntry(for: $0, allWindows: allWindows) }
     }
 
     /// One menu-bar-style entry per visible provider for the compact Usage
@@ -258,6 +263,15 @@ final class UsageStore: ObservableObject {
 
     /// Spoken summary for the raster menu bar title (VoiceOver).
     var menuBarAccessibilityDescription: String {
+        accessibilityDescription(allWindows: settings.menuBarShowsAllLimits)
+    }
+
+    /// Spoken summary for the nano panel, matching `nanoEntries`.
+    var nanoAccessibilityDescription: String {
+        accessibilityDescription(allWindows: settings.nanoShowsAllLimits)
+    }
+
+    private func accessibilityDescription(allWindows: Bool) -> String {
         MenuBarAccessibilitySummary.build(
             providers: menuBarSummaryProviders.map {
                 MenuBarAccessibilitySummary.ProviderInput(
@@ -267,7 +281,7 @@ final class UsageStore: ObservableObject {
             },
             countDirection: settings.countDirection,
             balanceThreshold: settings.balanceNotificationThreshold,
-            allWindows: settings.menuBarShowsAllLimits
+            allWindows: allWindows
         )
     }
 
@@ -287,19 +301,18 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    private func providerMenuBarEntry(for provider: any UsageProvider) -> (text: String, severity: MenuBarSeverity) {
+    private func providerMenuBarEntry(
+        for provider: any UsageProvider,
+        allWindows: Bool
+    ) -> (text: String, severity: MenuBarSeverity) {
         let providerState = state(for: provider.id)
         return (
-            providerEntryText(for: provider, state: providerState),
+            "\(provider.shortCode) \(providerSummaryText(for: providerState, allWindows: allWindows))",
             MenuBarTitleRenderer.severity(
                 for: providerState,
                 balanceThreshold: settings.balanceNotificationThreshold
             )
         )
-    }
-
-    private func providerEntryText(for provider: any UsageProvider, state: ProviderState) -> String {
-        "\(provider.shortCode) \(providerSummaryText(for: state, allWindows: settings.menuBarShowsAllLimits))"
     }
 
     private func providerSummaryText(for state: ProviderState, allWindows: Bool = false) -> String {
@@ -340,10 +353,11 @@ final class UsageStore: ObservableObject {
     }
 
     private func mostConstrainedMenuBarEntry(
-        from providers: [any UsageProvider]
+        from providers: [any UsageProvider],
+        allWindows: Bool
     ) -> (text: String, severity: MenuBarSeverity)? {
         guard let provider = mostConstrainedMenuBarProvider(from: providers) else { return nil }
-        return providerMenuBarEntry(for: provider)
+        return providerMenuBarEntry(for: provider, allWindows: allWindows)
     }
 
     nonisolated private static func worstSeverity(_ severities: [MenuBarSeverity]) -> MenuBarSeverity {

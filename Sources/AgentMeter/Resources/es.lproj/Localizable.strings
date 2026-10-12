@@ -462,6 +462,8 @@
 	<string>Ajustes…</string>
 	<key>Show all limits in the menu bar</key>
 	<string>Mostrar todos los límites en la barra de menús</string>
+	<key>Show all limits in the nano window</key>
+	<string>Mostrar todos los límites en la ventana nano</string>
 	<key>Show in menu bar</key>
 	<string>Mostrar en la barra de menús</string>
 	<key>Show on All Desktops</key>

@@ -14,7 +14,7 @@ struct UsageDetailsView: View {
             if settings.usageDetailsNano {
                 NanoUsageView(
                     entries: store.nanoEntries,
-                    accessibilityDescription: store.menuBarAccessibilityDescription,
+                    accessibilityDescription: store.nanoAccessibilityDescription,
                     settings: settings,
                     isPointerInside: isPointerInside,
                     close: { dismissWindow(id: "usage-details") }
