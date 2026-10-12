@@ -42,7 +42,10 @@ security import GGV.p12 -k ~/Library/Keychains/login.keychain-db -T /usr/bin/cod
 Why self-signed instead of ad-hoc: macOS ties Keychain "Always Allow"
 grants to the code signature's designated requirement. Ad-hoc signatures
 change with every build, so users would be re-prompted after each update; a
-stable certificate keeps the grants. The certificate shows only "GGV".
+stable certificate keeps the trusted-app identity. This does not prevent
+Claude Code from resetting the item's separate partition grant during token
+renewal, so Claude credential reads use Apple's trusted `security` tool.
+The certificate shows only "GGV".
 
 Never re-create the GGV certificate or the Sparkle key casually: a new
 certificate re-triggers Keychain prompts for every user, and a new Sparkle
