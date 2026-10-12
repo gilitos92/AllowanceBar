@@ -41,6 +41,7 @@ struct UsageDetailsView: View {
         .background(WindowLevelSetter(alwaysOnTop: settings.usageDetailsAlwaysOnTop,
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
+                                      anchorsBottomRight: settings.usageDetailsNano,
                                       onPointerInsideChange: { isPointerInside = $0 },
                                       onTitleBarHeightChange: { titleBarInset = $0 }))
         // The compact and nano panels have no title bar controls; their own
@@ -230,8 +231,8 @@ private struct CompactUsageView: View {
 }
 
 /// The smallest Usage Details panel: only the menu bar text, e.g.
-/// "Cx 50% · Cl 30%". While the pointer is over it, the window controls
-/// replace the text; with VoiceOver they sit beside it.
+/// "Cx 50% · Cl 30%". While the pointer is over it, or always with VoiceOver,
+/// the window controls appear above the text. Dragging anywhere else moves it.
 private struct NanoUsageView: View {
     let entries: [(text: String, severity: MenuBarSeverity)]
     let accessibilityDescription: String
@@ -242,28 +243,18 @@ private struct NanoUsageView: View {
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
 
     private var showsControls: Bool {
-        isPointerInside || isAdjustingOpacity
+        isPointerInside || isAdjustingOpacity || voiceOverEnabled
     }
 
     var body: some View {
-        Group {
-            if voiceOverEnabled {
-                HStack(spacing: 6) {
-                    title
-                    controls
-                }
-            } else {
-                // Both layers keep their size so the window does not resize
-                // when the controls appear.
-                ZStack {
-                    title
-                        .opacity(showsControls ? 0 : 1)
-                    controls
-                        .opacity(showsControls ? 1 : 0)
-                        .allowsHitTesting(showsControls)
-                }
-                .animation(.easeOut(duration: 0.15), value: showsControls)
+        // The window keeps its bottom and right edges in place (see
+        // `WindowLevelSetter`), so the text stays put and the controls grow
+        // the panel upward.
+        VStack(alignment: .trailing, spacing: 6) {
+            if showsControls {
+                controls
             }
+            title
         }
         // Room around the text to grab the panel and drag it.
         .padding(.horizontal, 10)
@@ -648,6 +639,9 @@ struct WindowLevelSetter: NSViewRepresentable {
     let alwaysOnTop: Bool
     let onAllSpaces: Bool
     var compact = false
+    /// Keeps the window's bottom and right edges in place when its size
+    /// changes, so the nano panel grows upward and to the left.
+    var anchorsBottomRight = false
     /// Reports whether the pointer is anywhere over the window. SwiftUI's
     /// `onHover` lost the pointer over the compact panel's top strip, which
     /// hid its controls as soon as the pointer reached them.
@@ -669,6 +663,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         nsView.alwaysOnTop = alwaysOnTop
         nsView.onAllSpaces = onAllSpaces
         nsView.compact = compact
+        nsView.anchorsBottomRight = anchorsBottomRight
     }
 
     final class ProbeView: NSView {
@@ -685,6 +680,8 @@ struct WindowLevelSetter: NSViewRepresentable {
         var compact = false {
             didSet { applyLevel() }
         }
+        var anchorsBottomRight = false
+        private var lastFrame: NSRect?
         private var fullSizeContentBeforeCompact: Bool?
         private var dragMonitor: Any?
         private var mouseDownLocation: NSPoint?
@@ -719,6 +716,14 @@ struct WindowLevelSetter: NSViewRepresentable {
             chromeObservers.forEach(NotificationCenter.default.removeObserver)
             chromeObservers = []
             guard let window else { return }
+            lastFrame = window.frame
+            for name in [NSWindow.didResizeNotification, NSWindow.didMoveNotification] {
+                chromeObservers.append(NotificationCenter.default.addObserver(
+                    forName: name, object: window, queue: .main
+                ) { [weak self] _ in
+                    MainActor.assumeIsolated { self?.keepAnchorEdgesIfNeeded() }
+                })
+            }
             for name in [NSWindow.didUpdateNotification, NSWindow.didResizeNotification] {
                 chromeObservers.append(NotificationCenter.default.addObserver(
                     forName: name, object: window, queue: .main
@@ -729,6 +734,22 @@ struct WindowLevelSetter: NSViewRepresentable {
                     }
                 })
             }
+        }
+
+        /// Content-sized windows resize from their top-left corner; move the
+        /// window so its bottom-right corner stays put instead, within the screen.
+        private func keepAnchorEdgesIfNeeded() {
+            guard let window else { return }
+            let frame = window.frame
+            defer { lastFrame = window.frame }
+            guard anchorsBottomRight, compact, let old = lastFrame, frame.size != old.size else { return }
+            var origin = NSPoint(x: old.maxX - frame.width, y: old.minY)
+            if let screen = window.screen?.visibleFrame {
+                origin.x = min(max(origin.x, screen.minX), screen.maxX - frame.width)
+                origin.y = min(max(origin.y, screen.minY), screen.maxY - frame.height)
+            }
+            guard origin != frame.origin else { return }
+            window.setFrameOrigin(origin)
         }
 
         private func restoreCompactChromeIfNeeded() {
