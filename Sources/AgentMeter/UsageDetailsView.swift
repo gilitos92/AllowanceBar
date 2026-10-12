@@ -685,6 +685,8 @@ struct WindowLevelSetter: NSViewRepresentable {
         private var fullSizeContentBeforeCompact: Bool?
         private var dragMonitor: Any?
         private var mouseDownLocation: NSPoint?
+        /// Pointer and window origin, in screen coordinates, when a drag began.
+        private var dragStart: (pointer: NSPoint, origin: NSPoint)?
         private var pointerTrackingArea: NSTrackingArea?
         private weak var pointerTrackingView: NSView?
         var onPointerInsideChange: (Bool) -> Void = { _ in }
@@ -806,6 +808,9 @@ struct WindowLevelSetter: NSViewRepresentable {
         }
 
         override func mouseExited(with event: NSEvent) {
+            // A fast drag can outrun the window for a moment; hiding the
+            // controls then would resize the panel mid-drag.
+            guard dragStart == nil else { return }
             onPointerInsideChange(false)
         }
 
@@ -834,24 +839,44 @@ struct WindowLevelSetter: NSViewRepresentable {
         /// works over the reserved title bar strip, and an inactive window's
         /// first click never reaches SwiftUI gestures. While compact, any drag
         /// inside the window moves it, even when another app is active.
+        /// The window follows the pointer directly rather than through
+        /// `performDrag`, which lagged behind fast drags: the pointer left the
+        /// window, the nano panel hid its controls and resized mid-drag, and
+        /// the window jumped away from the pointer.
         private func updateDragMonitor() {
             if compact, dragMonitor == nil {
                 dragMonitor = NSEvent.addLocalMonitorForEvents(
-                    matching: [.leftMouseDown, .leftMouseDragged]
+                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
                 ) { [weak self] event in
                     guard let self, let window, event.window === window else { return event }
-                    if event.type == .leftMouseDown {
+                    switch event.type {
+                    case .leftMouseDown:
                         mouseDownLocation = event.locationInWindow
+                        dragStart = nil
                         return event
+                    case .leftMouseDragged:
+                        if dragStart == nil {
+                            // Small pointer jitter during a click must not start
+                            // a drag, or the click never reaches the panel's buttons.
+                            if let start = mouseDownLocation {
+                                let distance = hypot(event.locationInWindow.x - start.x,
+                                                     event.locationInWindow.y - start.y)
+                                guard distance >= 3 else { return event }
+                            }
+                            dragStart = (NSEvent.mouseLocation, window.frame.origin)
+                        }
+                        guard let start = dragStart else { return event }
+                        let pointer = NSEvent.mouseLocation
+                        window.setFrameOrigin(NSPoint(x: start.origin.x + pointer.x - start.pointer.x,
+                                                      y: start.origin.y + pointer.y - start.pointer.y))
+                        return nil
+                    default:
+                        // A drag's mouse-up must not click the button it began on.
+                        guard dragStart != nil else { return event }
+                        dragStart = nil
+                        onPointerInsideChange(window.frame.contains(NSEvent.mouseLocation))
+                        return nil
                     }
-                    // Small pointer jitter during a click must not start a drag,
-                    // or the click never reaches the panel's buttons.
-                    if let start = mouseDownLocation {
-                        let distance = hypot(event.locationInWindow.x - start.x, event.locationInWindow.y - start.y)
-                        guard distance >= 3 else { return event }
-                    }
-                    window.performDrag(with: event)
-                    return nil
                 }
             } else if !compact, let monitor = dragMonitor {
                 NSEvent.removeMonitor(monitor)
