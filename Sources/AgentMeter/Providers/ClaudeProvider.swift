@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import Security
 
 /// Claude Code usage from Anthropic's OAuth usage endpoint, authenticated with
@@ -14,6 +15,9 @@ struct ClaudeProvider: UsageProvider {
     var credentialsPath = NSHomeDirectory() + "/.claude/.credentials.json"
     var keychainService = "Claude Code-credentials"
     var session: URLSession = HTTP.session
+    var keychainReader: @Sendable (String) async throws -> Data? = {
+        try await ClaudeKeychainReader.read(service: $0)
+    }
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     static let betaHeader = "oauth-2025-04-20"
@@ -29,7 +33,7 @@ struct ClaudeProvider: UsageProvider {
     }
 
     func fetch() async throws -> ProviderUsage {
-        let creds = try loadCredentials()
+        let creds = try await loadCredentials()
         guard !creds.isExpired else { throw ClaudeError.refreshRequired }
         let response = try await Self.fetchUsage(accessToken: creds.accessToken, session: session)
         return Self.usage(from: response, plan: creds.subscriptionType, now: Date())
@@ -60,12 +64,20 @@ struct ClaudeProvider: UsageProvider {
         let claudeAiOauth: OAuth
     }
 
-    func loadCredentials() throws -> Credentials {
+    func loadCredentials() async throws -> Credentials {
         if let data = FileManager.default.contents(atPath: credentialsPath),
            let creds = Self.decodeCredentials(data) {
             return creds
         }
-        if let data = Self.keychainSecret(service: keychainService),
+        let keychainData: Data?
+        do {
+            keychainData = try await keychainReader(keychainService)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw ClaudeError.keychainUnavailable
+        }
+        if let data = keychainData,
            let creds = Self.decodeCredentials(data) {
             return creds
         }
@@ -151,31 +163,23 @@ struct ClaudeProvider: UsageProvider {
     // MARK: - Keychain
 
     static func keychainItemExists(service: String) -> Bool {
+        let context = LAContext()
+        context.interactionNotAllowed = true
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecReturnData as String: false,
             kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecUseAuthenticationContext as String: context,
         ]
         return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
-    }
-
-    static func keychainSecret(service: String) -> Data? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
-        return result as? Data
     }
 }
 
 enum ClaudeError: LocalizedError {
     case notSignedIn
     case refreshRequired
+    case keychainUnavailable
     case rateLimited
     case badResponse
     case httpStatus(Int)
@@ -184,6 +188,7 @@ enum ClaudeError: LocalizedError {
         switch self {
         case .notSignedIn: return L("Not signed in to Claude Code")
         case .refreshRequired: return L("Run Claude Code to renew its credentials, then refresh Allowance Bar")
+        case .keychainUnavailable: return L("Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar")
         case .rateLimited: return L("Anthropic rate-limited the usage request")
         case .badResponse: return L("Unexpected response from Anthropic")
         case .httpStatus(let code): return L("Anthropic returned HTTP \(code))")

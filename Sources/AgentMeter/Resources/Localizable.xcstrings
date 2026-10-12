@@ -231,6 +231,22 @@
         }
       }
     },
+    "Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudieron leer las credenciales de Claude Code del Llavero. Desbloquea tu llavero de inicio de sesión y actualiza Allowance Bar"
+          }
+        }
+      }
+    },
     "Could not save the API key in Keychain. Please try again.": {
       "localizations": {
         "en": {

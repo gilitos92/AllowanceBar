@@ -134,6 +134,8 @@
 	<string>Copy login command</string>
 	<key>Could not connect to Claude API reporting</key>
 	<string>Could not connect to Claude API reporting</string>
+	<key>Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar</key>
+	<string>Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar</string>
 	<key>Could not remove the API key from Keychain. Please try again.</key>
 	<string>Could not remove the API key from Keychain. Please try again.</string>
 	<key>Could not save the API key in Keychain. Please try again.</key>

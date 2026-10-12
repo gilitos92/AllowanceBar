@@ -7,6 +7,16 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.2.3] — 2026-10-12
+
+### Fixed
+- Claude Code credentials are read through Apple's trusted `security` tool,
+  avoiding repeated Allowance Bar Keychain password prompts when Claude
+  renews its token and resets the app's separate permission. Reads have a
+  timeout and can be cancelled; credentials remain in memory and are never
+  renewed or written back by Allowance Bar. A locked or restricted Keychain
+  can still require authorization.
+
 ## [2.2.2] — 2026-10-11
 
 ### Fixed
