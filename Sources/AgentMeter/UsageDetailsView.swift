@@ -269,21 +269,26 @@ private struct NanoUsageView: View {
             .controlSize(.small)
     }
 
-    /// Same text and colors as the menu bar title. Severity is never shown by
-    /// color alone, so warning, critical and stale entries also get a symbol.
+    /// Same text as the menu bar title. Warning and critical entries sit in a
+    /// severity-colored pill; severity is never shown by color alone, so
+    /// warning, critical and stale entries also get a symbol.
     private var title: some View {
-        entries.enumerated().reduce(Text(verbatim: "")) { text, item in
-            let (index, entry) = item
-            let color = Color(nsColor: MenuBarTitleRenderer.nsColor(for: entry.severity))
-            var result = text
-            if index > 0 {
-                result = result + Text(verbatim: " · ").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+        HStack(spacing: 0) {
+            ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
+                if index > 0 {
+                    Text(verbatim: " · ").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                }
+                SeverityValueLabel(
+                    text: entry.text,
+                    symbolName: entry.severity.symbolName,
+                    badge: entry.severity.badgeStyle,
+                    plainColor: Color(nsColor: MenuBarTitleRenderer.nsColor(for: entry.severity)),
+                    font: .system(size: 12).monospacedDigit(),
+                    symbolFont: .system(size: 12)
+                )
+                // Entries never truncate; the panel grows to fit them.
+                .fixedSize()
             }
-            result = result + Text(verbatim: entry.text).foregroundStyle(color)
-            if let symbol = entry.severity.symbolName {
-                result = result + Text(verbatim: " ") + Text(Image(systemName: symbol)).foregroundStyle(color)
-            }
-            return result
         }
         .font(.system(size: 12).monospacedDigit())
         .lineLimit(1)
@@ -402,15 +407,12 @@ private struct CompactProviderRow: View {
     }
 
     private var summary: some View {
-        let color = Color(nsColor: MenuBarTitleRenderer.nsColor(for: entry.severity))
-        return HStack(spacing: 4) {
-            Text(entry.summary)
-                .font(.callout.monospacedDigit().weight(.semibold))
-                .foregroundStyle(color)
-            if let symbol = entry.severity.symbolName {
-                Image(systemName: symbol).font(.subheadline.weight(.medium)).foregroundStyle(color)
-            }
-        }
+        SeverityValueLabel(
+            text: entry.summary,
+            symbolName: entry.severity.symbolName,
+            badge: entry.severity.badgeStyle,
+            plainColor: Color(nsColor: MenuBarTitleRenderer.nsColor(for: entry.severity))
+        )
         .frame(height: 20)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(entry.accessibilityLabel)
@@ -425,6 +427,14 @@ private extension MenuBarSeverity {
         case .warning: UsageMeterSeverity.warning.symbolName
         case .critical: UsageMeterSeverity.critical.symbolName
         case .stale: "clock"
+        }
+    }
+
+    var badgeStyle: SeverityBadgeStyle? {
+        switch self {
+        case .normal, .stale: nil
+        case .warning: UsageMeterSeverity.warning.badgeStyle
+        case .critical: UsageMeterSeverity.critical.badgeStyle
         }
     }
 }
@@ -466,16 +476,14 @@ private struct CompactWindowMeter: View {
             .frame(width: labelWidth, alignment: .leading)
             UsageMeterBar(percent: countDirection.displayPercent(window.usedPercent), severity: severity)
                 .frame(width: Self.barWidth)
-            HStack(spacing: 3) {
-                Text(countDirection.percentLabel(window.usedPercent, menuBar: true))
-                    .font(.callout.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(severity.color)
-                // Severity is never shown by color alone.
-                if let symbol = severity.symbolName {
-                    Image(systemName: symbol).font(.system(size: 11, weight: .semibold)).foregroundStyle(severity.color)
-                }
-            }
-            .frame(width: 60, alignment: .trailing)
+            // Severity is never shown by color alone.
+            SeverityValueLabel(
+                text: countDirection.percentLabel(window.usedPercent, menuBar: true),
+                symbolName: severity.symbolName,
+                badge: severity.badgeStyle,
+                symbolFont: .system(size: 11, weight: .semibold)
+            )
+            .frame(width: 72, alignment: .trailing)
         }
         .frame(height: 20)
         .accessibilityElement(children: .ignore)
@@ -724,7 +732,10 @@ struct WindowLevelSetter: NSViewRepresentable {
                 chromeObservers.append(NotificationCenter.default.addObserver(
                     forName: name, object: window, queue: .main
                 ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.keepAnchorEdgesIfNeeded() }
+                    MainActor.assumeIsolated {
+                        self?.keepAnchorEdgesIfNeeded()
+                        self?.syncPointerInside()
+                    }
                 })
             }
             for name in [NSWindow.didUpdateNotification, NSWindow.didResizeNotification] {
@@ -803,6 +814,16 @@ struct WindowLevelSetter: NSViewRepresentable {
             frameView.addTrackingArea(area)
             pointerTrackingArea = area
             pointerTrackingView = frameView
+            let inside = window.frame.contains(NSEvent.mouseLocation)
+            DispatchQueue.main.async { [weak self] in self?.onPointerInsideChange(inside) }
+        }
+
+        /// Tracking areas only report crossings. When the window shrinks or
+        /// moves away from a resting pointer, e.g. after a click on the
+        /// expanded window's Nano View button, no exit arrives and the panel
+        /// kept sizing itself for hover controls it never drew.
+        private func syncPointerInside() {
+            guard let window, !isDragging else { return }
             let inside = window.frame.contains(NSEvent.mouseLocation)
             DispatchQueue.main.async { [weak self] in self?.onPointerInsideChange(inside) }
         }
