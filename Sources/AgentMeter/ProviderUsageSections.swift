@@ -279,17 +279,12 @@ private struct BalanceRow: View {
             HStack {
                 Text(balance.kind == .remaining ? L("Balance") : L("Usage")).font(.callout.weight(.medium))
                 Spacer()
-                HStack(spacing: 4) {
-                    Text(balance.display)
-                        .font(.callout.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(balanceColor)
-                    if isLowBalance {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.orange)
-                            .accessibilityHidden(true)
-                    }
-                }
+                SeverityValueLabel(
+                    text: balance.display,
+                    symbolName: isLowBalance ? "exclamationmark.triangle.fill" : nil,
+                    badge: isLowBalance ? UsageMeterSeverity.warning.badgeStyle : nil,
+                    plainColor: balance.kind == .spent ? .secondary : .primary
+                )
             }
             if balance.kind == .remaining, let used = balance.used {
                 Text(L("\(balance.currencySymbol)\(BalanceInfo.format(used)) used all-time"))
@@ -300,15 +295,6 @@ private struct BalanceRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(balanceAccessibilityLabel)
         .accessibilityValue(balanceAccessibilityValue)
-    }
-
-    private var balanceColor: Color {
-        switch balance.kind {
-        case .spent:
-            return .secondary
-        case .remaining:
-            return isLowBalance ? .orange : .primary
-        }
     }
 
     private var balanceAccessibilityLabel: String {
@@ -340,17 +326,11 @@ private struct WindowMeter: View {
             HStack {
                 Text(window.label).font(.callout.weight(.medium))
                 Spacer()
-                HStack(spacing: 4) {
-                    Text(settings.countDirection.percentLabel(window.usedPercent))
-                        .font(.callout.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(color)
-                    if let symbol = severity.symbolName {
-                        Image(systemName: symbol)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(color)
-                            .accessibilityHidden(true)
-                    }
-                }
+                SeverityValueLabel(
+                    text: settings.countDirection.percentLabel(window.usedPercent),
+                    symbolName: severity.symbolName,
+                    badge: severity.badgeStyle
+                )
             }
             UsageMeterBar(percent: progressValue, severity: severity)
             if let reset = window.resetDescription(style: settings.resetTimeStyle, now: now) {
@@ -371,10 +351,6 @@ private struct WindowMeter: View {
 
     private var severity: UsageMeterSeverity {
         UsageMeterSeverity.forUsedPercent(window.usedPercent)
-    }
-
-    private var color: Color {
-        severity.color
     }
 
     private var meterAccessibilityLabel: String {
