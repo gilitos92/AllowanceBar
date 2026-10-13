@@ -7,6 +7,22 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-10-13
+
+### Changed
+- Warning and critical values now sit in a yellow or red pill with dark or
+  white text instead of being drawn as yellow or red text, which was hard to
+  read on light backgrounds. This applies to the menu dropdown, the Usage
+  Details window, and the mini and nano panels. Low prepaid balances use the
+  yellow pill too. Bars keep their colors and every pill keeps its warning
+  symbol.
+
+### Fixed
+- The nano panel's entries no longer truncate; the panel widens to fit them.
+- Switching from the main Usage Details window to the nano panel no longer
+  leaves the panel cut off and without a background until the pointer moves
+  over it.
+
 ## [2.2.3] — 2026-10-12
 
 ### Fixed
