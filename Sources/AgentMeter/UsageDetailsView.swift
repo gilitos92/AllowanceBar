@@ -732,7 +732,10 @@ struct WindowLevelSetter: NSViewRepresentable {
                 chromeObservers.append(NotificationCenter.default.addObserver(
                     forName: name, object: window, queue: .main
                 ) { [weak self] _ in
-                    MainActor.assumeIsolated { self?.keepAnchorEdgesIfNeeded() }
+                    MainActor.assumeIsolated {
+                        self?.keepAnchorEdgesIfNeeded()
+                        self?.syncPointerInside()
+                    }
                 })
             }
             for name in [NSWindow.didUpdateNotification, NSWindow.didResizeNotification] {
@@ -811,6 +814,16 @@ struct WindowLevelSetter: NSViewRepresentable {
             frameView.addTrackingArea(area)
             pointerTrackingArea = area
             pointerTrackingView = frameView
+            let inside = window.frame.contains(NSEvent.mouseLocation)
+            DispatchQueue.main.async { [weak self] in self?.onPointerInsideChange(inside) }
+        }
+
+        /// Tracking areas only report crossings. When the window shrinks or
+        /// moves away from a resting pointer, e.g. after a click on the
+        /// expanded window's Nano View button, no exit arrives and the panel
+        /// kept sizing itself for hover controls it never drew.
+        private func syncPointerInside() {
+            guard let window, !isDragging else { return }
             let inside = window.frame.contains(NSEvent.mouseLocation)
             DispatchQueue.main.async { [weak self] in self?.onPointerInsideChange(inside) }
         }
