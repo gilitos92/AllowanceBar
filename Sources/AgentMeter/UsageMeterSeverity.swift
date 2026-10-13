@@ -66,3 +66,53 @@ struct UsageMeterBar: View {
         .accessibilityHidden(true)
     }
 }
+
+/// Fill and text colors for a warning or critical value badge.
+struct SeverityBadgeStyle {
+    let fill: Color
+    let foreground: Color
+}
+
+extension UsageMeterSeverity {
+    /// Yellow or red text is hard to read on light backgrounds, so warning
+    /// and critical values sit in a pill of the severity color instead. The
+    /// red is darker than `.red` so white text on it stays readable.
+    var badgeStyle: SeverityBadgeStyle? {
+        switch self {
+        case .normal: return nil
+        case .warning: return SeverityBadgeStyle(fill: .yellow, foreground: .black)
+        case .critical: return SeverityBadgeStyle(fill: Color(red: 0.8, green: 0.1, blue: 0.1), foreground: .white)
+        }
+    }
+}
+
+/// A percent or balance value with its severity symbol. Values with a badge
+/// style are drawn as a pill; others as plain text in `plainColor`.
+struct SeverityValueLabel: View {
+    let text: String
+    let symbolName: String?
+    let badge: SeverityBadgeStyle?
+    var plainColor: Color = .primary
+    var font: Font = .callout.monospacedDigit().weight(.semibold)
+    var symbolFont: Font = .subheadline.weight(.medium)
+
+    var body: some View {
+        let content = HStack(spacing: 3) {
+            Text(text).font(font)
+            if let symbolName {
+                Image(systemName: symbolName)
+                    .font(symbolFont)
+                    .accessibilityHidden(true)
+            }
+        }
+        if let badge {
+            content
+                .foregroundStyle(badge.foreground)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(Capsule().fill(badge.fill))
+        } else {
+            content.foregroundStyle(plainColor)
+        }
+    }
+}
