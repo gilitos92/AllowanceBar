@@ -67,8 +67,18 @@
     },
     "Organization": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Organization" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Organización" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Organization"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Organización"
+          }
+        }
       }
     },
     "Month to date (UTC)": {
@@ -1251,22 +1261,6 @@
         }
       }
     },
-    "Choose a path other than ~/.codex": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose a path other than ~/.codex"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Elige una ruta distinta de ~/.codex"
-          }
-        }
-      }
-    },
     "Run Claude Code to renew its credentials, then refresh Allowance Bar": {
       "localizations": {
         "en": {
@@ -1295,22 +1289,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "No se encontró la CLI de Codex"
-          }
-        }
-      }
-    },
-    "Codex accounts": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Codex accounts"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuentas de Codex"
           }
         }
       }
@@ -1471,22 +1449,6 @@
         }
       }
     },
-    "Copies the Terminal command to sign in this Codex account": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copies the Terminal command to sign in this Codex account"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copia el comando de Terminal para iniciar sesión en esta cuenta de Codex"
-          }
-        }
-      }
-    },
     "Copy Diagnostics": {
       "localizations": {
         "es": {
@@ -1635,38 +1597,6 @@
         }
       }
     },
-    "Default (~/.codex)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Default (~/.codex)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Predeterminada (~/.codex)"
-          }
-        }
-      }
-    },
-    "Default Codex account, %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Default Codex account, %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuenta de Codex predeterminada, %@"
-          }
-        }
-      }
-    },
     "Detected": {
       "localizations": {
         "es": {
@@ -1791,22 +1721,6 @@
         }
       }
     },
-    "Found signed-in Codex home: %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Found signed-in Codex home: %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Se encontró una cuenta de Codex con sesión iniciada: %@"
-          }
-        }
-      }
-    },
     "Full": {
       "localizations": {
         "es": {
@@ -1923,38 +1837,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Google devolvió HTTP %lld"
-          }
-        }
-      }
-    },
-    "Home path": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Home path"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ruta de inicio"
-          }
-        }
-      }
-    },
-    "Home path is required": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Home path is required"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La ruta de inicio es obligatoria"
           }
         }
       }
@@ -2859,22 +2741,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ejecuta desde Allowance Bar.app para instalar la herramienta de línea de comandos."
-          }
-        }
-      }
-    },
-    "Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — the Codex CLI does.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — the Codex CLI does."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ejecuta esto en Terminal para iniciar sesión en esa cuenta. Allowance Bar nunca maneja tu inicio de sesión ni tus tokens — eso lo hace la CLI de Codex."
           }
         }
       }
@@ -4147,42 +4013,82 @@
     },
     "day": {
       "localizations": {
-        "es": { "stringUnit": { "state": "translated", "value": "día" } }
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "día"
+          }
+        }
       }
     },
     "days": {
       "localizations": {
-        "es": { "stringUnit": { "state": "translated", "value": "días" } }
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "días"
+          }
+        }
       }
     },
     "hour": {
       "localizations": {
-        "es": { "stringUnit": { "state": "translated", "value": "hora" } }
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "hora"
+          }
+        }
       }
     },
     "hours": {
       "localizations": {
-        "es": { "stringUnit": { "state": "translated", "value": "horas" } }
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "horas"
+          }
+        }
       }
     },
     "less than a minute": {
       "localizations": {
-        "es": { "stringUnit": { "state": "translated", "value": "menos de un minuto" } }
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "menos de un minuto"
+          }
+        }
       }
     },
     "minute": {
       "localizations": {
-        "es": { "stringUnit": { "state": "translated", "value": "minuto" } }
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "minuto"
+          }
+        }
       }
     },
     "minutes": {
       "localizations": {
-        "es": { "stringUnit": { "state": "translated", "value": "minutos" } }
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "minutos"
+          }
+        }
       }
     },
     "resets %@ (%@)": {
       "localizations": {
-        "es": { "stringUnit": { "state": "translated", "value": "se restablece %@ (%@)" } }
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "se restablece %@ (%@)"
+          }
+        }
       }
     },
     "resets %@": {
@@ -4231,6 +4137,246 @@
           "stringUnit": {
             "state": "translated",
             "value": "se restablece pronto"
+          }
+        }
+      }
+    },
+    "%@ accounts": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ accounts"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuentas de %@"
+          }
+        }
+      }
+    },
+    "%@ removed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ removed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ se quitó"
+          }
+        }
+      }
+    },
+    "Add %@ account": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add %@ account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agregar cuenta de %@"
+          }
+        }
+      }
+    },
+    "Choose a folder other than %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a folder other than %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elige una carpeta distinta de %@"
+          }
+        }
+      }
+    },
+    "Copies the Terminal command to sign in this %@ account": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copies the Terminal command to sign in this %@ account"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia el comando de Terminal para iniciar sesión en esta cuenta de %@"
+          }
+        }
+      }
+    },
+    "Default (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default (%@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Predeterminada (%@)"
+          }
+        }
+      }
+    },
+    "Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cada cuenta tiene su propia sección abajo para su clave. Quitar una cuenta elimina su clave guardada en Allowance Bar."
+          }
+        }
+      }
+    },
+    "Folder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carpeta"
+          }
+        }
+      }
+    },
+    "Folder is required": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder is required"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La carpeta es obligatoria"
+          }
+        }
+      }
+    },
+    "Found %@ account: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found %@ account: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se encontró una cuenta de %@: %@"
+          }
+        }
+      }
+    },
+    "Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ejecuta esto en Terminal para iniciar sesión en esa cuenta. Allowance Bar nunca maneja tu inicio de sesión ni tus tokens — eso lo hace %@."
+          }
+        }
+      }
+    },
+    "This folder is already added": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This folder is already added"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta carpeta ya está agregada"
+          }
+        }
+      }
+    },
+    "Rename": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambiar nombre"
+          }
+        }
+      }
+    },
+    "Rename %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rename %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambiar nombre de %@"
+          }
+        }
+      }
+    },
+    "Renamed to %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renamed to %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nuevo nombre: %@"
           }
         }
       }

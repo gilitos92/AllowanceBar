@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import LocalAuthentication
 import Security
@@ -7,10 +8,10 @@ import Security
 ///
 /// The token is read fresh on each fetch and never refreshed or written back to
 /// disk by this app. Claude Code owns renewal of its shared credentials.
-struct ClaudeProvider: UsageProvider {
-    let id = "claude"
-    let displayName = "Claude"
-    let shortCode = "Cl"
+struct ClaudeProvider: AccountConfigurableProvider {
+    var id = "claude"
+    var displayName = "Claude"
+    var shortCode = "Cl"
 
     var credentialsPath = NSHomeDirectory() + "/.claude/.credentials.json"
     var keychainService = "Claude Code-credentials"
@@ -161,6 +162,17 @@ struct ClaudeProvider: UsageProvider {
     }
 
     // MARK: - Keychain
+
+    /// Claude Code names the Keychain item for a non-default
+    /// `CLAUDE_CONFIG_DIR` with the first eight hex characters of the SHA-256
+    /// of that folder's path. Undocumented; the credentials file in the
+    /// folder is still read first.
+    static func keychainService(configDirectory: URL) -> String {
+        let path = configDirectory.standardizedFileURL.path
+        let digest = SHA256.hash(data: Data(path.utf8))
+        let hex = digest.map { String(format: "%02x", $0) }.joined()
+        return "Claude Code-credentials-\(hex.prefix(8))"
+    }
 
     static func keychainItemExists(service: String) -> Bool {
         let context = LAContext()

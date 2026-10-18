@@ -14,6 +14,11 @@ struct CursorUsageFetcher: Sendable {
         + "/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
     var endpoint = URL(string: "https://cursor.com/api/usage-summary")!
 
+    /// State database of a Cursor profile started with `--user-data-dir`.
+    static func stateDBPath(userDataDirectory: URL) -> String {
+        userDataDirectory.appendingPathComponent("User/globalStorage/state.vscdb").path
+    }
+
     func fetchUsage() async throws -> ProviderUsage {
         let token = try readAccessToken()
         let sub = try Self.jwtSubject(from: token)

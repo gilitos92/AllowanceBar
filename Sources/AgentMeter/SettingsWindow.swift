@@ -205,8 +205,14 @@ private struct ProvidersSettingsTab: View {
 
                     ProviderCredentialSection(provider: provider, store: store)
 
-                    if provider.id == "codex" {
-                        CodexAccountsSection(store: store, settings: settings)
+                    if !provider.id.contains(":"),
+                       let support = ProviderAccountSupport.support(for: provider.id) {
+                        ProviderAccountsSection(
+                            provider: provider,
+                            support: support,
+                            store: store,
+                            settings: settings
+                        )
                     }
                 } header: {
                     HStack(spacing: 6) {
@@ -220,23 +226,33 @@ private struct ProvidersSettingsTab: View {
     }
 }
 
-private struct CodexAccountsSection: View {
+private struct ProviderAccountsSection: View {
+    let provider: any UsageProvider
+    let support: ProviderAccountSupport
     @ObservedObject var store: UsageStore
     @ObservedObject var settings: SettingsStore
     @State private var showingAddForm = false
     @State private var draftLabel = ""
     @State private var draftHomePath = ""
     @State private var addFormError: String?
+    @State private var discoveredAccounts: [ProviderAccountDiscovery.Candidate] = []
+    @State private var renamingAccountID: UUID?
+    @State private var renameDraft = ""
+
+    private var isCodex: Bool { provider.id == "codex" }
+    private var accounts: [ProviderAccountConfig] { settings.accounts(for: provider.id) }
 
     var body: some View {
         Group {
-            Text(L("Codex accounts"))
+            Text(String(format: L("%@ accounts"), provider.displayName))
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            primaryAccountRow
+            if let folder = support.folder {
+                defaultAccountRow(folder)
+            }
 
-            ForEach(settings.codexExtraAccounts) { account in
+            ForEach(accounts) { account in
                 extraAccountRow(account)
             }
 
@@ -249,34 +265,48 @@ private struct CodexAccountsSection: View {
             } else {
                 Button(L("Add account…")) {
                     draftLabel = ""
-                    draftHomePath = CodexAccountConfig.suggestedHomePath(for: "")
+                    draftHomePath = support.folder.map {
+                        ProviderAccountSupport.suggestedHomePath(prefix: $0.suggestedPrefix, label: "")
+                    } ?? ""
                     showingAddForm = true
                     addFormError = nil
                 }
+                .accessibilityLabel(String(format: L("Add %@ account"), provider.displayName))
             }
 
-            Text(L("OpenAI doesn't publish subscription renewal dates, so confirm yours on the platform that bills you — ChatGPT, Apple, or Google Play. Renewal dates are separate from usage-limit resets."))
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
+            if isCodex {
+                Text(L("OpenAI doesn't publish subscription renewal dates, so confirm yours on the platform that bills you — ChatGPT, Apple, or Google Play. Renewal dates are separate from usage-limit resets."))
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+            }
 
-            Text(L("Removing only forgets the path; it does not sign out."))
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
+            switch support.credential {
+            case .folder:
+                Text(L("Removing only forgets the path; it does not sign out."))
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+            case .apiKey:
+                Text(L("Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar."))
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .onAppear(perform: refreshDiscovered)
-        .onChange(of: settings.codexExtraAccounts) { _, _ in refreshDiscovered() }
+        .onChange(of: settings.extraAccounts) { _, _ in refreshDiscovered() }
     }
-
-    @State private var discoveredAccounts: [CodexAccountDiscovery.Candidate] = []
 
     private func refreshDiscovered() {
-        discoveredAccounts = CodexAccountDiscovery.discover(configured: settings.codexExtraAccounts)
+        guard let folder = support.folder else {
+            discoveredAccounts = []
+            return
+        }
+        discoveredAccounts = ProviderAccountDiscovery.discover(folder: folder, configured: accounts)
     }
 
-    private func discoveredAccountRow(_ candidate: CodexAccountDiscovery.Candidate) -> some View {
+    private func discoveredAccountRow(_ candidate: ProviderAccountDiscovery.Candidate) -> some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(String(format: L("Found signed-in Codex home: %@"), candidate.suggestedLabel))
+                Text(String(format: L("Found %@ account: %@"), provider.displayName, candidate.suggestedLabel))
                     .font(.callout)
                 Text(candidate.homePath)
                     .font(.subheadline.monospaced())
@@ -284,9 +314,10 @@ private struct CodexAccountsSection: View {
             }
             Spacer()
             Button(L("Add")) {
-                settings.addCodexAccount(CodexAccountConfig(
+                settings.addAccount(ProviderAccountConfig(
+                    baseProviderID: provider.id,
                     label: candidate.suggestedLabel,
-                    codexHomePath: candidate.homePath
+                    homePath: candidate.homePath
                 ))
                 refreshDiscovered()
             }
@@ -294,20 +325,16 @@ private struct CodexAccountsSection: View {
             .help(L("Adds this account to Allowance Bar using the folder name as its label."))
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(String(format: L("Found signed-in Codex home: %@"), candidate.homePath))
+        .accessibilityLabel(String(format: L("Found %@ account: %@"), provider.displayName, candidate.homePath))
     }
 
-    private var primaryAccountRow: some View {
-        let status = codexAccountStatus(providerID: "codex")
+    private func defaultAccountRow(_ folder: ProviderAccountSupport.Folder) -> some View {
+        let status = accountStatus(providerID: provider.id)
+        let title = String(format: L("Default (%@)"), folder.defaultPath)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Default (~/.codex)"))
-                        .font(.callout)
-                    Text("~/.codex")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                Text(title)
+                    .font(.callout)
                 Spacer()
                 Text(status)
                     .font(.callout)
@@ -315,38 +342,94 @@ private struct CodexAccountsSection: View {
                     .multilineTextAlignment(.trailing)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel(String(format: L("Default Codex account, %@"), status))
+            .accessibilityLabel(String(format: L("%@, %@"), title, status))
 
-            CodexSubscriptionSettings(providerID: "codex", settings: settings)
+            if isCodex {
+                CodexSubscriptionSettings(providerID: provider.id, settings: settings)
+            }
         }
     }
 
-    private func extraAccountRow(_ account: CodexAccountConfig) -> some View {
-        let providerID = "codex:\(account.id.uuidString)"
-        let status = codexAccountStatus(providerID: providerID)
+    private func extraAccountRow(_ account: ProviderAccountConfig) -> some View {
+        let status = accountStatus(providerID: account.providerID)
+        let detail = account.homePath ?? status
         return VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(account.label)
-                        .font(.callout)
-                    Text(account.codexHomePath)
-                        .font(.subheadline.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(status)
+            if renamingAccountID == account.id {
+                renameForm(account)
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(account.label)
+                            .font(.callout)
+                        if let homePath = account.homePath {
+                            Text(homePath)
+                                .font(.subheadline.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    if account.homePath != nil {
+                        Text(status)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    Button(L("Rename")) {
+                        renameDraft = account.label
+                        renamingAccountID = account.id
+                    }
                     .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
-                Button(L("Remove")) {
-                    settings.removeCodexAccount(id: account.id)
+                    .accessibilityLabel(String(format: L("Rename %@"), account.label))
+                    Button(L("Remove")) { remove(account) }
+                        .font(.callout)
                 }
-                .font(.callout)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(String(format: L("%@, %@, %@"), account.label, detail, status))
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(String(format: L("%@, %@, %@"), account.label, account.codexHomePath, status))
 
-            CodexSubscriptionSettings(providerID: providerID, settings: settings)
+            if isCodex {
+                CodexSubscriptionSettings(providerID: account.providerID, settings: settings)
+            }
+        }
+    }
+
+    private func renameForm(_ account: ProviderAccountConfig) -> some View {
+        let isValid = !renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return HStack(alignment: .firstTextBaseline) {
+            TextField(L("Label"), text: $renameDraft)
+                .onSubmit { if isValid { saveRename(account) } }
+            Button(L("Save")) { saveRename(account) }
+                .disabled(!isValid)
+            Button(L("Cancel"), role: .cancel) { renamingAccountID = nil }
+        }
+        .font(.callout)
+    }
+
+    private func saveRename(_ account: ProviderAccountConfig) {
+        settings.renameAccount(id: account.id, to: renameDraft)
+        renamingAccountID = nil
+        AccessibilityNotification.Announcement(String(format: L("Renamed to %@"), renameDraft)).post()
+    }
+
+    private func remove(_ account: ProviderAccountConfig) {
+        if case .apiKey = support.credential {
+            KeychainStore.delete("apikey.\(account.providerID)")
+        }
+        settings.removeAccount(id: account.id)
+        AccessibilityNotification.Announcement(String(format: L("%@ removed"), account.label)).post()
+    }
+
+    private func accountStatus(providerID: String) -> String {
+        if isCodex {
+            return codexAccountStatus(providerID: providerID)
+        }
+        switch store.states[providerID] {
+        case .error(let message):
+            return message
+        case .loading, nil:
+            return L("Loading…")
+        case .ready(let usage), .stale(let usage, _, _):
+            return usage.planName ?? L("Connected")
         }
     }
 
@@ -379,36 +462,21 @@ private struct CodexAccountsSection: View {
     }
 
     private var addAccountForm: some View {
-        let loginCommand = CodexAccountConfig.loginCommand(homePath: draftHomePath)
-        return VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             TextField(L("Label"), text: $draftLabel)
                 .onChange(of: draftLabel) { _, newValue in
-                    if draftHomePath.isEmpty || draftHomePath.hasPrefix("~/.codex-") {
-                        draftHomePath = CodexAccountConfig.suggestedHomePath(for: newValue)
+                    guard let folder = support.folder else { return }
+                    if draftHomePath.isEmpty || draftHomePath.hasPrefix(folder.suggestedPrefix) {
+                        draftHomePath = ProviderAccountSupport.suggestedHomePath(
+                            prefix: folder.suggestedPrefix,
+                            label: newValue
+                        )
                     }
                 }
-            TextField(L("Home path"), text: $draftHomePath)
-                .font(.callout.monospaced())
 
-            Text(loginCommand)
-                .font(.callout.monospaced())
-                .textSelection(.enabled)
-                .padding(6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 4))
-
-            Button(L("Copy login command")) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(loginCommand, forType: .string)
-                AccessibilityNotification.Announcement(L("Login command copied")).post()
+            if let folder = support.folder {
+                folderFields(folder)
             }
-            .font(.callout)
-            .accessibilityLabel(L("Copy login command"))
-            .accessibilityHint(L("Copies the Terminal command to sign in this Codex account"))
-
-            Text(L("Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — the Codex CLI does."))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
 
             if let addFormError {
                 Text(addFormError)
@@ -428,28 +496,73 @@ private struct CodexAccountsSection: View {
         .padding(.vertical, 4)
     }
 
+    @ViewBuilder
+    private func folderFields(_ folder: ProviderAccountSupport.Folder) -> some View {
+        let loginCommand = folder.loginCommand(draftHomePath)
+        TextField(L("Folder"), text: $draftHomePath)
+            .font(.callout.monospaced())
+
+        Text(loginCommand)
+            .font(.callout.monospaced())
+            .textSelection(.enabled)
+            .padding(6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 4))
+
+        Button(L("Copy login command")) {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(loginCommand, forType: .string)
+            AccessibilityNotification.Announcement(L("Login command copied")).post()
+        }
+        .font(.callout)
+        .accessibilityLabel(L("Copy login command"))
+        .accessibilityHint(String(format: L("Copies the Terminal command to sign in this %@ account"), provider.displayName))
+
+        Text(String(format: L("Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does."), folder.loginTool))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+    }
+
+    private var trimmedLabel: String { draftLabel.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedPath: String { draftHomePath.trimmingCharacters(in: .whitespacesAndNewlines) }
+
     private var isAddFormValid: Bool {
-        let label = draftLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        let path = draftHomePath.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !label.isEmpty && !path.isEmpty && path != "~/.codex"
+        guard !trimmedLabel.isEmpty else { return false }
+        guard support.folder != nil else { return true }
+        return pathError(trimmedPath) == nil
+    }
+
+    private func pathError(_ path: String) -> String? {
+        guard let folder = support.folder else { return nil }
+        guard !path.isEmpty else { return L("Folder is required") }
+        let expanded = ProviderAccountPath.expand(path).standardizedFileURL.path
+        let defaultPaths = [folder.defaultPath, "~"].map {
+            ProviderAccountPath.expand($0).standardizedFileURL.path
+        }
+        if defaultPaths.contains(expanded) {
+            return String(format: L("Choose a folder other than %@"), folder.defaultPath)
+        }
+        let taken = accounts.compactMap { $0.expandedHomeURL()?.standardizedFileURL.path }
+        if taken.contains(expanded) {
+            return L("This folder is already added")
+        }
+        return nil
     }
 
     private func saveAccount() {
-        let label = draftLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        let path = draftHomePath.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !label.isEmpty else {
+        guard !trimmedLabel.isEmpty else {
             addFormError = L("Label is required")
             return
         }
-        guard !path.isEmpty else {
-            addFormError = L("Home path is required")
+        if let error = pathError(trimmedPath) {
+            addFormError = error
             return
         }
-        guard path != "~/.codex" else {
-            addFormError = L("Choose a path other than ~/.codex")
-            return
-        }
-        settings.addCodexAccount(CodexAccountConfig(label: label, codexHomePath: path))
+        settings.addAccount(ProviderAccountConfig(
+            baseProviderID: provider.id,
+            label: trimmedLabel,
+            homePath: support.folder == nil ? nil : trimmedPath
+        ))
         showingAddForm = false
         addFormError = nil
     }
@@ -594,7 +707,7 @@ private struct ProviderCredentialSection: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
-                if provider.id == "claude-api" {
+                if ProviderAccountConfig.baseProviderID(of: provider.id) == "claude-api" {
                     Link(L("View prepaid credits"), destination: URL(string: "https://platform.claude.com/settings/billing")!)
                         .font(.callout)
                 }
@@ -638,16 +751,18 @@ private struct ProviderCredentialSection: View {
                     )
                 } else {
                     HStack {
-                        Button(L("Connect…")) { OpenRouterAuthFlow.shared.start() }
-                            .disabled(openRouterAuth.status == .connecting)
-                        if openRouterAuth.status == .connecting {
+                        Button(L("Connect…")) {
+                            OpenRouterAuthFlow.shared.start(keychainAccount: provider.keychainAccount)
+                        }
+                        .disabled(openRouterAuth.status == .connecting)
+                        if isAuthFlowTarget, openRouterAuth.status == .connecting {
                             ProgressView().controlSize(.small)
                             Text(L("Waiting for browser authorization…"))
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    if case .failed(let message) = openRouterAuth.status {
+                    if isAuthFlowTarget, case .failed(let message) = openRouterAuth.status {
                         Text(message)
                             .font(.callout)
                             .foregroundStyle(.orange)
@@ -670,6 +785,7 @@ private struct ProviderCredentialSection: View {
                 hasKey = connected
             }
             .onChange(of: openRouterAuth.status) { _, newStatus in
+                guard isAuthFlowTarget else { return }
                 switch newStatus {
                 case .connected:
                     AccessibilityNotification.Announcement(L("OpenRouter connected")).post()
@@ -680,6 +796,11 @@ private struct ProviderCredentialSection: View {
                 }
             }
         }
+    }
+
+    /// The OpenRouter connect flow belongs to this account.
+    private var isAuthFlowTarget: Bool {
+        openRouterAuth.targetKeychainAccount == provider.keychainAccount
     }
 
     private func saveKey() {

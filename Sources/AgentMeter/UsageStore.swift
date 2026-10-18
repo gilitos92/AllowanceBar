@@ -22,7 +22,7 @@ final class UsageStore: ObservableObject {
     private var credentialsObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
     private var refreshRequestObserver: NSObjectProtocol?
-    private var codexAccountsObserver: AnyCancellable?
+    private var accountsObserver: AnyCancellable?
     private var credentialGenerations: [String: Int] = [:]
 
     init(
@@ -30,17 +30,18 @@ final class UsageStore: ObservableObject {
         providers: [any UsageProvider]? = nil
     ) {
         self.settings = settings
-        self.providers = providers ?? Self.defaultProviders(extraAccounts: settings.codexExtraAccounts)
+        self.providers = providers ?? Self.defaultProviders(extraAccounts: settings.extraAccounts)
         for provider in self.providers {
             states[provider.id] = .loading
         }
         refresh()
         rescheduleTimer()
-        codexAccountsObserver = settings.$codexExtraAccounts
+        accountsObserver = settings.$extraAccounts
             .dropFirst()
             .removeDuplicates()
-            .sink { [weak self] _ in
-                self?.rebuildProviders()
+            .sink { [weak self] accounts in
+                // @Published emits before the property changes, so use the value.
+                self?.rebuildProviders(extraAccounts: accounts)
             }
         credentialsObserver = NotificationCenter.default.addObserver(
             forName: .providerCredentialsChanged,
@@ -69,22 +70,22 @@ final class UsageStore: ObservableObject {
         defaultProviders(extraAccounts: [])
     }
 
-    nonisolated static func defaultProviders(extraAccounts: [CodexAccountConfig]) -> [any UsageProvider] {
-        var result: [any UsageProvider] = [CodexProvider()]
-        for config in extraAccounts {
-            result.append(CodexProvider(accountConfig: config))
-        }
-        let others: [any UsageProvider] = [
-            CursorProvider(), ClaudeProvider(), ClaudeAPIProvider(), GeminiProvider(),
+    /// Base providers in display order, each followed by its extra accounts.
+    nonisolated static func defaultProviders(extraAccounts: [ProviderAccountConfig]) -> [any UsageProvider] {
+        let bases: [any UsageProvider] = [
+            CodexProvider(), CursorProvider(), ClaudeProvider(), ClaudeAPIProvider(), GeminiProvider(),
             OpenRouterProvider(), DeepSeekProvider(), MoonshotProvider(),
             ZaiProvider(), VeniceProvider(),
         ]
-        result.append(contentsOf: others)
-        return result
+        return bases.flatMap { base -> [any UsageProvider] in
+            [base] + extraAccounts
+                .filter { $0.baseProviderID == base.id }
+                .compactMap { $0.makeProvider() }
+        }
     }
 
-    func rebuildProviders() {
-        let newProviders = Self.defaultProviders(extraAccounts: settings.codexExtraAccounts)
+    func rebuildProviders(extraAccounts: [ProviderAccountConfig]? = nil) {
+        let newProviders = Self.defaultProviders(extraAccounts: extraAccounts ?? settings.extraAccounts)
         let oldIDs = Set(providers.map(\.id))
         let newIDs = Set(newProviders.map(\.id))
         providers = newProviders

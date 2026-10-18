@@ -1,10 +1,10 @@
 import Foundation
 
 /// Z.ai subscription quota, authenticated by a key stored in the app's Keychain.
-struct ZaiProvider: UsageProvider {
-    let id = "zai"
-    let displayName = "Z.ai"
-    let shortCode = "Zg"
+struct ZaiProvider: AccountConfigurableProvider {
+    var id = "zai"
+    var displayName = "Z.ai"
+    var shortCode = "Zg"
 
     static let quotaURL = URL(string: "https://api.z.ai/api/monitor/usage/quota/limit")!
     static let keyURL = "https://z.ai/manage-apikey/apikey-list"

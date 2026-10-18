@@ -5,12 +5,18 @@ import Foundation
 ///
 /// The token is read fresh on each fetch and refreshed in memory when expired.
 /// Refreshed tokens are not written back to disk by this app.
-struct GeminiProvider: UsageProvider {
-    let id = "gemini"
-    let displayName = "Gemini"
-    let shortCode = "Ge"
+struct GeminiProvider: AccountConfigurableProvider {
+    var id = "gemini"
+    var displayName = "Gemini"
+    var shortCode = "Ge"
 
     var credentialsPath = NSHomeDirectory() + "/.gemini/oauth_creds.json"
+
+    /// The Gemini CLI keeps its `.gemini` folder inside `GEMINI_CLI_HOME`
+    /// when that is set, instead of inside the user's home folder.
+    static func credentialsPath(cliHome: URL) -> String {
+        cliHome.appendingPathComponent(".gemini/oauth_creds.json").path
+    }
 
     static let quotaURL = URL(string: "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota")!
     static let loadCodeAssistURL = URL(string: "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist")!

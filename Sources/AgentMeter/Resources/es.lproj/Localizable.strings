@@ -6,12 +6,16 @@
 	<string>% restante</string>
 	<key>% used</key>
 	<string>% usado</string>
+	<key>%@ accounts</key>
+	<string>Cuentas de %@</string>
 	<key>%@ at %@%%</key>
 	<string>%@ al %@%%</string>
 	<key>%@ balance</key>
 	<string>saldo de %@</string>
 	<key>%@ balance alert</key>
 	<string>Alerta de saldo de %@</string>
+	<key>%@ removed</key>
+	<string>%@ se quitó</string>
 	<key>%@ renews %@ via %@.</key>
 	<string>%@ se renueva el %@ a través de %@.</string>
 	<key>%@ usage alert</key>
@@ -86,6 +90,8 @@
 	<string>Acerca de esta clave</string>
 	<key>Add</key>
 	<string>Agregar</string>
+	<key>Add %@ account</key>
+	<string>Agregar cuenta de %@</string>
 	<key>Add account…</key>
 	<string>Agregar cuenta…</string>
 	<key>Adds this account to Allowance Bar using the folder name as its label.</key>
@@ -150,8 +156,8 @@
 	<string>Buscar actualizaciones…</string>
 	<key>Checking key…</key>
 	<string>Verificando clave…</string>
-	<key>Choose a path other than ~/.codex</key>
-	<string>Elige una ruta distinta de ~/.codex</string>
+	<key>Choose a folder other than %@</key>
+	<string>Elige una carpeta distinta de %@</string>
 	<key>Choose regular or clear glass for the window background.</key>
 	<string>Elige cristal normal o transparente para el fondo de la ventana.</string>
 	<key>Claude API reporting access denied (HTTP 403); check key scope and account eligibility</key>
@@ -170,8 +176,6 @@
 	<string>Cerrar</string>
 	<key>Codex CLI not found</key>
 	<string>No se encontró la CLI de Codex</string>
-	<key>Codex accounts</key>
-	<string>Cuentas de Codex</string>
 	<key>Codex app-server exited unexpectedly</key>
 	<string>El app-server de Codex se cerró inesperadamente</string>
 	<key>Codex app-server timed out</key>
@@ -200,8 +204,8 @@
 	<string>Copiado</string>
 	<key>Copies redacted troubleshooting info to the clipboard — never includes keys or tokens.</key>
 	<string>Copia información de diagnóstico redactada al portapapeles — nunca incluye claves ni tokens.</string>
-	<key>Copies the Terminal command to sign in this Codex account</key>
-	<string>Copia el comando de Terminal para iniciar sesión en esta cuenta de Codex</string>
+	<key>Copies the Terminal command to sign in this %@ account</key>
+	<string>Copia el comando de Terminal para iniciar sesión en esta cuenta de %@</string>
 	<key>Copy Diagnostics</key>
 	<string>Copiar diagnóstico</string>
 	<key>Copy login command</key>
@@ -236,10 +240,8 @@
 	<string>Clave de DeepSeek rechazada — revisa la clave en Ajustes</string>
 	<key>DeepSeek returned HTTP %lld</key>
 	<string>DeepSeek devolvió HTTP %lld</string>
-	<key>Default (~/.codex)</key>
-	<string>Predeterminada (~/.codex)</string>
-	<key>Default Codex account, %@</key>
-	<string>Cuenta de Codex predeterminada, %@</string>
+	<key>Default (%@)</key>
+	<string>Predeterminada (%@)</string>
 	<key>Detected</key>
 	<string>Detectado</string>
 	<key>Diagnostics copied</key>
@@ -248,6 +250,8 @@
 	<string>Desconectar</string>
 	<key>Display</key>
 	<string>Visualización</string>
+	<key>Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.</key>
+	<string>Cada cuenta tiene su propia sección abajo para su clave. Quitar una cuenta elimina su clave guardada en Allowance Bar.</string>
 	<key>Enable agent &amp; CLI access</key>
 	<string>Activar acceso para agentes y CLI</string>
 	<key>Enable notifications to change this.</key>
@@ -262,8 +266,12 @@
 	<string>Flash (24 h)</string>
 	<key>Flash-Lite (24h)</key>
 	<string>Flash-Lite (24 h)</string>
-	<key>Found signed-in Codex home: %@</key>
-	<string>Se encontró una cuenta de Codex con sesión iniciada: %@</string>
+	<key>Folder</key>
+	<string>Carpeta</string>
+	<key>Folder is required</key>
+	<string>La carpeta es obligatoria</string>
+	<key>Found %@ account: %@</key>
+	<string>Se encontró una cuenta de %@: %@</string>
 	<key>Full</key>
 	<string>Completo</string>
 	<key>Full access including billing and key management.</key>
@@ -284,10 +292,6 @@
 	<string>Google Play</string>
 	<key>Google returned HTTP %lld</key>
 	<string>Google devolvió HTTP %lld</string>
-	<key>Home path</key>
-	<string>Ruta de inicio</string>
-	<key>Home path is required</key>
-	<string>La ruta de inicio es obligatoria</string>
 	<key>I confirmed this date today</key>
 	<string>Confirmé esta fecha hoy</string>
 	<key>Icon only</key>
@@ -436,6 +440,12 @@
 	<string>Eliminar</string>
 	<key>Removing only forgets the path; it does not sign out.</key>
 	<string>Quitar solo olvida la ruta; no cierra la sesión.</string>
+	<key>Rename</key>
+	<string>Cambiar nombre</string>
+	<key>Rename %@</key>
+	<string>Cambiar nombre de %@</string>
+	<key>Renamed to %@</key>
+	<string>Nuevo nombre: %@</string>
 	<key>Renews %@</key>
 	<string>Se renueva el %@</string>
 	<key>Renews on</key>
@@ -454,8 +464,8 @@
 	<string>Ejecuta Claude Code para renovar sus credenciales y luego actualiza Allowance Bar</string>
 	<key>Run from Allowance Bar.app to install the command-line tool.</key>
 	<string>Ejecuta desde Allowance Bar.app para instalar la herramienta de línea de comandos.</string>
-	<key>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — the Codex CLI does.</key>
-	<string>Ejecuta esto en Terminal para iniciar sesión en esa cuenta. Allowance Bar nunca maneja tu inicio de sesión ni tus tokens — eso lo hace la CLI de Codex.</string>
+	<key>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does.</key>
+	<string>Ejecuta esto en Terminal para iniciar sesión en esa cuenta. Allowance Bar nunca maneja tu inicio de sesión ni tus tokens — eso lo hace %@.</string>
 	<key>Save</key>
 	<string>Guardar</string>
 	<key>Saved</key>
@@ -502,6 +512,8 @@
 	<string>Esta clave API permite que las apps usen tus créditos de OpenRouter hasta un límite de gasto que tú defines. Allowance Bar solo lee cuánto se ha usado; no puede gastar dinero ni cambiar tu cuenta. Si usaste Conectar, OpenRouter creó una clave dedicada solo para Allowance Bar que puedes revocar en cualquier momento.</string>
 	<key>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
 	<string>Esta clave API permite que las apps usen tus créditos de OpenRouter. Allowance Bar solo lee el uso; no puede gastar dinero ni cambiar tu cuenta. Si usaste Conectar, OpenRouter creó una clave dedicada solo para Allowance Bar que puedes revocar en cualquier momento.</string>
+	<key>This folder is already added</key>
+	<string>Esta carpeta ya está agregada</string>
 	<key>This key is tied to a GLM Coding Plan subscription. Allowance Bar reads your time and token quotas (they reset every few hours). It cannot spend money, call models, or change your account.</key>
 	<string>Esta clave está vinculada a una suscripción GLM Coding Plan. Allowance Bar lee tus cuotas de tiempo y de tokens (se restablecen cada pocas horas). No puede gastar dinero, llamar modelos ni cambiar tu cuenta.</string>
 	<key>This key lets apps call DeepSeek models using your prepaid balance. Allowance Bar only reads how much balance is left; it cannot spend money or change your account.</key>

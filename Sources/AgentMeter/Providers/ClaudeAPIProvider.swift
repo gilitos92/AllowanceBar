@@ -3,10 +3,10 @@ import CryptoKit
 
 /// Organization-wide Claude Console API reporting. This is separate from the
 /// Claude Code subscription provider and does not report prepaid credits.
-struct ClaudeAPIProvider: UsageProvider {
-    let id = "claude-api"
-    let displayName = "Claude API"
-    let shortCode = "ClA"
+struct ClaudeAPIProvider: AccountConfigurableProvider {
+    var id: String
+    var displayName = "Claude API"
+    var shortCode = "ClA"
 
     static let keyURL = "https://platform.claude.com/settings/admin-keys"
     private static let sharedCache = ClaudeAPIReportCache()
@@ -17,14 +17,16 @@ struct ClaudeAPIProvider: UsageProvider {
     let cache: ClaudeAPIReportCache
 
     init(
-        keyReader: @escaping @Sendable () -> String? = { KeychainStore.get("apikey.claude-api") },
+        id: String = "claude-api",
+        keyReader: (@Sendable () -> String?)? = nil,
         clock: @escaping @Sendable () -> Date = { Date() },
         transport: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse) = { request in
             try await HTTP.session.data(for: request)
         },
         cache: ClaudeAPIReportCache = ClaudeAPIProvider.sharedCache
     ) {
-        self.keyReader = keyReader
+        self.id = id
+        self.keyReader = keyReader ?? { KeychainStore.get("apikey.\(id)") }
         self.clock = clock
         self.transport = transport
         self.cache = cache

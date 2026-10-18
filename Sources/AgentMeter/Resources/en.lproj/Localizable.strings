@@ -2,8 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>%@ accounts</key>
+	<string>%@ accounts</string>
 	<key>%@ balance</key>
 	<string>%@ balance</string>
+	<key>%@ removed</key>
+	<string>%@ removed</string>
 	<key>%@ renews %@ via %@.</key>
 	<string>%@ renews %@ via %@.</string>
 	<key>%@%@ used</key>
@@ -48,6 +52,8 @@
 	<string>About this key</string>
 	<key>Add</key>
 	<string>Add</string>
+	<key>Add %@ account</key>
+	<string>Add %@ account</string>
 	<key>Add account…</key>
 	<string>Add account…</string>
 	<key>Adds this account to Allowance Bar using the folder name as its label.</key>
@@ -90,8 +96,8 @@
 	<string>ChatGPT</string>
 	<key>Checking key…</key>
 	<string>Checking key…</string>
-	<key>Choose a path other than ~/.codex</key>
-	<string>Choose a path other than ~/.codex</string>
+	<key>Choose a folder other than %@</key>
+	<string>Choose a folder other than %@</string>
 	<key>Choose regular or clear glass for the window background.</key>
 	<string>Choose regular or clear glass for the window background.</string>
 	<key>Claude API reporting access denied (HTTP 403); check key scope and account eligibility</key>
@@ -110,8 +116,6 @@
 	<string>Close</string>
 	<key>Codex CLI not found</key>
 	<string>Codex CLI not found</string>
-	<key>Codex accounts</key>
-	<string>Codex accounts</string>
 	<key>Codex app-server exited unexpectedly</key>
 	<string>Codex app-server exited unexpectedly</string>
 	<key>Codex app-server timed out</key>
@@ -128,8 +132,8 @@
 	<string>Compact View</string>
 	<key>Connection failed</key>
 	<string>Connection failed</string>
-	<key>Copies the Terminal command to sign in this Codex account</key>
-	<string>Copies the Terminal command to sign in this Codex account</string>
+	<key>Copies the Terminal command to sign in this %@ account</key>
+	<string>Copies the Terminal command to sign in this %@ account</string>
 	<key>Copy login command</key>
 	<string>Copy login command</string>
 	<key>Could not connect to Claude API reporting</key>
@@ -144,12 +148,12 @@
 	<string>Couldn't check key</string>
 	<key>Couldn't install the command-line tool: %@</key>
 	<string>Couldn't install the command-line tool: %@</string>
-	<key>Default (~/.codex)</key>
-	<string>Default (~/.codex)</string>
-	<key>Default Codex account, %@</key>
-	<string>Default Codex account, %@</string>
+	<key>Default (%@)</key>
+	<string>Default (%@)</string>
 	<key>Diagnostics copied</key>
 	<string>Diagnostics copied</string>
+	<key>Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.</key>
+	<string>Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.</string>
 	<key>Enable agent &amp; CLI access</key>
 	<string>Enable agent &amp; CLI access</string>
 	<key>Enable notifications to change this.</key>
@@ -158,8 +162,12 @@
 	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>Failed to parse Venice response: %@</string>
-	<key>Found signed-in Codex home: %@</key>
-	<string>Found signed-in Codex home: %@</string>
+	<key>Folder</key>
+	<string>Folder</string>
+	<key>Folder is required</key>
+	<string>Folder is required</string>
+	<key>Found %@ account: %@</key>
+	<string>Found %@ account: %@</string>
 	<key>Full access including billing and key management.</key>
 	<string>Full access including billing and key management.</string>
 	<key>Full account access — more powerful than Allowance Bar needs.</key>
@@ -172,10 +180,6 @@
 	<string>Glass</string>
 	<key>Google Play</key>
 	<string>Google Play</string>
-	<key>Home path</key>
-	<string>Home path</string>
-	<key>Home path is required</key>
-	<string>Home path is required</string>
 	<key>I confirmed this date today</key>
 	<string>I confirmed this date today</string>
 	<key>Inference and Admin Venice API keys are supported. x402 wallet balances are not supported.</key>
@@ -260,6 +264,12 @@
 	<string>Remind me</string>
 	<key>Removing only forgets the path; it does not sign out.</key>
 	<string>Removing only forgets the path; it does not sign out.</string>
+	<key>Rename</key>
+	<string>Rename</string>
+	<key>Rename %@</key>
+	<string>Rename %@</string>
+	<key>Renamed to %@</key>
+	<string>Renamed to %@</string>
 	<key>Renews %@</key>
 	<string>Renews %@</string>
 	<key>Renews on</key>
@@ -276,8 +286,8 @@
 	<string>Run Claude Code to renew its credentials, then refresh Allowance Bar</string>
 	<key>Run from Allowance Bar.app to install the command-line tool.</key>
 	<string>Run from Allowance Bar.app to install the command-line tool.</string>
-	<key>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — the Codex CLI does.</key>
-	<string>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — the Codex CLI does.</string>
+	<key>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does.</key>
+	<string>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does.</string>
 	<key>Show on All Desktops</key>
 	<string>Show on All Desktops</string>
 	<key>Shows your 5-hour and token quotas.</key>
@@ -302,6 +312,8 @@
 	<string>This API key lets apps use your OpenRouter credits up to a spending limit you set. Allowance Bar only reads how much has been used; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</string>
 	<key>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
 	<string>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</string>
+	<key>This folder is already added</key>
+	<string>This folder is already added</string>
 	<key>This key is tied to a GLM Coding Plan subscription. Allowance Bar reads your time and token quotas (they reset every few hours). It cannot spend money, call models, or change your account.</key>
 	<string>This key is tied to a GLM Coding Plan subscription. Allowance Bar reads your time and token quotas (they reset every few hours). It cannot spend money, call models, or change your account.</string>
 	<key>This key lets apps call DeepSeek models using your prepaid balance. Allowance Bar only reads how much balance is left; it cannot spend money or change your account.</key>
