@@ -20,7 +20,7 @@ struct ProviderBadge: View {
     }
 
     static func color(for providerID: String) -> Color {
-        switch providerID {
+        switch ProviderAccountConfig.baseProviderID(of: providerID) {
         case "codex": return Color(red: 0.06, green: 0.65, blue: 0.55)
         case "cursor": return Color(red: 0.45, green: 0.36, blue: 0.90)
         case "claude", "claude-api": return Color(red: 0.85, green: 0.47, blue: 0.25)

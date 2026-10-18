@@ -1,10 +1,10 @@
 import Foundation
 
 /// Kimi (Moonshot) prepaid balance, authenticated by a key stored in the app's Keychain.
-struct MoonshotProvider: UsageProvider {
-    let id = "moonshot"
-    let displayName = "Kimi"
-    let shortCode = "Ki"
+struct MoonshotProvider: AccountConfigurableProvider {
+    var id = "moonshot"
+    var displayName = "Kimi"
+    var shortCode = "Ki"
 
     static let balanceURL = URL(string: "https://api.moonshot.ai/v1/users/me/balance")!
     static let keyURL = "https://platform.moonshot.ai/console/api-keys"

@@ -1,7 +1,7 @@
 # Allowance Bar — Agent Context
 
 macOS menu bar app (SwiftUI, Swift Package, macOS 14+) showing AI coding usage
-limits for Codex (multiple accounts), Cursor, Claude Code, Gemini, Claude API reporting, and
+limits for Codex, Cursor, Claude Code, Gemini, Claude API reporting (multiple accounts each), and
 pay-as-you-go balances for OpenRouter, DeepSeek, Kimi, Z.ai, and Venice.
 Public repo: https://github.com/gilitos92/AllowanceBar, a fork of
 https://github.com/fdtorres1/AgentMeter (MIT; remote `origin` = this
@@ -22,9 +22,15 @@ announcement drafts, environment specifics) and complements this file.
   `fetch() -> ProviderUsage`, optional `assessCredential()`,
   `credentialHelpText`, `apiKeyPlaceholder`, `dashboardURL`). Built by
   `UsageStore.defaultProviders(extraAccounts:)` — the list is DYNAMIC: extra
-  Codex accounts (`CodexProvider(accountConfig:)`, id `codex:<uuid>`) are
-  inserted after the primary `codex`, and `UsageStore.rebuildProviders()` runs
-  when `SettingsStore.codexExtraAccounts` changes.
+  accounts (`ProviderAccountConfig.makeProvider()`, id `<base>:<uuid>`) are
+  inserted after their base provider, and `UsageStore.rebuildProviders()` runs
+  when `SettingsStore.extraAccounts` changes. `ProviderAccountSupport` says
+  how each base provider's accounts work: `.folder` (another tool's login in
+  its own folder: `CODEX_HOME`, `CLAUDE_CONFIG_DIR`, `GEMINI_CLI_HOME`, Cursor
+  `--user-data-dir`; with login command and `~/.<tool>-*` discovery) or
+  `.apiKey` (Keychain item `apikey.<id>` follows the account's id). Use
+  `ProviderAccountConfig.baseProviderID(of:)` for per-provider branching
+  (badge colors etc.). Every base provider must support accounts (tested).
 - `UsageStore` (@MainActor ObservableObject): per-provider `ProviderState`
   (`loading`/`ready`/`stale`/`error`), refresh timer, `DispatchSource` file
   watcher on the newest Codex session file, wake/credential-change observers,
@@ -33,8 +39,10 @@ announcement drafts, environment specifics) and complements this file.
 - `SettingsStore` (UserDefaults): per-provider visibility (`auto`/`on`/`off`;
   `auto` = show only when `isDetected`), refresh interval (30s/1m/5m),
   notifications + thresholds, count direction, reset-time style, menu bar
-  style (full/compact/icon), `agentAccessEnabled`, `codexExtraAccounts`
-  (`[CodexAccountConfig]`, JSON), `subscriptionRenewals`
+  style (full/compact/icon), `agentAccessEnabled`, `extraAccounts`
+  (`[ProviderAccountConfig]`, JSON key `providerExtraAccounts`; migrated from
+  and still mirrored to the Codex-only `codexExtraAccounts` key so
+  downgrades keep Codex accounts), `subscriptionRenewals`
   (`[providerID: SubscriptionRenewal]`, JSON).
 - UI: `MenuContent` (dropdown with a display-bounded scrolling provider list
   and a fixed footer; short lists shrink to their content; provider sections live in
@@ -77,8 +85,8 @@ announcement drafts, environment specifics) and complements this file.
   all four lines up front is fine; skip lines without our ids. ~1 s round
   trip; process is terminated afterwards — never persistent. Polled at most
   every 5 min per account (`CodexAppServerClient.pollInterval`), cached in
-  `CodexAccountCache`. Extra accounts = `CodexAccountConfig` entries in
-  `SettingsStore.codexExtraAccounts`, each with its own `CODEX_HOME`; the
+  `CodexAccountCache`. Extra accounts = `ProviderAccountConfig` entries with base
+  `codex` in `SettingsStore.extraAccounts`, each with its own `CODEX_HOME`; the
   user signs in via `mkdir -p <home> && CODEX_HOME=<home> codex login` (Codex refuses a nonexistent CODEX_HOME) — Allowance Bar never logs
   in or reads auth.json. The protocol has NO account-switch method;
   `~/.codex/accounts.json` is written by the Codex desktop app only.
@@ -112,6 +120,9 @@ announcement drafts, environment specifics) and complements this file.
   and `resets_at` ISO8601. NEVER refresh these tokens: rotating them in memory
   revokes Claude Code's saved refresh token and signs the user out. When they
   have expired, show `refreshRequired` and ask the user to run Claude Code.
+  Extra accounts (`CLAUDE_CONFIG_DIR=<dir>`): `<dir>/.credentials.json`, then
+  Keychain item `Claude Code-credentials-<first 8 hex of SHA-256(dir path)>`
+  (undocumented Claude Code naming; `ClaudeProvider.keychainService`).
 - **Claude API** (`claude-api`, v1.12.0): separate from subscription Claude.
   Keychain API key must have organization reporting access. Read-only GET
   `/v1/organizations/cost_report` and `/v1/organizations/usage_report/messages`
@@ -136,6 +147,8 @@ announcement drafts, environment specifics) and complements this file.
   `https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota` (body
   `{"project": id}` when `:loadCodeAssist` returns one); buckets have
   `modelId`, `remainingFraction` (0..1 remaining, invert for used), `resetTime`.
+  Extra accounts: `GEMINI_CLI_HOME=<dir>` moves the whole `.gemini` folder to
+  `<dir>/.gemini/oauth_creds.json` (gemini-cli `packages/core/src/utils/paths.ts`).
 
 ## Ground rules (project's core promise — do not violate)
 

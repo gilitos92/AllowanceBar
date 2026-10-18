@@ -7,6 +7,21 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Added
+- Track more than one account for every provider, not just Codex. In
+  Settings → Providers, each provider has **Add account…**: Claude Code,
+  Gemini, and Cursor accounts use their own sign-in folder (the form shows the
+  Terminal command that signs in there), and API-key providers get a separate
+  key per account. Signed-in `~/.claude-*`, `~/.gemini-*`, and `~/.cursor-*`
+  folders are offered as one-click adds, like `~/.codex-*` already were. Each
+  account has its own meter, menu bar code, visibility, and alerts. See
+  [docs/MULTIPLE_ACCOUNTS.md](docs/MULTIPLE_ACCOUNTS.md).
+
+### Changed
+- Existing extra Codex accounts move to the new account list automatically
+  and keep their ids, settings, and renewal dates.
+- Extra Codex accounts now use the Codex badge color instead of gray.
+
 ## [2.3.0] — 2026-10-13
 
 ### Changed

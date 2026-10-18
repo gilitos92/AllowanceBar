@@ -1,8 +1,8 @@
 # Allowance Bar
 
 A tiny macOS menu bar app (no Dock icon) that keeps your AI coding usage limits
-visible at a glance — Codex/ChatGPT (one or several accounts), Cursor, Claude
-Code, and Gemini, Claude API spending and token usage, plus pay-as-you-go balances for OpenRouter, DeepSeek, Kimi,
+visible at a glance — Codex/ChatGPT, Cursor, Claude
+Code, and Gemini (one or several accounts each), Claude API spending and token usage, plus pay-as-you-go balances for OpenRouter, DeepSeek, Kimi,
 Z.ai, and Venice — with a dropdown showing detailed meters, reset countdowns,
 and balances. Keep every limit on screen in a floating window that stays
 above your work, full size, as a compact mini panel, or as a nano panel with
@@ -133,10 +133,12 @@ refreshes on wake.
 - **Accessible** — full VoiceOver support: the menu bar item speaks a
   per-provider summary, meters announce values and severity, and warning
   states show symbols, not just color.
-- **Several Codex accounts at once** — personal, work, and legacy
-  subscriptions each get their own meter, label, and menu bar code, with
-  optional billing-renewal reminders kept strictly separate from usage
-  windows. See [docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md).
+- **Several accounts per provider** — personal, work, and legacy
+  subscriptions or keys each get their own meter, label, and menu bar code,
+  for every provider. Codex accounts can add billing-renewal reminders kept
+  strictly separate from usage windows. See
+  [docs/MULTIPLE_ACCOUNTS.md](docs/MULTIPLE_ACCOUNTS.md) and
+  [docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md).
 - **Stays current** — built-in auto-updates (Sparkle) from signed GitHub
   releases.
 - **Your agents can read it too** — an opt-in, read-only JSON snapshot, an

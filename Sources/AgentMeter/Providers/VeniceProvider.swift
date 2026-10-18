@@ -2,10 +2,10 @@ import Foundation
 
 /// Venice balance from either the Admin billing endpoint or the
 /// inference-key-safe rate-limits endpoint.
-struct VeniceProvider: UsageProvider {
-    let id = "venice"
-    let displayName = "Venice"
-    let shortCode = "Ve"
+struct VeniceProvider: AccountConfigurableProvider {
+    var id = "venice"
+    var displayName = "Venice"
+    var shortCode = "Ve"
 
     static let balanceURL = URL(string: "https://api.venice.ai/api/v1/billing/balance")!
     static let rateLimitsURL = URL(string: "https://api.venice.ai/api/v1/api_keys/rate_limits")!
