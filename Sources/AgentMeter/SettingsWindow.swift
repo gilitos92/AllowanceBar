@@ -236,6 +236,8 @@ private struct ProviderAccountsSection: View {
     @State private var draftHomePath = ""
     @State private var addFormError: String?
     @State private var discoveredAccounts: [ProviderAccountDiscovery.Candidate] = []
+    @State private var renamingAccountID: UUID?
+    @State private var renameDraft = ""
 
     private var isCodex: Bool { provider.id == "codex" }
     private var accounts: [ProviderAccountConfig] { settings.accounts(for: provider.id) }
@@ -352,33 +354,61 @@ private struct ProviderAccountsSection: View {
         let status = accountStatus(providerID: account.providerID)
         let detail = account.homePath ?? status
         return VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(account.label)
-                        .font(.callout)
-                    if let homePath = account.homePath {
-                        Text(homePath)
-                            .font(.subheadline.monospaced())
-                            .foregroundStyle(.secondary)
+            if renamingAccountID == account.id {
+                renameForm(account)
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(account.label)
+                            .font(.callout)
+                        if let homePath = account.homePath {
+                            Text(homePath)
+                                .font(.subheadline.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                }
-                Spacer()
-                if account.homePath != nil {
-                    Text(status)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.trailing)
-                }
-                Button(L("Remove")) { remove(account) }
+                    Spacer()
+                    if account.homePath != nil {
+                        Text(status)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    Button(L("Rename")) {
+                        renameDraft = account.label
+                        renamingAccountID = account.id
+                    }
                     .font(.callout)
+                    .accessibilityLabel(String(format: L("Rename %@"), account.label))
+                    Button(L("Remove")) { remove(account) }
+                        .font(.callout)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(String(format: L("%@, %@, %@"), account.label, detail, status))
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(String(format: L("%@, %@, %@"), account.label, detail, status))
 
             if isCodex {
                 CodexSubscriptionSettings(providerID: account.providerID, settings: settings)
             }
         }
+    }
+
+    private func renameForm(_ account: ProviderAccountConfig) -> some View {
+        let isValid = !renameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return HStack(alignment: .firstTextBaseline) {
+            TextField(L("Label"), text: $renameDraft)
+                .onSubmit { if isValid { saveRename(account) } }
+            Button(L("Save")) { saveRename(account) }
+                .disabled(!isValid)
+            Button(L("Cancel"), role: .cancel) { renamingAccountID = nil }
+        }
+        .font(.callout)
+    }
+
+    private func saveRename(_ account: ProviderAccountConfig) {
+        settings.renameAccount(id: account.id, to: renameDraft)
+        renamingAccountID = nil
+        AccessibilityNotification.Announcement(String(format: L("Renamed to %@"), renameDraft)).post()
     }
 
     private func remove(_ account: ProviderAccountConfig) {

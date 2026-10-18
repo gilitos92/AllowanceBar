@@ -440,6 +440,12 @@
 	<string>Eliminar</string>
 	<key>Removing only forgets the path; it does not sign out.</key>
 	<string>Quitar solo olvida la ruta; no cierra la sesión.</string>
+	<key>Rename</key>
+	<string>Cambiar nombre</string>
+	<key>Rename %@</key>
+	<string>Cambiar nombre de %@</string>
+	<key>Renamed to %@</key>
+	<string>Nuevo nombre: %@</string>
 	<key>Renews %@</key>
 	<string>Se renueva el %@</string>
 	<key>Renews on</key>

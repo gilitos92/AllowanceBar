@@ -247,6 +247,15 @@ final class SettingsStore: ObservableObject {
         extraAccounts.filter { $0.baseProviderID == baseProviderID }
     }
 
+    /// Empty labels are ignored. The id stays the same, so the account keeps
+    /// its settings, key, and renewal date.
+    func renameAccount(id: UUID, to label: String) {
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let index = extraAccounts.firstIndex(where: { $0.id == id }) else { return }
+        extraAccounts[index].label = trimmed
+    }
+
     func removeAccount(id: UUID) {
         guard let account = extraAccounts.first(where: { $0.id == id }) else { return }
         removeRenewal(for: account.providerID)

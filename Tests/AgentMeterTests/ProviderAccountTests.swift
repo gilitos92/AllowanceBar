@@ -128,6 +128,24 @@ final class ProviderAccountTests: XCTestCase {
     }
 
     @MainActor
+    func testRenameKeepsIDAndIgnoresBlankLabels() {
+        let suite = "ProviderAccountTests-rename-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        let account = ProviderAccountConfig(baseProviderID: "claude", label: "secondary", homePath: "~/.claude-secondary")
+        settings.addAccount(account)
+
+        settings.renameAccount(id: account.id, to: "  Work  ")
+        XCTAssertEqual(settings.extraAccounts.first?.label, "Work")
+        XCTAssertEqual(settings.extraAccounts.first?.providerID, account.providerID)
+        XCTAssertEqual(settings.extraAccounts.first?.makeProvider()?.displayName, "Claude — Work")
+
+        settings.renameAccount(id: account.id, to: "   ")
+        XCTAssertEqual(SettingsStore(defaults: defaults).extraAccounts.first?.label, "Work")
+    }
+
+    @MainActor
     func testMigratesLegacyCodexAccounts() throws {
         let suite = "ProviderAccountTests-migrate-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

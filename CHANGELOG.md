@@ -13,7 +13,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
   Gemini, and Cursor accounts use their own sign-in folder (the form shows the
   Terminal command that signs in there), and API-key providers get a separate
   key per account. Signed-in `~/.claude-*`, `~/.gemini-*`, and `~/.cursor-*`
-  folders are offered as one-click adds, like `~/.codex-*` already were. Each
+  folders are offered as one-click adds, like `~/.codex-*` already were, and
+  any extra account can be renamed. Each
   account has its own meter, menu bar code, visibility, and alerts. See
   [docs/MULTIPLE_ACCOUNTS.md](docs/MULTIPLE_ACCOUNTS.md).
 

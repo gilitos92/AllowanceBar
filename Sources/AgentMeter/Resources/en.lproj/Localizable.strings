@@ -264,6 +264,12 @@
 	<string>Remind me</string>
 	<key>Removing only forgets the path; it does not sign out.</key>
 	<string>Removing only forgets the path; it does not sign out.</string>
+	<key>Rename</key>
+	<string>Rename</string>
+	<key>Rename %@</key>
+	<string>Rename %@</string>
+	<key>Renamed to %@</key>
+	<string>Renamed to %@</string>
 	<key>Renews %@</key>
 	<string>Renews %@</string>
 	<key>Renews on</key>
