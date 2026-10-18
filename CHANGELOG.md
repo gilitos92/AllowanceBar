@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.4.0] — 2026-10-17
+
 ### Added
 - Track more than one account for every provider, not just Codex. In
   Settings → Providers, each provider has **Add account…**: Claude Code,
