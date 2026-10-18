@@ -3,20 +3,19 @@ import Foundation
 /// Codex/ChatGPT usage via the Codex CLI app-server protocol, with session-log
 /// fallback for the primary account.
 struct CodexProvider: UsageProvider {
-    let accountConfig: CodexAccountConfig?
+    let accountConfig: ProviderAccountConfig?
     let id: String
     let displayName: String
     let shortCode: String
     let codexHome: URL
 
-    init(accountConfig: CodexAccountConfig? = nil) {
+    init(accountConfig: ProviderAccountConfig? = nil) {
         self.accountConfig = accountConfig
         if let config = accountConfig {
-            self.id = "codex:\(config.id.uuidString)"
-            self.displayName = "Codex — \(config.label)"
-            let initial = config.label.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1).uppercased()
-            self.shortCode = initial.isEmpty ? "Cx" : "Cx\(initial)"
-            self.codexHome = config.expandedHomeURL()
+            self.id = config.providerID
+            self.displayName = config.displayName(base: "Codex")
+            self.shortCode = config.shortCode(base: "Cx")
+            self.codexHome = config.expandedHomeURL() ?? CodexPath.defaultHome
         } else {
             self.id = "codex"
             self.displayName = "Codex"

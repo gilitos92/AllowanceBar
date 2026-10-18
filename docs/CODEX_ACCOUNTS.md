@@ -45,11 +45,11 @@ accounts in a row.
 
 Then open **Allowance Bar → Settings → Providers → Codex accounts**. Any
 `~/.codex-*` folder that contains a login appears as
-"Found signed-in Codex home: work" with an **Add** button. Click it. The
+"Found Codex account: work" with an **Add** button. Click it. The
 account shows "Loading…" and, within a few seconds, resolves to its email
 and plan.
 
-You can also click **Add account…** to enter a label and any home path by
+You can also click **Add account…** to enter a label and any folder by
 hand; the form shows the exact Terminal command (with `mkdir -p`) and a
 **Copy login command** button.
 

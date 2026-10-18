@@ -115,12 +115,19 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    @Published var codexExtraAccounts: [CodexAccountConfig] {
+    /// Extra accounts for every provider, in the order they were added.
+    @Published var extraAccounts: [ProviderAccountConfig] {
         didSet {
-            if let data = try? JSONEncoder().encode(codexExtraAccounts) {
-                defaults.set(data, forKey: Keys.codexExtraAccounts)
+            if let data = try? JSONEncoder().encode(extraAccounts) {
+                defaults.set(data, forKey: Keys.extraAccounts)
             } else {
-                defaults.removeObject(forKey: Keys.codexExtraAccounts)
+                defaults.removeObject(forKey: Keys.extraAccounts)
+            }
+            // Keep the Codex-only list that versions up to 2.3 read, so a
+            // downgrade still finds its Codex accounts.
+            let legacy = extraAccounts.compactMap(LegacyCodexAccount.init(account:))
+            if let data = try? JSONEncoder().encode(legacy) {
+                defaults.set(data, forKey: Keys.codexExtraAccounts)
             }
         }
     }
@@ -166,6 +173,7 @@ final class SettingsStore: ObservableObject {
         static let usageDetailsBackgroundOpacity = "usageDetailsBackgroundOpacity"
         static let usageDetailsClearGlass = "usageDetailsClearGlass"
         static let codexExtraAccounts = "codexExtraAccounts"
+        static let extraAccounts = "providerExtraAccounts"
         static let subscriptionRenewals = "subscriptionRenewals"
         static let compactMenuBar = "compactMenuBar"
         static func mode(_ id: String) -> String { "provider.\(id).mode" }
@@ -213,11 +221,15 @@ final class SettingsStore: ObservableObject {
         }
         self.usageDetailsClearGlass = defaults.bool(forKey: Keys.usageDetailsClearGlass)
         self.agentAccessEnabled = defaults.bool(forKey: Keys.agentAccessEnabled)
-        if let data = defaults.data(forKey: Keys.codexExtraAccounts),
-           let accounts = try? JSONDecoder().decode([CodexAccountConfig].self, from: data) {
-            self.codexExtraAccounts = accounts
+        if let data = defaults.data(forKey: Keys.extraAccounts),
+           let accounts = try? JSONDecoder().decode([ProviderAccountConfig].self, from: data) {
+            self.extraAccounts = accounts
+        } else if let data = defaults.data(forKey: Keys.codexExtraAccounts),
+                  let legacy = try? JSONDecoder().decode([LegacyCodexAccount].self, from: data) {
+            // Same UUIDs, so ids, visibility, and renewals carry over.
+            self.extraAccounts = legacy.map(\.account)
         } else {
-            self.codexExtraAccounts = []
+            self.extraAccounts = []
         }
         if let data = defaults.data(forKey: Keys.subscriptionRenewals),
            let renewals = try? JSONDecoder().decode([String: SubscriptionRenewal].self, from: data) {
@@ -227,13 +239,27 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    func addCodexAccount(_ account: CodexAccountConfig) {
-        codexExtraAccounts.append(account)
+    func addAccount(_ account: ProviderAccountConfig) {
+        extraAccounts.append(account)
     }
 
-    func removeCodexAccount(id: UUID) {
-        removeRenewal(for: "codex:\(id.uuidString)")
-        codexExtraAccounts.removeAll { $0.id == id }
+    func accounts(for baseProviderID: String) -> [ProviderAccountConfig] {
+        extraAccounts.filter { $0.baseProviderID == baseProviderID }
+    }
+
+    /// Empty labels are ignored. The id stays the same, so the account keeps
+    /// its settings, key, and renewal date.
+    func renameAccount(id: UUID, to label: String) {
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let index = extraAccounts.firstIndex(where: { $0.id == id }) else { return }
+        extraAccounts[index].label = trimmed
+    }
+
+    func removeAccount(id: UUID) {
+        guard let account = extraAccounts.first(where: { $0.id == id }) else { return }
+        removeRenewal(for: account.providerID)
+        extraAccounts.removeAll { $0.id == id }
     }
 
     func renewal(for providerID: String) -> SubscriptionRenewal? {
@@ -278,5 +304,23 @@ final class SettingsStore: ObservableObject {
         menuBarCache[providerID] = shows
         defaults.set(shows, forKey: Keys.inMenuBar(providerID))
         objectWillChange.send()
+    }
+}
+
+/// The `codexExtraAccounts` entry format used up to 2.3.
+private struct LegacyCodexAccount: Codable {
+    let id: UUID
+    var label: String
+    var codexHomePath: String
+
+    init?(account: ProviderAccountConfig) {
+        guard account.baseProviderID == "codex", let path = account.homePath else { return nil }
+        self.id = account.id
+        self.label = account.label
+        self.codexHomePath = path
+    }
+
+    var account: ProviderAccountConfig {
+        ProviderAccountConfig(id: id, baseProviderID: "codex", label: label, homePath: codexHomePath)
     }
 }

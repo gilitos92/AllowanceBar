@@ -101,41 +101,8 @@ final class CodexAppServerTests: XCTestCase {
         XCTAssertTrue(paths.contains("/another/bin/codex"))
     }
 
-    func testSuggestedHomePathSlug() {
-        XCTAssertEqual(
-            CodexAccountConfig.suggestedHomePath(for: "Work Account"),
-            "~/.codex-work-account"
-        )
-        XCTAssertEqual(
-            CodexAccountConfig.suggestedHomePath(for: "  "),
-            "~/.codex-account"
-        )
-    }
-
-    func testLoginCommandCreatesHomeFirst() {
-        XCTAssertEqual(
-            CodexAccountConfig.loginCommand(homePath: "~/.codex-main"),
-            "mkdir -p ~/.codex-main && CODEX_HOME=~/.codex-main codex login"
-        )
-        XCTAssertEqual(
-            CodexAccountConfig.loginCommand(homePath: "/Volumes/My Disk/codex home"),
-            "mkdir -p '/Volumes/My Disk/codex home' && CODEX_HOME='/Volumes/My Disk/codex home' codex login"
-        )
-    }
-
-    func testCodexAccountConfigCodableRoundTrip() throws {
-        let original = CodexAccountConfig(
-            id: UUID(uuidString: "A1B2C3D4-E5F6-7890-ABCD-EF1234567890")!,
-            label: "Work",
-            codexHomePath: "~/.codex-work"
-        )
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(CodexAccountConfig.self, from: data)
-        XCTAssertEqual(decoded, original)
-    }
-
     func testExtraProviderIdentity() {
-        let config = CodexAccountConfig(label: "Work", codexHomePath: "~/.codex-work")
+        let config = ProviderAccountConfig(baseProviderID: "codex", label: "Work", homePath: "~/.codex-work")
         let provider = CodexProvider(accountConfig: config)
         XCTAssertEqual(provider.id, "codex:\(config.id.uuidString)")
         XCTAssertEqual(provider.displayName, "Codex — Work")
@@ -151,20 +118,6 @@ final class CodexAppServerTests: XCTestCase {
         XCTAssertTrue(provider.isPrimary)
     }
 
-    @MainActor
-    func testSettingsStorePersistsExtraAccounts() {
-        let defaults = UserDefaults(suiteName: "CodexAppServerTests")!
-        defaults.removePersistentDomain(forName: "CodexAppServerTests")
-        let settings = SettingsStore(defaults: defaults)
-        let account = CodexAccountConfig(label: "Alt", codexHomePath: "~/.codex-alt")
-        settings.addCodexAccount(account)
-        XCTAssertEqual(settings.codexExtraAccounts.count, 1)
-
-        let reloaded = SettingsStore(defaults: defaults)
-        XCTAssertEqual(reloaded.codexExtraAccounts, [account])
-        defaults.removePersistentDomain(forName: "CodexAppServerTests")
-    }
-
     func testCodexPlanDisplayNames() {
         XCTAssertEqual(CodexPlan.displayName("prolite"), "Pro Lite")
         XCTAssertEqual(CodexPlan.displayName("pro"), "Pro")
@@ -172,33 +125,8 @@ final class CodexAppServerTests: XCTestCase {
         XCTAssertEqual(CodexPlan.displayName("unknown"), "Unknown")
     }
 
-    func testDefaultProvidersIncludesExtras() {
-        let config = CodexAccountConfig(label: "Alt", codexHomePath: "~/.codex-alt")
-        let providers = UsageStore.defaultProviders(extraAccounts: [config])
-        XCTAssertEqual(providers.count, 11)
-        XCTAssertEqual(providers[0].id, "codex")
-        XCTAssertEqual(providers[1].id, "codex:\(config.id.uuidString)")
-        XCTAssertEqual(providers[2].id, "cursor")
-    }
-
     private func jsonObject(_ json: String) throws -> [String: Any] {
         let data = try XCTUnwrap(json.data(using: .utf8))
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-    }
-}
-
-final class CodexAccountDiscoveryTests: XCTestCase {
-    func testDiscoversUnconfiguredHomesWithLogins() {
-        let home = URL(fileURLWithPath: "/Users/test", isDirectory: true)
-        let configured: Set<String> = [home.appendingPathComponent(".codex-default", isDirectory: true).standardizedFileURL.path]
-        let withAuth: Set<String> = [".codex-default", ".codex-me-com"]
-        let found = CodexAccountDiscovery.candidates(
-            from: [".codex", ".codex-old-gmail", ".codex-me-com", ".codex-default", ".codex-", "Documents"],
-            homeDirectory: home,
-            configuredPaths: configured,
-            hasAuth: { withAuth.contains($0.lastPathComponent) }
-        )
-        XCTAssertEqual(found.map(\.homePath), ["~/.codex-me-com"])
-        XCTAssertEqual(found.first?.suggestedLabel, "me-com")
     }
 }

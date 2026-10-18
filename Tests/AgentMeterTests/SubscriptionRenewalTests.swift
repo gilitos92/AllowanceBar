@@ -160,9 +160,9 @@ final class SubscriptionRenewalTests: XCTestCase {
         let suiteName = "SubscriptionRenewalTests-remove-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         let settings = SettingsStore(defaults: defaults)
-        let account = CodexAccountConfig(label: "Work", codexHomePath: "~/.codex-work")
-        settings.addCodexAccount(account)
-        let providerID = "codex:\(account.id.uuidString)"
+        let account = ProviderAccountConfig(baseProviderID: "codex", label: "Work", homePath: "~/.codex-work")
+        settings.addAccount(account)
+        let providerID = account.providerID
         settings.setRenewal(
             SubscriptionRenewal(
                 anchorDate: utcDate(year: 2026, month: 9, day: 1),
@@ -172,7 +172,7 @@ final class SubscriptionRenewalTests: XCTestCase {
             ),
             for: providerID
         )
-        settings.removeCodexAccount(id: account.id)
+        settings.removeAccount(id: account.id)
         XCTAssertNil(settings.renewal(for: providerID))
         defaults.removePersistentDomain(forName: suiteName)
     }

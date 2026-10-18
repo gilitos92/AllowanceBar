@@ -1,12 +1,12 @@
 import Foundation
 
 /// Cursor plan usage via cursor.com, authenticated with the locally stored session token.
-struct CursorProvider: UsageProvider {
-    let id = "cursor"
-    let displayName = "Cursor"
-    let shortCode = "Cu"
+struct CursorProvider: AccountConfigurableProvider {
+    var id = "cursor"
+    var displayName = "Cursor"
+    var shortCode = "Cu"
 
-    let fetcher = CursorUsageFetcher()
+    var fetcher = CursorUsageFetcher()
 
     var isDetected: Bool {
         FileManager.default.fileExists(atPath: fetcher.stateDBPath)

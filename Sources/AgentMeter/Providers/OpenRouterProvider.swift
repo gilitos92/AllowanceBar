@@ -10,10 +10,10 @@ import CryptoKit
 /// the browser and then calls back with a code we exchange for a dedicated,
 /// individually revocable API key. Either way the key only ever goes to
 /// openrouter.ai.
-struct OpenRouterProvider: UsageProvider {
-    let id = "openrouter"
-    let displayName = "OpenRouter"
-    let shortCode = "OR"
+struct OpenRouterProvider: AccountConfigurableProvider {
+    var id = "openrouter"
+    var displayName = "OpenRouter"
+    var shortCode = "OR"
 
     static let creditsURL = URL(string: "https://openrouter.ai/api/v1/credits")!
     static let keyURL = URL(string: "https://openrouter.ai/api/v1/key")!
@@ -244,6 +244,9 @@ final class OpenRouterAuthFlow: ObservableObject {
     private static let legacyVerifierDefaultsKey = "openRouter.pendingPKCEVerifier"
 
     @Published private(set) var status: Status = .idle
+    /// Keychain account the pending or last flow saves its key to, so only
+    /// that OpenRouter account shows progress.
+    @Published private(set) var targetKeychainAccount: String?
 
     /// Kept in memory only, so an abandoned flow leaves nothing on disk. If the
     /// app quits mid-flow the callback fails and the user connects again.
@@ -253,9 +256,10 @@ final class OpenRouterAuthFlow: ObservableObject {
         UserDefaults.standard.removeObject(forKey: Self.legacyVerifierDefaultsKey)
     }
 
-    func start() {
+    func start(keychainAccount: String = OpenRouterProvider().keychainAccount) {
         let verifier = Self.randomVerifier()
         pendingVerifier = verifier
+        targetKeychainAccount = keychainAccount
         status = .connecting
         let challenge = Self.challenge(for: verifier)
 
@@ -283,12 +287,13 @@ final class OpenRouterAuthFlow: ObservableObject {
             return true
         }
         pendingVerifier = nil
+        let keychainAccount = targetKeychainAccount ?? OpenRouterProvider().keychainAccount
 
         Task {
             do {
                 let key = try await Self.exchange(code: code, verifier: verifier)
                 guard !key.isEmpty,
-                      KeychainStore.set(key, account: OpenRouterProvider().keychainAccount) else {
+                      KeychainStore.set(key, account: keychainAccount) else {
                     throw OpenRouterError.authFlowFailed(L("OpenRouter connect failed: key could not be saved"))
                 }
                 status = .connected

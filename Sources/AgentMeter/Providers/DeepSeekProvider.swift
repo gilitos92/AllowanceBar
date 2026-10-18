@@ -1,10 +1,10 @@
 import Foundation
 
 /// DeepSeek prepaid balance, authenticated by a key stored in the app's Keychain.
-struct DeepSeekProvider: UsageProvider {
-    let id = "deepseek"
-    let displayName = "DeepSeek"
-    let shortCode = "DS"
+struct DeepSeekProvider: AccountConfigurableProvider {
+    var id = "deepseek"
+    var displayName = "DeepSeek"
+    var shortCode = "DS"
 
     static let balanceURL = URL(string: "https://api.deepseek.com/user/balance")!
     static let keyURL = "https://platform.deepseek.com/api_keys"
