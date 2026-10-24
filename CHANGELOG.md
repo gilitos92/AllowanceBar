@@ -13,8 +13,9 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ### Fixed
 - The "Icon only" menu bar icon was drawn black, so it was hard to see on a
-  dark menu bar. It now follows the menu bar's light or dark appearance, and
-  turns yellow or red only when a limit is in warning or critical range.
+  dark menu bar. It now follows the menu bar's light or dark appearance. It
+  turns yellow when a limit is near or a prepaid balance is low, and red when
+  a limit is reached or a provider fails to load.
 
 ## [2.4.0] — 2026-10-17
 
