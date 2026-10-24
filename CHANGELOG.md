@@ -7,6 +7,16 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Changed
+- The "Icon only" menu bar style has a new icon: three usage meters, like the
+  app icon, instead of a gauge.
+
+### Fixed
+- The "Icon only" menu bar icon was drawn black, so it was hard to see on a
+  dark menu bar. It now follows the menu bar's light or dark appearance. It
+  turns yellow when a limit is 60% used or a prepaid balance is low, and red
+  when a limit is 85% used or a provider fails to load.
+
 ## [2.4.0] — 2026-10-17
 
 ### Added
