@@ -62,4 +62,20 @@ final class MenuBarEntriesTests: XCTestCase {
         XCTAssertEqual(MenuBarTitleRenderer.severity(for: .loading, balanceThreshold: 5), .normal)
         XCTAssertEqual(MenuBarTitleRenderer.severity(for: .error("fail"), balanceThreshold: 5), .critical)
     }
+
+    @MainActor
+    func testIconIsTemplateUnlessWarningOrCritical() {
+        for severity: MenuBarSeverity in [.normal, .stale] {
+            let image = MenuBarTitleRenderer.iconImage(severity: severity, accessibilityDescription: "Usage")
+            XCTAssertTrue(image.isTemplate, "\(severity) should follow the menu bar appearance")
+        }
+        for severity: MenuBarSeverity in [.warning, .critical] {
+            let image = MenuBarTitleRenderer.iconImage(severity: severity, accessibilityDescription: "Usage")
+            XCTAssertFalse(image.isTemplate, "\(severity) should keep its color")
+        }
+        let image = MenuBarTitleRenderer.iconImage(severity: .normal, accessibilityDescription: "Usage")
+        XCTAssertEqual(image.accessibilityDescription, "Usage")
+        XCTAssertGreaterThan(image.size.width, 0)
+        XCTAssertGreaterThan(image.size.height, 0)
+    }
 }

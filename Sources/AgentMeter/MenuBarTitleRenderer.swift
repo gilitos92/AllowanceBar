@@ -71,20 +71,39 @@ enum MenuBarTitleRenderer {
         return image
     }
 
+    /// Fill fractions of the three meter bars, matching the app icon.
+    nonisolated static let iconBarFills: [CGFloat] = [0.84, 0.57, 0.30]
+
+    /// Icon-only menu bar style: three allowance meters, like the app icon.
+    /// Normal and stale states are template images, so macOS tints them for
+    /// light and dark menu bars; warning and critical keep their color.
     static func iconImage(severity: MenuBarSeverity, accessibilityDescription: String) -> NSImage {
-        let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)
-        guard let symbol = NSImage(systemSymbolName: "gauge.with.needle", accessibilityDescription: nil)?
-            .withSymbolConfiguration(config) else {
-            return NSImage(size: NSSize(width: 14, height: 14))
+        let barWidth: CGFloat = 16
+        let barHeight: CGFloat = 3
+        let gap: CGFloat = 2
+        let count = CGFloat(iconBarFills.count)
+        let size = NSSize(width: barWidth, height: count * barHeight + (count - 1) * gap)
+        let tint: NSColor? = switch severity {
+        case .warning, .critical: nsColor(for: severity)
+        case .normal, .stale: nil
         }
-        let color = nsColor(for: severity)
-        let size = symbol.size
-        let image = NSImage(size: size, flipped: false) { _ in
-            color.set()
-            symbol.draw(in: NSRect(origin: .zero, size: size))
+        let opacity: CGFloat = severity == .stale ? 0.5 : 1
+
+        let image = NSImage(size: size, flipped: true) { _ in
+            let color = tint ?? .black
+            for (index, fill) in iconBarFills.enumerated() {
+                let y = CGFloat(index) * (barHeight + gap)
+                let radius = barHeight / 2
+                let track = NSRect(x: 0, y: y, width: barWidth, height: barHeight)
+                color.withAlphaComponent(0.35 * opacity).setFill()
+                NSBezierPath(roundedRect: track, xRadius: radius, yRadius: radius).fill()
+                let filled = NSRect(x: 0, y: y, width: (barWidth * fill).rounded(), height: barHeight)
+                color.withAlphaComponent(opacity).setFill()
+                NSBezierPath(roundedRect: filled, xRadius: radius, yRadius: radius).fill()
+            }
             return true
         }
-        image.isTemplate = false
+        image.isTemplate = tint == nil
         image.accessibilityDescription = accessibilityDescription
         return image
     }
