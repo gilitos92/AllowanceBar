@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.4.1] — 2026-10-23
+
 ### Changed
 - The "Icon only" menu bar style has a new icon: three usage meters, like the
   app icon, instead of a gauge.
