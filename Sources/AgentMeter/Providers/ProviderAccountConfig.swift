@@ -52,6 +52,7 @@ struct ProviderAccountConfig: Codable, Equatable, Identifiable, Sendable {
             var provider = configured(ClaudeProvider())
             provider.credentialsPath = home.appendingPathComponent(".credentials.json").path
             provider.keychainService = ClaudeProvider.keychainService(configDirectory: home)
+            provider.accountInfoPath = home.appendingPathComponent(".claude.json").path
             return provider
         case "gemini":
             guard let home = expandedHomeURL() else { return nil }

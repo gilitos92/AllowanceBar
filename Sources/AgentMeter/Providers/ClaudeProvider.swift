@@ -7,7 +7,9 @@ import Security
 /// the token that the Claude CLI stores locally (credentials file or Keychain).
 ///
 /// The token is read fresh on each fetch and never refreshed or written back to
-/// disk by this app. Claude Code owns renewal of its shared credentials.
+/// disk by this app. Claude Code owns renewal of its shared credentials. When
+/// that login is missing or expired and a CLIProxyAPI server is set up, usage
+/// comes through the proxy instead (`CLIProxyClient`).
 struct ClaudeProvider: AccountConfigurableProvider {
     var id = "claude"
     var displayName = "Claude"
@@ -15,10 +17,13 @@ struct ClaudeProvider: AccountConfigurableProvider {
 
     var credentialsPath = NSHomeDirectory() + "/.claude/.credentials.json"
     var keychainService = "Claude Code-credentials"
+    /// Claude Code's account file; its email picks the matching proxy login.
+    var accountInfoPath = NSHomeDirectory() + "/.claude.json"
     var session: URLSession = HTTP.session
     var keychainReader: @Sendable (String) async throws -> Data? = {
         try await ClaudeKeychainReader.read(service: $0)
     }
+    var proxyConfig: @Sendable () -> CLIProxyConfig? = { CLIProxyConfig.current() }
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     static let betaHeader = "oauth-2025-04-20"
@@ -27,6 +32,7 @@ struct ClaudeProvider: AccountConfigurableProvider {
     var isDetected: Bool {
         FileManager.default.fileExists(atPath: credentialsPath)
             || Self.keychainItemExists(service: keychainService)
+            || CLIProxyConfig.isConfigured
     }
 
     var dashboardURL: URL? {
@@ -34,10 +40,62 @@ struct ClaudeProvider: AccountConfigurableProvider {
     }
 
     func fetch() async throws -> ProviderUsage {
-        let creds = try await loadCredentials()
-        guard !creds.isExpired else { throw ClaudeError.refreshRequired }
-        let response = try await Self.fetchUsage(accessToken: creds.accessToken, session: session)
-        return Self.usage(from: response, plan: creds.subscriptionType, now: Date())
+        var plan: String?
+        let localError: ClaudeError
+        do {
+            let creds = try await loadCredentials()
+            plan = creds.subscriptionType
+            guard !creds.isExpired else { throw ClaudeError.refreshRequired }
+            let response = try await Self.fetchUsage(accessToken: creds.accessToken, session: session)
+            return Self.usage(from: response, plan: creds.subscriptionType, now: Date())
+        } catch let error as ClaudeError where error.proxyCanHelp {
+            localError = error
+        }
+        guard let config = proxyConfig() else { throw localError }
+        let response = try await fetchThroughProxy(config)
+        return Self.usage(from: response, plan: plan, now: Date())
+    }
+
+    // MARK: - CLIProxyAPI
+
+    func fetchThroughProxy(_ config: CLIProxyConfig) async throws -> UsageResponse {
+        let client = CLIProxyClient(config: config, session: session)
+        let accounts = try await client.claudeAccounts()
+        let email = config.claudeEmails[id] ?? Self.accountEmail(atPath: accountInfoPath)
+        guard let account = Self.proxyAccount(in: accounts, email: email, isDefaultAccount: id == "claude") else {
+            throw CLIProxyError.loginNotFound
+        }
+        guard !account.disabled else { throw CLIProxyError.loginDisabled }
+        return try await client.claudeUsage(authIndex: account.authIndex)
+    }
+
+    /// Matches by email, ignoring case. Without an email, only the default
+    /// account may use a proxy that holds a single Claude login.
+    static func proxyAccount(
+        in accounts: [CLIProxyClient.Account],
+        email: String?,
+        isDefaultAccount: Bool
+    ) -> CLIProxyClient.Account? {
+        if let email = email?.trimmingCharacters(in: .whitespaces), !email.isEmpty {
+            let matches = accounts.filter { $0.email.caseInsensitiveCompare(email) == .orderedSame }
+            return matches.first { !$0.disabled } ?? matches.first
+        }
+        guard isDefaultAccount, accounts.count == 1 else { return nil }
+        return accounts.first
+    }
+
+    /// `oauthAccount.emailAddress` from Claude Code's account file. Holds no
+    /// credentials.
+    static func accountEmail(atPath path: String) -> String? {
+        struct AccountFile: Decodable {
+            struct OAuthAccount: Decodable { let emailAddress: String? }
+            let oauthAccount: OAuthAccount?
+        }
+        guard let data = FileManager.default.contents(atPath: path),
+              let file = try? JSONDecoder().decode(AccountFile.self, from: data) else {
+            return nil
+        }
+        return file.oauthAccount?.emailAddress
     }
 
     // MARK: - Credentials
@@ -204,6 +262,14 @@ enum ClaudeError: LocalizedError {
         case .rateLimited: return L("Anthropic rate-limited the usage request")
         case .badResponse: return L("Unexpected response from Anthropic")
         case .httpStatus(let code): return L("Anthropic returned HTTP \(code))")
+        }
+    }
+
+    /// The local login can't be used, so a CLIProxyAPI login may stand in.
+    var proxyCanHelp: Bool {
+        switch self {
+        case .notSignedIn, .refreshRequired, .keychainUnavailable: return true
+        case .rateLimited, .badResponse, .httpStatus: return false
         }
     }
 }

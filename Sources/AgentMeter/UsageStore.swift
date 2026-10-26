@@ -136,8 +136,15 @@ final class UsageStore: ObservableObject {
     /// A replacement key may identify a different organization. Clear the old
     /// report and prevent an in-flight request from restoring it afterwards.
     func credentialDidChange(for providerID: String) {
-        credentialGenerations[providerID, default: 0] += 1
-        states[providerID] = .loading
+        credentialsDidChange(for: [providerID])
+    }
+
+    /// Same as `credentialDidChange(for:)` for several providers, with one refresh.
+    func credentialsDidChange(for providerIDs: [String]) {
+        for providerID in providerIDs {
+            credentialGenerations[providerID, default: 0] += 1
+            states[providerID] = .loading
+        }
         refresh()
     }
 
