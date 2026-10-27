@@ -127,9 +127,10 @@ logins, so Allowance Bar can ask the proxy instead:
    Code login. On a Mac without Claude Code, pick the proxy login for each
    account in the same section.
 3. To use a proxy on another Mac, set `management.allow-remote: true` in the
-   proxy's config. Use an `https` address or a Tailscale address (`*.ts.net`
-   or `100.64.0.0/10`). Allowance Bar refuses plain `http` to other hosts,
-   because the key would cross the network unencrypted.
+   proxy's config. Use an `https` address or the proxy Mac's Tailscale name
+   (ending in `.ts.net`). Allowance Bar refuses plain `http` to other hosts,
+   including raw `100.x` addresses, because the key could cross a network
+   unencrypted.
 
 Allowance Bar still uses Claude Code's own token while it is valid. It asks
 the proxy only when that token is missing or expired. The proxy's

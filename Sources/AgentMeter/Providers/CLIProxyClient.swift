@@ -40,7 +40,8 @@ struct CLIProxyConfig: Equatable, Sendable {
 
     /// Accepts "host:port" or a full http(s) address. Empty means the default.
     /// Plain http is allowed only where the key can't be read on the way:
-    /// this Mac, or a Tailscale address (Tailscale encrypts the traffic).
+    /// this Mac, or a Tailscale MagicDNS name (Tailscale encrypts the traffic,
+    /// and the name resolves only while Tailscale is connected).
     static func normalizedURL(_ string: String) -> URL? {
         var value = string.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.isEmpty { value = defaultURL }
@@ -55,14 +56,11 @@ struct CLIProxyConfig: Equatable, Sendable {
         return url
     }
 
+    /// Raw 100.64.0.0/10 addresses are not allowed: ISPs use the same range
+    /// for carrier-grade NAT, so with Tailscale off the key could go to them.
     static func allowsPlainHTTP(host: String) -> Bool {
         let host = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
-        if ["localhost", "127.0.0.1", "::1"].contains(host) || host.hasSuffix(".ts.net") {
-            return true
-        }
-        // Tailscale gives devices addresses in 100.64.0.0/10.
-        let octets = host.split(separator: ".").compactMap { UInt8($0) }
-        return octets.count == 4 && octets[0] == 100 && (64...127).contains(octets[1])
+        return ["localhost", "127.0.0.1", "::1"].contains(host) || host.hasSuffix(".ts.net")
     }
 
     /// Identifies the server and key without keeping the key in clear text.
@@ -291,6 +289,7 @@ struct CLIProxyClient: Sendable {
 enum CLIProxyError: LocalizedError, Equatable {
     case unreachable
     case invalidKey
+    case keyNotSet
     case remoteManagementDisabled
     case tooManyAttempts
     case loginNotFound
@@ -302,6 +301,7 @@ enum CLIProxyError: LocalizedError, Equatable {
     static func from(statusCode: Int, message: String) -> CLIProxyError {
         let message = message.lowercased()
         if message.contains("remote management disabled") { return .remoteManagementDisabled }
+        if message.contains("key not set") { return .keyNotSet }
         if message.contains("banned") || message.contains("too many") { return .tooManyAttempts }
         switch statusCode {
         case 401, 403: return .invalidKey
@@ -316,6 +316,8 @@ enum CLIProxyError: LocalizedError, Equatable {
             return L("Could not reach CLIProxyAPI. Check the server address in Settings.")
         case .invalidKey:
             return L("CLIProxyAPI rejected the management key. Check it in Settings.")
+        case .keyNotSet:
+            return L("CLIProxyAPI has no management key. Set management.secret-key in its config.")
         case .remoteManagementDisabled:
             return L("CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.")
         case .tooManyAttempts:

@@ -4717,18 +4717,34 @@
         }
       }
     },
-    "Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.": {
+    "Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enter a valid server address. A proxy on another Mac needs https or a Tailscale address."
+            "value": "Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o una dirección de Tailscale."
+            "value": "Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o un nombre de Tailscale que termine en .ts.net."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI has no management key. Set management.secret-key in its config.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI has no management key. Set management.secret-key in its config."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI no tiene clave de administración. Configura management.secret-key en su configuración."
           }
         }
       }

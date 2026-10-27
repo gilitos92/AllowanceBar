@@ -90,6 +90,8 @@
 	<string>Billed through</string>
 	<key>CLIProxyAPI</key>
 	<string>CLIProxyAPI</string>
+	<key>CLIProxyAPI has no management key. Set management.secret-key in its config.</key>
+	<string>CLIProxyAPI has no management key. Set management.secret-key in its config.</string>
 	<key>CLIProxyAPI has no matching Claude login. Choose one in Settings.</key>
 	<string>CLIProxyAPI has no matching Claude login. Choose one in Settings.</string>
 	<key>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</key>
@@ -186,8 +188,8 @@
 	<string>Enable agent &amp; CLI access</string>
 	<key>Enable notifications to change this.</key>
 	<string>Enable notifications to change this.</string>
-	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.</key>
-	<string>Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.</string>
+	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</key>
+	<string>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</string>
 	<key>Expand</key>
 	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>

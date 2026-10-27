@@ -148,6 +148,8 @@
 	<string>Facturado por</string>
 	<key>CLIProxyAPI</key>
 	<string>CLIProxyAPI</string>
+	<key>CLIProxyAPI has no management key. Set management.secret-key in its config.</key>
+	<string>CLIProxyAPI no tiene clave de administración. Configura management.secret-key en su configuración.</string>
 	<key>CLIProxyAPI has no matching Claude login. Choose one in Settings.</key>
 	<string>CLIProxyAPI no tiene una sesión de Claude que coincida. Elige una en Configuración.</string>
 	<key>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</key>
@@ -284,8 +286,8 @@
 	<string>Activar acceso para agentes y CLI</string>
 	<key>Enable notifications to change this.</key>
 	<string>Activa las notificaciones para cambiar esto.</string>
-	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.</key>
-	<string>Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o una dirección de Tailscale.</string>
+	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</key>
+	<string>Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o un nombre de Tailscale que termine en .ts.net.</string>
 	<key>Exact</key>
 	<string>Exacto</string>
 	<key>Expand</key>

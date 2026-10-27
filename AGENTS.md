@@ -132,7 +132,11 @@ announcement drafts, environment specifics) and complements this file.
   and returns `{status_code, body}`, so no Claude token reaches the app.
   Login match: `cliProxyClaudeEmails[providerID]`, else
   `<config dir>/.claude.json` `oauthAccount.emailAddress`. Remote proxies need
-  `management.allow-remote: true` (403 "remote management disabled").
+  `management.allow-remote: true` (403 "remote management disabled"). Plain
+  http only to loopback or `*.ts.net` (never raw 100.x: carrier-grade NAT).
+  The proxy bans an IP for 30 min after 5 bad keys, so `CLIProxyAccountCache`
+  stops after `invalidKey` until address/key change, waits out
+  `tooManyAttempts`, and shares one login list per refresh.
 - **Claude API** (`claude-api`, v1.12.0): separate from subscription Claude.
   Keychain API key must have organization reporting access. Read-only GET
   `/v1/organizations/cost_report` and `/v1/organizations/usage_report/messages`

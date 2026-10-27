@@ -297,7 +297,7 @@ private struct CLIProxySection: View {
         }
         .onAppear {
             draftURL = settings.cliProxyURL
-            if hasKey { check() }
+            if hasKey { check(force: false) }
         }
     }
 
@@ -319,23 +319,29 @@ private struct CLIProxySection: View {
         }
     }
 
+    /// Checks first and refreshes afterwards, so a wrong key costs the proxy
+    /// one failed check, not two.
     private func connectionDidChange() {
         settings.cliProxyURL = draftURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        store.credentialsDidChange(for: claudeProviderIDs)
-        check()
+        guard hasKey else { return }
+        check(force: true) {
+            store.credentialsDidChange(for: claudeProviderIDs)
+        }
     }
 
-    private func check() {
+    /// `force` skips the shared login list and a remembered failure.
+    private func check(force: Bool, then completion: @escaping () -> Void = {}) {
         guard let config = CLIProxyConfig.current() else {
-            checkResult = L("Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.")
+            checkResult = L("Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.")
             proxyEmails = []
+            completion()
             return
         }
         checking = true
         Task {
             let message: String
             do {
-                let accounts = try await CLIProxyClient(config: config).claudeAccounts(force: true)
+                let accounts = try await CLIProxyClient(config: config).claudeAccounts(force: force)
                 proxyEmails = accounts.map(\.email)
                 message = accounts.isEmpty
                     ? L("Connected. CLIProxyAPI has no Claude logins.")
@@ -347,6 +353,7 @@ private struct CLIProxySection: View {
             checking = false
             checkResult = message
             AccessibilityNotification.Announcement(message).post()
+            completion()
         }
     }
 

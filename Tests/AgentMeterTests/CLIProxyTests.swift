@@ -257,7 +257,6 @@ final class CLIProxyTests: XCTestCase {
     func testServerAddressNormalization() {
         XCTAssertEqual(CLIProxyConfig.normalizedURL("")?.absoluteString, "http://127.0.0.1:8317")
         XCTAssertEqual(CLIProxyConfig.normalizedURL("mini.tailnet.ts.net:8317/")?.absoluteString, "http://mini.tailnet.ts.net:8317")
-        XCTAssertEqual(CLIProxyConfig.normalizedURL("http://100.101.2.3:8317")?.absoluteString, "http://100.101.2.3:8317")
         XCTAssertEqual(CLIProxyConfig.normalizedURL("http://[::1]:8317")?.absoluteString, "http://[::1]:8317")
         XCTAssertEqual(CLIProxyConfig.normalizedURL(" https://proxy.example.com ")?.absoluteString, "https://proxy.example.com")
         XCTAssertNil(CLIProxyConfig.normalizedURL("ftp://proxy.example.com"))
@@ -266,8 +265,17 @@ final class CLIProxyTests: XCTestCase {
     func testPlainHTTPToOtherHostsIsRefusedSoTheKeyIsNeverSentInClearText() {
         XCTAssertNil(CLIProxyConfig.normalizedURL("proxy.example.com:8317"))
         XCTAssertNil(CLIProxyConfig.normalizedURL("http://192.168.1.20:8317"))
-        XCTAssertNil(CLIProxyConfig.normalizedURL("http://100.128.0.1:8317"), "Outside Tailscale's 100.64.0.0/10")
+        XCTAssertNil(CLIProxyConfig.normalizedURL("http://100.101.2.3:8317"), "ISPs share 100.64.0.0/10 too")
+        XCTAssertNil(CLIProxyConfig.normalizedURL("http://100.64.0.1.nip.io:8317"))
         XCTAssertNil(CLIProxyConfig.normalizedURL("http://mini.ts.net.example.com"))
+    }
+
+    func testProxyWithoutAKeyIsExplained() {
+        XCTAssertEqual(CLIProxyError.from(statusCode: 403, message: "remote management key not set"), .keyNotSet)
+        XCTAssertEqual(
+            CLIProxyError.from(statusCode: 403, message: "IP banned due to too many failed attempts. Try again in 29m"),
+            .tooManyAttempts
+        )
     }
 
     func testRejectedKeyStopsFurtherProxyCallsUntilItChanges() async throws {
