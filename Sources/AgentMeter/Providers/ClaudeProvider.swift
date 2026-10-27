@@ -24,6 +24,7 @@ struct ClaudeProvider: AccountConfigurableProvider {
         try await ClaudeKeychainReader.read(service: $0)
     }
     var proxyConfig: @Sendable () -> CLIProxyConfig? = { CLIProxyConfig.current() }
+    var proxyAccountCache: CLIProxyAccountCache = .shared
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     static let betaHeader = "oauth-2025-04-20"
@@ -52,21 +53,25 @@ struct ClaudeProvider: AccountConfigurableProvider {
             localError = error
         }
         guard let config = proxyConfig() else { throw localError }
-        let response = try await fetchThroughProxy(config)
-        return Self.usage(from: response, plan: plan, now: Date())
+        let (response, proxyEmail) = try await fetchThroughProxy(config)
+        // The local plan describes the proxy login only if it is the same account.
+        let localEmail = Self.accountEmail(atPath: accountInfoPath)
+        let samePlan = localEmail.map { $0.caseInsensitiveCompare(proxyEmail) == .orderedSame } ?? false
+        return Self.usage(from: response, plan: samePlan ? plan : nil, now: Date())
     }
 
     // MARK: - CLIProxyAPI
 
-    func fetchThroughProxy(_ config: CLIProxyConfig) async throws -> UsageResponse {
+    /// Usage of the matching proxy login, and that login's email.
+    func fetchThroughProxy(_ config: CLIProxyConfig) async throws -> (UsageResponse, String) {
         let client = CLIProxyClient(config: config, session: session)
-        let accounts = try await client.claudeAccounts()
+        let accounts = try await client.claudeAccounts(cache: proxyAccountCache)
         let email = config.claudeEmails[id] ?? Self.accountEmail(atPath: accountInfoPath)
         guard let account = Self.proxyAccount(in: accounts, email: email, isDefaultAccount: id == "claude") else {
             throw CLIProxyError.loginNotFound
         }
         guard !account.disabled else { throw CLIProxyError.loginDisabled }
-        return try await client.claudeUsage(authIndex: account.authIndex)
+        return (try await client.claudeUsage(authIndex: account.authIndex), account.email)
     }
 
     /// Matches by email, ignoring case. Without an email, only the default

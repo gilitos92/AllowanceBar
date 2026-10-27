@@ -284,8 +284,8 @@
 	<string>Activar acceso para agentes y CLI</string>
 	<key>Enable notifications to change this.</key>
 	<string>Activa las notificaciones para cambiar esto.</string>
-	<key>Enter a valid server address, such as http://127.0.0.1:8317.</key>
-	<string>Escribe una dirección de servidor válida, como http://127.0.0.1:8317.</string>
+	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.</key>
+	<string>Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o una dirección de Tailscale.</string>
 	<key>Exact</key>
 	<string>Exacto</string>
 	<key>Expand</key>

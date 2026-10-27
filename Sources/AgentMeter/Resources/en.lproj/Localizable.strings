@@ -186,8 +186,8 @@
 	<string>Enable agent &amp; CLI access</string>
 	<key>Enable notifications to change this.</key>
 	<string>Enable notifications to change this.</string>
-	<key>Enter a valid server address, such as http://127.0.0.1:8317.</key>
-	<string>Enter a valid server address, such as http://127.0.0.1:8317.</string>
+	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.</key>
+	<string>Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.</string>
 	<key>Expand</key>
 	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>

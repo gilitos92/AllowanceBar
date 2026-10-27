@@ -132,7 +132,8 @@ final class CLIProxyTests: XCTestCase {
         id: String = "claude",
         expiresAt: Double,
         email: String? = "main@example.com",
-        config: CLIProxyConfig?
+        config: CLIProxyConfig?,
+        cache: CLIProxyAccountCache = CLIProxyAccountCache()
     ) throws -> ClaudeProvider {
         let credentials = try writeFile(".credentials.json", """
         {"claudeAiOauth":{"accessToken":"local","refreshToken":"R0","expiresAt":\(expiresAt),"subscriptionType":"max"}}
@@ -146,7 +147,8 @@ final class CLIProxyTests: XCTestCase {
             accountInfoPath: accountInfo,
             session: session,
             keychainReader: { _ in nil },
-            proxyConfig: { config }
+            proxyConfig: { config },
+            proxyAccountCache: cache
         )
     }
 
@@ -255,8 +257,82 @@ final class CLIProxyTests: XCTestCase {
     func testServerAddressNormalization() {
         XCTAssertEqual(CLIProxyConfig.normalizedURL("")?.absoluteString, "http://127.0.0.1:8317")
         XCTAssertEqual(CLIProxyConfig.normalizedURL("mini.tailnet.ts.net:8317/")?.absoluteString, "http://mini.tailnet.ts.net:8317")
+        XCTAssertEqual(CLIProxyConfig.normalizedURL("http://100.101.2.3:8317")?.absoluteString, "http://100.101.2.3:8317")
+        XCTAssertEqual(CLIProxyConfig.normalizedURL("http://[::1]:8317")?.absoluteString, "http://[::1]:8317")
         XCTAssertEqual(CLIProxyConfig.normalizedURL(" https://proxy.example.com ")?.absoluteString, "https://proxy.example.com")
         XCTAssertNil(CLIProxyConfig.normalizedURL("ftp://proxy.example.com"))
+    }
+
+    func testPlainHTTPToOtherHostsIsRefusedSoTheKeyIsNeverSentInClearText() {
+        XCTAssertNil(CLIProxyConfig.normalizedURL("proxy.example.com:8317"))
+        XCTAssertNil(CLIProxyConfig.normalizedURL("http://192.168.1.20:8317"))
+        XCTAssertNil(CLIProxyConfig.normalizedURL("http://100.128.0.1:8317"), "Outside Tailscale's 100.64.0.0/10")
+        XCTAssertNil(CLIProxyConfig.normalizedURL("http://mini.ts.net.example.com"))
+    }
+
+    func testRejectedKeyStopsFurtherProxyCallsUntilItChanges() async throws {
+        let cache = CLIProxyAccountCache()
+        var wrongKey = config
+        wrongKey.managementKey = "wrong"
+        let provider = try makeProvider(expiresAt: 1, config: wrongKey, cache: cache)
+
+        for _ in 0..<3 {
+            do {
+                _ = try await provider.fetch()
+                XCTFail("A wrong key should fail")
+            } catch let error as CLIProxyError {
+                XCTAssertEqual(error, .invalidKey)
+            }
+        }
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog().count, 1, "Only one failed key check reaches the proxy")
+
+        let fixed = try makeProvider(expiresAt: 1, config: config, cache: cache)
+        _ = try await fixed.fetch()
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog().count, 3)
+    }
+
+    func testBanIsWaitedOutBeforeTryingAgain() async throws {
+        let cache = CLIProxyAccountCache()
+        let start = Date()
+        let account = CLIProxyClient.Account(authIndex: "a", email: "a@example.com", disabled: false)
+        _ = try? await cache.accounts(for: config, now: start) { throw CLIProxyError.tooManyAttempts }
+
+        for offset in [60, CLIProxyAccountCache.banWait - 1] {
+            do {
+                _ = try await cache.accounts(for: config, now: start.addingTimeInterval(offset)) { [account] }
+                XCTFail("The proxy must not be asked during its ban")
+            } catch let error as CLIProxyError {
+                XCTAssertEqual(error, .tooManyAttempts)
+            }
+        }
+        let accounts = try await cache.accounts(for: config, now: start.addingTimeInterval(CLIProxyAccountCache.banWait + 1)) {
+            [account]
+        }
+        XCTAssertEqual(accounts, [account])
+    }
+
+    func testAccountsShareOneLoginList() async throws {
+        let cache = CLIProxyAccountCache()
+        let main = try makeProvider(expiresAt: 1, config: config, cache: cache)
+        var chosen = config
+        chosen.claudeEmails = ["claude:extra": "main@example.com"]
+        let extra = try makeProvider(id: "claude:extra", expiresAt: 1, config: chosen, cache: cache)
+
+        _ = try await main.fetch()
+        _ = try await extra.fetch()
+
+        let lists = MockCLIProxyURLProtocol.server.requestLog().filter { $0.hasSuffix("/auth-files") }
+        XCTAssertEqual(lists.count, 1)
+    }
+
+    func testPlanIsDroppedWhenTheProxyLoginIsAnotherAccount() async throws {
+        var chosen = config
+        chosen.claudeEmails = ["claude": "main@example.com"]
+        let provider = try makeProvider(expiresAt: 1, email: "other@example.com", config: chosen)
+
+        let usage = try await provider.fetch()
+
+        XCTAssertNil(usage.planName)
     }
 
     func testConfigNeedsAManagementKey() {

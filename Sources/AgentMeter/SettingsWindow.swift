@@ -241,6 +241,9 @@ private struct CLIProxySection: View {
     @State private var checking = false
     @State private var checkResult: String?
     @State private var proxyEmails: [String] = []
+    /// Saved only on Return or Check connection, so a refresh never sends
+    /// the key to a half-typed address.
+    @State private var draftURL = ""
 
     private var claudeProviderIDs: [String] {
         store.providers.map(\.id).filter { ProviderAccountConfig.baseProviderID(of: $0) == "claude" }
@@ -255,7 +258,7 @@ private struct CLIProxySection: View {
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
 
-            TextField(L("Server address"), text: $settings.cliProxyURL, prompt: Text(CLIProxyConfig.defaultURL))
+            TextField(L("Server address"), text: $draftURL, prompt: Text(CLIProxyConfig.defaultURL))
                 .onSubmit(connectionDidChange)
 
             if hasKey {
@@ -293,6 +296,7 @@ private struct CLIProxySection: View {
             }
         }
         .onAppear {
+            draftURL = settings.cliProxyURL
             if hasKey { check() }
         }
     }
@@ -316,13 +320,14 @@ private struct CLIProxySection: View {
     }
 
     private func connectionDidChange() {
+        settings.cliProxyURL = draftURL.trimmingCharacters(in: .whitespacesAndNewlines)
         store.credentialsDidChange(for: claudeProviderIDs)
         check()
     }
 
     private func check() {
         guard let config = CLIProxyConfig.current() else {
-            checkResult = L("Enter a valid server address, such as http://127.0.0.1:8317.")
+            checkResult = L("Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.")
             proxyEmails = []
             return
         }
@@ -330,7 +335,7 @@ private struct CLIProxySection: View {
         Task {
             let message: String
             do {
-                let accounts = try await CLIProxyClient(config: config).claudeAccounts()
+                let accounts = try await CLIProxyClient(config: config).claudeAccounts(force: true)
                 proxyEmails = accounts.map(\.email)
                 message = accounts.isEmpty
                     ? L("Connected. CLIProxyAPI has no Claude logins.")

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Connection to a CLIProxyAPI server (https://github.com/router-for-me/CLIProxyAPI)
@@ -38,6 +39,8 @@ struct CLIProxyConfig: Equatable, Sendable {
     }
 
     /// Accepts "host:port" or a full http(s) address. Empty means the default.
+    /// Plain http is allowed only where the key can't be read on the way:
+    /// this Mac, or a Tailscale address (Tailscale encrypts the traffic).
     static func normalizedURL(_ string: String) -> URL? {
         var value = string.trimmingCharacters(in: .whitespacesAndNewlines)
         if value.isEmpty { value = defaultURL }
@@ -45,10 +48,90 @@ struct CLIProxyConfig: Equatable, Sendable {
         while value.hasSuffix("/") { value.removeLast() }
         guard let url = URL(string: value),
               let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme),
-              url.host != nil else {
+              let host = url.host, !host.isEmpty else {
             return nil
         }
+        guard scheme == "https" || allowsPlainHTTP(host: host) else { return nil }
         return url
+    }
+
+    static func allowsPlainHTTP(host: String) -> Bool {
+        let host = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        if ["localhost", "127.0.0.1", "::1"].contains(host) || host.hasSuffix(".ts.net") {
+            return true
+        }
+        // Tailscale gives devices addresses in 100.64.0.0/10.
+        let octets = host.split(separator: ".").compactMap { UInt8($0) }
+        return octets.count == 4 && octets[0] == 100 && (64...127).contains(octets[1])
+    }
+
+    /// Identifies the server and key without keeping the key in clear text.
+    var identity: String {
+        let digest = SHA256.hash(data: Data(managementKey.utf8))
+        return baseURL.absoluteString + "#" + digest.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+/// Shares one login list per refresh across all Claude accounts, and stops
+/// calling the proxy after it rejects the key. CLIProxyAPI bans an address
+/// for 30 minutes after 5 failed key checks, which would also lock out its
+/// own management page on that Mac.
+actor CLIProxyAccountCache {
+    static let shared = CLIProxyAccountCache()
+    /// Long enough for one refresh of every account to share the list.
+    static let freshness: TimeInterval = 20
+    static let banWait: TimeInterval = 30 * 60
+
+    private struct Entry {
+        let identity: String
+        let started: Date
+        let task: Task<[CLIProxyClient.Account], Error>
+    }
+
+    private struct Block {
+        let identity: String
+        let error: CLIProxyError
+        /// Nil: until the address or key changes.
+        let until: Date?
+    }
+
+    private var entry: Entry?
+    private var block: Block?
+
+    /// `force` skips the shared list and a remembered failure, for an
+    /// explicit check in Settings.
+    func accounts(
+        for config: CLIProxyConfig,
+        force: Bool = false,
+        now: Date = Date(),
+        load: @escaping @Sendable () async throws -> [CLIProxyClient.Account]
+    ) async throws -> [CLIProxyClient.Account] {
+        let identity = config.identity
+        if !force, let block, block.identity == identity, block.until.map({ now < $0 }) ?? true {
+            throw block.error
+        }
+        if !force, let entry, entry.identity == identity, now.timeIntervalSince(entry.started) < Self.freshness {
+            return try await entry.task.value
+        }
+        let task = Task { try await load() }
+        entry = Entry(identity: identity, started: now, task: task)
+        do {
+            let accounts = try await task.value
+            if block?.identity == identity { block = nil }
+            return accounts
+        } catch {
+            // Failures are never shared with later refreshes.
+            if entry?.task == task { entry = nil }
+            switch error as? CLIProxyError {
+            case .invalidKey?:
+                block = Block(identity: identity, error: .invalidKey, until: nil)
+            case .tooManyAttempts?:
+                block = Block(identity: identity, error: .tooManyAttempts, until: now.addingTimeInterval(Self.banWait))
+            default:
+                break
+            }
+            throw error
+        }
     }
 }
 
@@ -62,8 +145,12 @@ struct CLIProxyClient: Sendable {
         let disabled: Bool
     }
 
-    /// The proxy's Claude logins.
-    func claudeAccounts() async throws -> [Account] {
+    /// The proxy's Claude logins, shared through `CLIProxyAccountCache`.
+    func claudeAccounts(force: Bool = false, cache: CLIProxyAccountCache = .shared) async throws -> [Account] {
+        try await cache.accounts(for: config, force: force) { try await fetchClaudeAccounts() }
+    }
+
+    private func fetchClaudeAccounts() async throws -> [Account] {
         let data = try await managementRequest(path: "auth-files", method: "GET", body: nil)
         guard let list = try? JSONDecoder().decode(AuthFilesResponse.self, from: data) else {
             throw CLIProxyError.badResponse

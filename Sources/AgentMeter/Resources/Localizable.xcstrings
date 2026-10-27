@@ -4621,22 +4621,6 @@
         }
       }
     },
-    "Enter a valid server address, such as http://127.0.0.1:8317.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter a valid server address, such as http://127.0.0.1:8317."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Escribe una dirección de servidor válida, como http://127.0.0.1:8317."
-          }
-        }
-      }
-    },
     "Connected. CLIProxyAPI has no Claude logins.": {
       "localizations": {
         "en": {
@@ -4729,6 +4713,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Clave de administración eliminada"
+          }
+        }
+      }
+    },
+    "Enter a valid server address. A proxy on another Mac needs https or a Tailscale address.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid server address. A proxy on another Mac needs https or a Tailscale address."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o una dirección de Tailscale."
           }
         }
       }
