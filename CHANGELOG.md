@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.5.0] — 2026-10-26
+
 ### Added
 - Claude usage keeps updating when Claude Code sends its requests through
   [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). Claude Code
@@ -15,7 +17,9 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
   and management key. When Claude Code's token is missing or expired,
   Allowance Bar asks the proxy for usage of the login with the same email (or
   the one you pick). Claude tokens stay on the proxy. The proxy can run on
-  another Mac if its config sets `management.allow-remote: true`.
+  another Mac if its config sets `management.allow-remote: true` and you use
+  an `https` address or its Tailscale name (ending in `.ts.net`). A rejected
+  key stops further requests, so the proxy never bans your Mac.
 
 ## [2.4.1] — 2026-10-23
 
