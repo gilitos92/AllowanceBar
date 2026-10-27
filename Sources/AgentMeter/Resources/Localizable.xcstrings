@@ -4380,6 +4380,374 @@
           }
         }
       }
+    },
+    "Could not reach CLIProxyAPI. Check the server address in Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach CLIProxyAPI. Check the server address in Settings."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo conectar con CLIProxyAPI. Revisa la dirección del servidor en Configuración."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI rejected the management key. Check it in Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI rejected the management key. Check it in Settings."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI rechazó la clave de administración. Revísala en Configuración."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI solo acepta solicitudes de administración desde su propia Mac. Pon allow-remote en true en su configuración."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI paused requests after failed attempts. Try again later.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI paused requests after failed attempts. Try again later."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI pausó las solicitudes después de varios intentos fallidos. Inténtalo más tarde."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI has no matching Claude login. Choose one in Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI has no matching Claude login. Choose one in Settings."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI no tiene una sesión de Claude que coincida. Elige una en Configuración."
+          }
+        }
+      }
+    },
+    "The matching Claude login is turned off in CLIProxyAPI.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The matching Claude login is turned off in CLIProxyAPI."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La sesión de Claude que coincide está desactivada en CLIProxyAPI."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La sesión de Claude de CLIProxyAPI se cerró. Vuelve a iniciar sesión en CLIProxyAPI."
+          }
+        }
+      }
+    },
+    "Unexpected response from CLIProxyAPI": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unexpected response from CLIProxyAPI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respuesta inesperada de CLIProxyAPI"
+          }
+        }
+      }
+    },
+    "CLIProxyAPI returned HTTP %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI returned HTTP %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI devolvió HTTP %lld"
+          }
+        }
+      }
+    },
+    "CLIProxyAPI": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI"
+          }
+        }
+      }
+    },
+    "When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuando Claude Code envía solicitudes a través de CLIProxyAPI, su propia sesión deja de renovarse. Allowance Bar puede pedirle el uso al proxy. Tus tokens de Claude se quedan en el proxy."
+          }
+        }
+      }
+    },
+    "Server address": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server address"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dirección del servidor"
+          }
+        }
+      }
+    },
+    "Check connection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check connection"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobar conexión"
+          }
+        }
+      }
+    },
+    "%@ proxy login": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ proxy login"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesión del proxy para %@"
+          }
+        }
+      }
+    },
+    "Same email as Claude Code": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same email as Claude Code"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mismo correo que Claude Code"
+          }
+        }
+      }
+    },
+    "Connected. CLIProxyAPI has no Claude logins.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected. CLIProxyAPI has no Claude logins."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectado. CLIProxyAPI no tiene sesiones de Claude."
+          }
+        }
+      }
+    },
+    "Connected. Claude logins found: %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected. Claude logins found: %lld."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectado. Sesiones de Claude encontradas: %lld."
+          }
+        }
+      }
+    },
+    "Could not save the management key in Keychain. Please try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save the management key in Keychain. Please try again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo guardar la clave de administración en el llavero. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "Could not remove the management key from Keychain. Please try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not remove the management key from Keychain. Please try again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo eliminar la clave de administración del llavero. Inténtalo de nuevo."
+          }
+        }
+      }
+    },
+    "Management key saved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Management key saved"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave de administración guardada"
+          }
+        }
+      }
+    },
+    "Management key removed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Management key removed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clave de administración eliminada"
+          }
+        }
+      }
+    },
+    "Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o un nombre de Tailscale que termine en .ts.net."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI has no management key. Set management.secret-key in its config.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI has no management key. Set management.secret-key in its config."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI no tiene clave de administración. Configura management.secret-key en su configuración."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

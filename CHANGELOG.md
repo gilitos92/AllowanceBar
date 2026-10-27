@@ -7,6 +7,16 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Added
+- Claude usage keeps updating when Claude Code sends its requests through
+  [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). Claude Code
+  then stops renewing its own login, so its token expired after a few hours.
+  In Settings → Providers → Claude → CLIProxyAPI, enter the proxy's address
+  and management key. When Claude Code's token is missing or expired,
+  Allowance Bar asks the proxy for usage of the login with the same email (or
+  the one you pick). Claude tokens stay on the proxy. The proxy can run on
+  another Mac if its config sets `management.allow-remote: true`.
+
 ## [2.4.1] — 2026-10-23
 
 ### Changed

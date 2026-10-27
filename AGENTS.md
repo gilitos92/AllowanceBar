@@ -123,6 +123,20 @@ announcement drafts, environment specifics) and complements this file.
   Extra accounts (`CLAUDE_CONFIG_DIR=<dir>`): `<dir>/.credentials.json`, then
   Keychain item `Claude Code-credentials-<first 8 hex of SHA-256(dir path)>`
   (undocumented Claude Code naming; `ClaudeProvider.keychainService`).
+  CLIProxyAPI fallback (`CLIProxyClient.swift`): when the local token is
+  missing/expired (or gets 401) and a management key is saved (Keychain
+  `cliproxy.managementKey`, address in defaults `cliProxyURL`), `GET
+  /v0/management/auth-files` lists logins (`auth_index`, `provider`, `email`,
+  `disabled`), then `POST /v0/management/api-call` with `auth_index` and
+  header `Authorization: Bearer $TOKEN$` — the proxy substitutes the token
+  and returns `{status_code, body}`, so no Claude token reaches the app.
+  Login match: `cliProxyClaudeEmails[providerID]`, else
+  `<config dir>/.claude.json` `oauthAccount.emailAddress`. Remote proxies need
+  `management.allow-remote: true` (403 "remote management disabled"). Plain
+  http only to loopback or `*.ts.net` (never raw 100.x: carrier-grade NAT).
+  The proxy bans an IP for 30 min after 5 bad keys, so `CLIProxyAccountCache`
+  stops after `invalidKey` until address/key change, waits out
+  `tooManyAttempts`, and shares one login list per refresh.
 - **Claude API** (`claude-api`, v1.12.0): separate from subscription Claude.
   Keychain API key must have organization reporting access. Read-only GET
   `/v1/organizations/cost_report` and `/v1/organizations/usage_report/messages`

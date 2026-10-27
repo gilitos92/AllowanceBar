@@ -74,7 +74,7 @@ Cx 5% · CxW 62% · Cu 20% · Cl 40% · OR $8.06
 |----------|--------|-------------------|
 | **Codex** (`Cx`, `CxW`, …) | Your own Codex CLI via its app-server protocol; session logs as offline fallback | Live limits, plan, and signed-in email, polled every 5 minutes through a ~1-second `codex app-server` call. **Multiple accounts**: sign in extra Codex homes and each gets its own meter. Optional subscription renewal-date tracking with reminders. See [docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md). |
 | **Cursor** (`Cu`) | `cursor.com/api/usage-summary` | Uses the session token Cursor stores locally; included/auto/API usage + billing reset. Team/enterprise pools supported. |
-| **Claude** (`Cl`) | `api.anthropic.com/api/oauth/usage` | Uses the Claude Code OAuth token (credentials file or Keychain via Apple's `security` tool); 5h + weekly (+Opus) windows. |
+| **Claude** (`Cl`) | `api.anthropic.com/api/oauth/usage` | Uses the Claude Code OAuth token (credentials file or Keychain via Apple's `security` tool); 5h + weekly (+Opus) windows. Can ask a [CLIProxyAPI](#claude-through-cliproxyapi) server instead when that token has expired. |
 | **Claude API** (`ClA`) | Anthropic organization Usage & Cost API | Paste an organization reporting key; shows current UTC calendar-month spending and input/output/cache tokens. Prepaid credits are unavailable via the public API; a link opens Console billing. |
 | **Gemini** (`Ge`) | Cloud Code quota API | Uses the Gemini CLI OAuth token (`~/.gemini/oauth_creds.json`); Pro/Flash/Flash-Lite daily quotas. |
 | **OpenRouter** (`OR`) | `openrouter.ai/api/v1/credits` + `/api/v1/key` | Connect via OAuth (provisions a dedicated, revocable key) or paste a key; shows account credits when permitted, otherwise the key's limit/remaining balance or current-month spend. |
@@ -109,6 +109,36 @@ own rows. **Prepaid credits are not inferred from spending**: use the billing
 link to see the actual credit balance. See Anthropic's
 [Usage & Cost API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api)
 and [API billing guide](https://support.claude.com/en/articles/8977456-how-do-i-pay-for-my-claude-api-usage).
+
+### Claude through CLIProxyAPI
+
+If Claude Code sends its requests through
+[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)
+(`ANTHROPIC_BASE_URL` points at the proxy), Claude Code stops renewing its own
+login. Its token expires after a few hours, and the **Claude** entry then asks
+you to run Claude Code. The proxy keeps renewing its own copies of your Claude
+logins, so Allowance Bar can ask the proxy instead:
+
+1. In **Settings → Providers → Claude → CLIProxyAPI**, enter the server
+   address (default `http://127.0.0.1:8317`) and the proxy's management key
+   (`management.secret-key` in its config). The key is saved in Allowance
+   Bar's own Keychain item.
+2. Each Claude account uses the proxy login with the same email as its Claude
+   Code login. On a Mac without Claude Code, pick the proxy login for each
+   account in the same section.
+3. To use a proxy on another Mac, set `management.allow-remote: true` in the
+   proxy's config. Use an `https` address or the proxy Mac's Tailscale name
+   (ending in `.ts.net`). Allowance Bar refuses plain `http` to other hosts,
+   including raw `100.x` addresses, because the key could cross a network
+   unencrypted.
+
+Allowance Bar still uses Claude Code's own token while it is valid. It asks
+the proxy only when that token is missing or expired. The proxy's
+[management API](https://github.com/router-for-me/CLIProxyAPI/blob/main/internal/api/handlers/management/api_tools.go)
+sends the usage request with the login's token on the proxy's machine, so
+Allowance Bar never receives a Claude token from the proxy. If the proxy
+rejects the key, Allowance Bar stops asking it until you change the key or
+address, so a wrong key can't get your Mac banned by the proxy.
 
 Each provider can be set to **Auto** (show only if detected on this machine),
 **On**, or **Off** in Settings, and shown or hidden in the menu bar
@@ -175,6 +205,9 @@ Allowance Bar is open source (MIT) so you can verify exactly what it does:
   renewals resetting Allowance Bar's separate grant. A locked Keychain or a
   reset grant for Apple's tool can still require authorization. The
   `allowancebar` CLI is a read-only client that never sees credentials.
+- With CLIProxyAPI set up, Allowance Bar sends only the management key you
+  saved to your own proxy. The proxy makes the usage request to Anthropic, and
+  Claude tokens stay on the proxy's machine.
 - No analytics, no telemetry, no accounts.
 
 ## Requirements

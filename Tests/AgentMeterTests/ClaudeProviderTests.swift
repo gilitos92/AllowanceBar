@@ -133,7 +133,7 @@ final class ClaudeProviderTests: XCTestCase {
         let session = makeSession()
         defer { session.invalidateAndCancel() }
         RotatingMockOAuthURLProtocol.server.reset()
-        let provider = ClaudeProvider(credentialsPath: credentials.file.path, session: session)
+        let provider = ClaudeProvider(credentialsPath: credentials.file.path, session: session, proxyConfig: { nil })
 
         for _ in 0..<2 {
             do {
@@ -215,7 +215,8 @@ final class ClaudeProviderTests: XCTestCase {
         let provider = ClaudeProvider(
             credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
             session: session,
-            keychainReader: { _ in data }
+            keychainReader: { _ in data },
+            proxyConfig: { nil }
         )
 
         do {
