@@ -142,6 +142,16 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    /// CLIProxyAPI server address as typed; empty means the default.
+    @Published var cliProxyURL: String {
+        didSet { defaults.set(cliProxyURL, forKey: CLIProxyConfig.urlDefaultsKey) }
+    }
+
+    /// Proxy login email per Claude provider id; missing means match by email.
+    @Published var cliProxyClaudeEmails: [String: String] {
+        didSet { defaults.set(cliProxyClaudeEmails, forKey: CLIProxyConfig.claudeEmailsDefaultsKey) }
+    }
+
     private let defaults: UserDefaults
     private var modeCache: [String: ProviderMode] = [:]
     private var menuBarCache: [String: Bool] = [:]
@@ -237,6 +247,9 @@ final class SettingsStore: ObservableObject {
         } else {
             self.subscriptionRenewals = [:]
         }
+        self.cliProxyURL = defaults.string(forKey: CLIProxyConfig.urlDefaultsKey) ?? ""
+        self.cliProxyClaudeEmails = defaults.dictionary(forKey: CLIProxyConfig.claudeEmailsDefaultsKey)
+            as? [String: String] ?? [:]
     }
 
     func addAccount(_ account: ProviderAccountConfig) {
@@ -259,6 +272,7 @@ final class SettingsStore: ObservableObject {
     func removeAccount(id: UUID) {
         guard let account = extraAccounts.first(where: { $0.id == id }) else { return }
         removeRenewal(for: account.providerID)
+        cliProxyClaudeEmails.removeValue(forKey: account.providerID)
         extraAccounts.removeAll { $0.id == id }
     }
 

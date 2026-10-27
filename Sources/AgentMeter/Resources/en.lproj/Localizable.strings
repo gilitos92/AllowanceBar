@@ -6,6 +6,8 @@
 	<string>%@ accounts</string>
 	<key>%@ balance</key>
 	<string>%@ balance</string>
+	<key>%@ proxy login</key>
+	<string>%@ proxy login</string>
 	<key>%@ removed</key>
 	<string>%@ removed</string>
 	<key>%@ renews %@ via %@.</key>
@@ -86,6 +88,22 @@
 	<string>Based on AgentMeter by Felix Torres (MIT License).</string>
 	<key>Billed through</key>
 	<string>Billed through</string>
+	<key>CLIProxyAPI</key>
+	<string>CLIProxyAPI</string>
+	<key>CLIProxyAPI has no management key. Set management.secret-key in its config.</key>
+	<string>CLIProxyAPI has no management key. Set management.secret-key in its config.</string>
+	<key>CLIProxyAPI has no matching Claude login. Choose one in Settings.</key>
+	<string>CLIProxyAPI has no matching Claude login. Choose one in Settings.</string>
+	<key>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</key>
+	<string>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</string>
+	<key>CLIProxyAPI paused requests after failed attempts. Try again later.</key>
+	<string>CLIProxyAPI paused requests after failed attempts. Try again later.</string>
+	<key>CLIProxyAPI rejected the management key. Check it in Settings.</key>
+	<string>CLIProxyAPI rejected the management key. Check it in Settings.</string>
+	<key>CLIProxyAPI returned HTTP %lld</key>
+	<string>CLIProxyAPI returned HTTP %lld</string>
+	<key>CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.</key>
+	<string>CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.</string>
 	<key>Cache creation tokens</key>
 	<string>Cache creation tokens</string>
 	<key>Cache read tokens</key>
@@ -94,6 +112,8 @@
 	<string>Cancel</string>
 	<key>ChatGPT</key>
 	<string>ChatGPT</string>
+	<key>Check connection</key>
+	<string>Check connection</string>
 	<key>Checking key…</key>
 	<string>Checking key…</string>
 	<key>Choose a folder other than %@</key>
@@ -130,6 +150,10 @@
 	<string>Command-line tool not on your PATH.</string>
 	<key>Compact View</key>
 	<string>Compact View</string>
+	<key>Connected. CLIProxyAPI has no Claude logins.</key>
+	<string>Connected. CLIProxyAPI has no Claude logins.</string>
+	<key>Connected. Claude logins found: %lld.</key>
+	<string>Connected. Claude logins found: %lld.</string>
 	<key>Connection failed</key>
 	<string>Connection failed</string>
 	<key>Copies the Terminal command to sign in this %@ account</key>
@@ -138,12 +162,18 @@
 	<string>Copy login command</string>
 	<key>Could not connect to Claude API reporting</key>
 	<string>Could not connect to Claude API reporting</string>
+	<key>Could not reach CLIProxyAPI. Check the server address in Settings.</key>
+	<string>Could not reach CLIProxyAPI. Check the server address in Settings.</string>
 	<key>Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar</key>
 	<string>Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar</string>
 	<key>Could not remove the API key from Keychain. Please try again.</key>
 	<string>Could not remove the API key from Keychain. Please try again.</string>
+	<key>Could not remove the management key from Keychain. Please try again.</key>
+	<string>Could not remove the management key from Keychain. Please try again.</string>
 	<key>Could not save the API key in Keychain. Please try again.</key>
 	<string>Could not save the API key in Keychain. Please try again.</string>
+	<key>Could not save the management key in Keychain. Please try again.</key>
+	<string>Could not save the management key in Keychain. Please try again.</string>
 	<key>Couldn't check key</key>
 	<string>Couldn't check key</string>
 	<key>Couldn't install the command-line tool: %@</key>
@@ -158,6 +188,8 @@
 	<string>Enable agent &amp; CLI access</string>
 	<key>Enable notifications to change this.</key>
 	<string>Enable notifications to change this.</string>
+	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</key>
+	<string>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</string>
 	<key>Expand</key>
 	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>
@@ -218,6 +250,10 @@
 	<string>Manage keys</string>
 	<key>Management key</key>
 	<string>Management key</string>
+	<key>Management key removed</key>
+	<string>Management key removed</string>
+	<key>Management key saved</key>
+	<string>Management key saved</string>
 	<key>Marks today as the date you verified this renewal on your billing platform.</key>
 	<string>Marks today as the date you verified this renewal on your billing platform.</string>
 	<key>Menu bar monitor for AI coding usage limits.</key>
@@ -288,6 +324,10 @@
 	<string>Run from Allowance Bar.app to install the command-line tool.</string>
 	<key>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does.</key>
 	<string>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does.</string>
+	<key>Same email as Claude Code</key>
+	<string>Same email as Claude Code</string>
+	<key>Server address</key>
+	<string>Server address</string>
 	<key>Show on All Desktops</key>
 	<string>Show on All Desktops</string>
 	<key>Shows your 5-hour and token quotas.</key>
@@ -308,6 +348,8 @@
 	<string>Subscription renews soon</string>
 	<key>The key was rejected by Venice.</key>
 	<string>The key was rejected by Venice.</string>
+	<key>The matching Claude login is turned off in CLIProxyAPI.</key>
+	<string>The matching Claude login is turned off in CLIProxyAPI.</string>
 	<key>This API key lets apps use your OpenRouter credits up to a spending limit you set. Allowance Bar only reads how much has been used; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
 	<string>This API key lets apps use your OpenRouter credits up to a spending limit you set. Allowance Bar only reads how much has been used; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</string>
 	<key>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
@@ -328,6 +370,8 @@
 	<string>Unavailable via API</string>
 	<key>Unexpected Claude API report</key>
 	<string>Unexpected Claude API report</string>
+	<key>Unexpected response from CLIProxyAPI</key>
+	<string>Unexpected response from CLIProxyAPI</string>
 	<key>Usage</key>
 	<string>Usage</string>
 	<key>Usage Details</key>
@@ -352,6 +396,8 @@
 	<string>Waiting for browser authorization…</string>
 	<key>Website &amp; source code</key>
 	<string>Website &amp; source code</string>
+	<key>When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy.</key>
+	<string>When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy.</string>
 	<key>Window Options</key>
 	<string>Window Options</string>
 	<key>Works for usage monitoring.</key>

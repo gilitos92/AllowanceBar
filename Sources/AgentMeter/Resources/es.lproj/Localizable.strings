@@ -14,6 +14,8 @@
 	<string>saldo de %@</string>
 	<key>%@ balance alert</key>
 	<string>Alerta de saldo de %@</string>
+	<key>%@ proxy login</key>
+	<string>Sesión del proxy para %@</string>
 	<key>%@ removed</key>
 	<string>%@ se quitó</string>
 	<key>%@ renews %@ via %@.</key>
@@ -144,6 +146,22 @@
 	<string>Basado en AgentMeter de Felix Torres (licencia MIT).</string>
 	<key>Billed through</key>
 	<string>Facturado por</string>
+	<key>CLIProxyAPI</key>
+	<string>CLIProxyAPI</string>
+	<key>CLIProxyAPI has no management key. Set management.secret-key in its config.</key>
+	<string>CLIProxyAPI no tiene clave de administración. Configura management.secret-key en su configuración.</string>
+	<key>CLIProxyAPI has no matching Claude login. Choose one in Settings.</key>
+	<string>CLIProxyAPI no tiene una sesión de Claude que coincida. Elige una en Configuración.</string>
+	<key>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</key>
+	<string>CLIProxyAPI solo acepta solicitudes de administración desde su propia Mac. Pon allow-remote en true en su configuración.</string>
+	<key>CLIProxyAPI paused requests after failed attempts. Try again later.</key>
+	<string>CLIProxyAPI pausó las solicitudes después de varios intentos fallidos. Inténtalo más tarde.</string>
+	<key>CLIProxyAPI rejected the management key. Check it in Settings.</key>
+	<string>CLIProxyAPI rechazó la clave de administración. Revísala en Configuración.</string>
+	<key>CLIProxyAPI returned HTTP %lld</key>
+	<string>CLIProxyAPI devolvió HTTP %lld</string>
+	<key>CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.</key>
+	<string>La sesión de Claude de CLIProxyAPI se cerró. Vuelve a iniciar sesión en CLIProxyAPI.</string>
 	<key>Cache creation tokens</key>
 	<string>Tokens de creación de caché</string>
 	<key>Cache read tokens</key>
@@ -152,6 +170,8 @@
 	<string>Cancelar</string>
 	<key>ChatGPT</key>
 	<string>ChatGPT</string>
+	<key>Check connection</key>
+	<string>Comprobar conexión</string>
 	<key>Check for Updates…</key>
 	<string>Buscar actualizaciones…</string>
 	<key>Checking key…</key>
@@ -196,6 +216,10 @@
 	<string>Barra de menús compacta (solo el peor)</string>
 	<key>Connected</key>
 	<string>Conectado</string>
+	<key>Connected. CLIProxyAPI has no Claude logins.</key>
+	<string>Conectado. CLIProxyAPI no tiene sesiones de Claude.</string>
+	<key>Connected. Claude logins found: %lld.</key>
+	<string>Conectado. Sesiones de Claude encontradas: %lld.</string>
 	<key>Connection failed</key>
 	<string>Conexión fallida</string>
 	<key>Connect…</key>
@@ -212,14 +236,20 @@
 	<string>Copiar comando de inicio de sesión</string>
 	<key>Could not connect to Claude API reporting</key>
 	<string>No se pudo conectar a los informes de Claude API</string>
+	<key>Could not reach CLIProxyAPI. Check the server address in Settings.</key>
+	<string>No se pudo conectar con CLIProxyAPI. Revisa la dirección del servidor en Configuración.</string>
 	<key>Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar</key>
 	<string>No se pudieron leer las credenciales de Claude Code del Llavero. Desbloquea tu llavero de inicio de sesión y actualiza Allowance Bar</string>
 	<key>Could not read session file</key>
 	<string>No se pudo leer el archivo de sesión</string>
 	<key>Could not remove the API key from Keychain. Please try again.</key>
 	<string>No se pudo eliminar la clave de API del Llavero. Inténtalo de nuevo.</string>
+	<key>Could not remove the management key from Keychain. Please try again.</key>
+	<string>No se pudo eliminar la clave de administración del llavero. Inténtalo de nuevo.</string>
 	<key>Could not save the API key in Keychain. Please try again.</key>
 	<string>No se pudo guardar la clave de API en el Llavero. Inténtalo de nuevo.</string>
+	<key>Could not save the management key in Keychain. Please try again.</key>
+	<string>No se pudo guardar la clave de administración en el llavero. Inténtalo de nuevo.</string>
 	<key>Couldn't check key</key>
 	<string>No se pudo verificar la clave</string>
 	<key>Couldn't install the command-line tool: %@</key>
@@ -256,6 +286,8 @@
 	<string>Activar acceso para agentes y CLI</string>
 	<key>Enable notifications to change this.</key>
 	<string>Activa las notificaciones para cambiar esto.</string>
+	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</key>
+	<string>Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o un nombre de Tailscale que termine en .ts.net.</string>
 	<key>Exact</key>
 	<string>Exacto</string>
 	<key>Expand</key>
@@ -342,6 +374,10 @@
 	<string>Administrar claves</string>
 	<key>Management key</key>
 	<string>Clave de administración</string>
+	<key>Management key removed</key>
+	<string>Clave de administración eliminada</string>
+	<key>Management key saved</key>
+	<string>Clave de administración guardada</string>
 	<key>Marks today as the date you verified this renewal on your billing platform.</key>
 	<string>Marca hoy como la fecha en que verificaste esta renovación en tu plataforma de facturación.</string>
 	<key>Menu bar monitor for AI coding usage limits.</key>
@@ -466,10 +502,14 @@
 	<string>Ejecuta desde Allowance Bar.app para instalar la herramienta de línea de comandos.</string>
 	<key>Run this in Terminal to sign in that account. Allowance Bar never handles your login or tokens — %@ does.</key>
 	<string>Ejecuta esto en Terminal para iniciar sesión en esa cuenta. Allowance Bar nunca maneja tu inicio de sesión ni tus tokens — eso lo hace %@.</string>
+	<key>Same email as Claude Code</key>
+	<string>Mismo correo que Claude Code</string>
 	<key>Save</key>
 	<string>Guardar</string>
 	<key>Saved</key>
 	<string>Guardada</string>
+	<key>Server address</key>
+	<string>Dirección del servidor</string>
 	<key>Settings…</key>
 	<string>Ajustes…</string>
 	<key>Show all limits in the menu bar</key>
@@ -508,6 +548,8 @@
 	<string>Pool del equipo</string>
 	<key>The key was rejected by Venice.</key>
 	<string>Venice rechazó la clave.</string>
+	<key>The matching Claude login is turned off in CLIProxyAPI.</key>
+	<string>La sesión de Claude que coincide está desactivada en CLIProxyAPI.</string>
 	<key>This API key lets apps use your OpenRouter credits up to a spending limit you set. Allowance Bar only reads how much has been used; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
 	<string>Esta clave API permite que las apps usen tus créditos de OpenRouter hasta un límite de gasto que tú defines. Allowance Bar solo lee cuánto se ha usado; no puede gastar dinero ni cambiar tu cuenta. Si usaste Conectar, OpenRouter creó una clave dedicada solo para Allowance Bar que puedes revocar en cualquier momento.</string>
 	<key>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
@@ -534,6 +576,8 @@
 	<string>Informe inesperado de Claude API</string>
 	<key>Unexpected response from Anthropic</key>
 	<string>Respuesta inesperada de Anthropic</string>
+	<key>Unexpected response from CLIProxyAPI</key>
+	<string>Respuesta inesperada de CLIProxyAPI</string>
 	<key>Unexpected response from DeepSeek</key>
 	<string>Respuesta inesperada de DeepSeek</string>
 	<key>Unexpected response from Google</key>
@@ -582,6 +626,8 @@
 	<string>Semanal (Opus)</string>
 	<key>Weekly limit</key>
 	<string>Límite semanal</string>
+	<key>When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy.</key>
+	<string>Cuando Claude Code envía solicitudes a través de CLIProxyAPI, su propia sesión deja de renovarse. Allowance Bar puede pedirle el uso al proxy. Tus tokens de Claude se quedan en el proxy.</string>
 	<key>Window</key>
 	<string>Ventana</string>
 	<key>Window Options</key>

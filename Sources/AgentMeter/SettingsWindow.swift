@@ -214,6 +214,10 @@ private struct ProvidersSettingsTab: View {
                             settings: settings
                         )
                     }
+
+                    if provider.id == "claude" {
+                        CLIProxySection(store: store, settings: settings)
+                    }
                 } header: {
                     HStack(spacing: 6) {
                         ProviderBadge(provider: provider, size: 18)
@@ -223,6 +227,161 @@ private struct ProvidersSettingsTab: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Optional CLIProxyAPI server that answers for Claude logins whose Claude
+/// Code token has expired or is missing on this Mac.
+private struct CLIProxySection: View {
+    @ObservedObject var store: UsageStore
+    @ObservedObject var settings: SettingsStore
+    @State private var hasKey = CLIProxyConfig.isConfigured
+    @State private var draftKey = ""
+    @State private var keyError: String?
+    @State private var checking = false
+    @State private var checkResult: String?
+    @State private var proxyEmails: [String] = []
+    /// Saved only on Return or Check connection, so a refresh never sends
+    /// the key to a half-typed address.
+    @State private var draftURL = ""
+
+    private var claudeProviderIDs: [String] {
+        store.providers.map(\.id).filter { ProviderAccountConfig.baseProviderID(of: $0) == "claude" }
+    }
+
+    var body: some View {
+        Group {
+            Text(L("CLIProxyAPI"))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Text(L("When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy."))
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+
+            TextField(L("Server address"), text: $draftURL, prompt: Text(CLIProxyConfig.defaultURL))
+                .onSubmit(connectionDidChange)
+
+            if hasKey {
+                LabeledContent(L("Management key")) {
+                    HStack {
+                        Text(L("Saved"))
+                        Button(L("Remove")) { removeKey() }
+                    }
+                }
+            } else {
+                SecureField(L("Management key"), text: $draftKey)
+                Button(L("Save")) { saveKey() }
+                    .disabled(draftKey.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            if let keyError {
+                Text(keyError).font(.callout).foregroundStyle(.orange)
+            }
+
+            if hasKey {
+                HStack {
+                    Button(L("Check connection"), action: connectionDidChange)
+                        .disabled(checking)
+                    if checking {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+                if let checkResult {
+                    Text(checkResult).font(.callout).foregroundStyle(.secondary)
+                }
+                if !proxyEmails.isEmpty {
+                    ForEach(claudeProviderIDs, id: \.self) { providerID in
+                        loginPicker(for: providerID)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            draftURL = settings.cliProxyURL
+            if hasKey { check(force: false) }
+        }
+    }
+
+    private func loginPicker(for providerID: String) -> some View {
+        let name = store.providers.first { $0.id == providerID }?.displayName ?? providerID
+        let selected = settings.cliProxyClaudeEmails[providerID]
+        let options = proxyEmails + (selected.map { proxyEmails.contains($0) ? [] : [$0] } ?? [])
+        return Picker(String(format: L("%@ proxy login"), name), selection: Binding(
+            get: { selected ?? "" },
+            set: { newValue in
+                settings.cliProxyClaudeEmails[providerID] = newValue.isEmpty ? nil : newValue
+                store.credentialsDidChange(for: [providerID])
+            }
+        )) {
+            Text(L("Same email as Claude Code")).tag("")
+            ForEach(options, id: \.self) { email in
+                Text(email).tag(email)
+            }
+        }
+    }
+
+    /// Checks first and refreshes afterwards, so a wrong key costs the proxy
+    /// one failed check, not two.
+    private func connectionDidChange() {
+        settings.cliProxyURL = draftURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hasKey else { return }
+        check(force: true) {
+            store.credentialsDidChange(for: claudeProviderIDs)
+        }
+    }
+
+    /// `force` skips the shared login list and a remembered failure.
+    private func check(force: Bool, then completion: @escaping () -> Void = {}) {
+        guard let config = CLIProxyConfig.current() else {
+            checkResult = L("Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.")
+            proxyEmails = []
+            completion()
+            return
+        }
+        checking = true
+        Task {
+            let message: String
+            do {
+                let accounts = try await CLIProxyClient(config: config).claudeAccounts(force: force)
+                proxyEmails = accounts.map(\.email)
+                message = accounts.isEmpty
+                    ? L("Connected. CLIProxyAPI has no Claude logins.")
+                    : String(format: L("Connected. Claude logins found: %lld."), accounts.count)
+            } catch {
+                proxyEmails = []
+                message = error.localizedDescription
+            }
+            checking = false
+            checkResult = message
+            AccessibilityNotification.Announcement(message).post()
+            completion()
+        }
+    }
+
+    private func saveKey() {
+        let key = draftKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+        guard KeychainStore.set(key, account: CLIProxyConfig.keychainAccount) else {
+            keyError = L("Could not save the management key in Keychain. Please try again.")
+            return
+        }
+        keyError = nil
+        draftKey = ""
+        hasKey = true
+        connectionDidChange()
+        AccessibilityNotification.Announcement(L("Management key saved")).post()
+    }
+
+    private func removeKey() {
+        guard KeychainStore.delete(CLIProxyConfig.keychainAccount) else {
+            keyError = L("Could not remove the management key from Keychain. Please try again.")
+            return
+        }
+        keyError = nil
+        hasKey = false
+        checkResult = nil
+        proxyEmails = []
+        store.credentialsDidChange(for: claudeProviderIDs)
+        AccessibilityNotification.Announcement(L("Management key removed")).post()
     }
 }
 

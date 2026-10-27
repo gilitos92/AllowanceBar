@@ -3,7 +3,7 @@
 # a signed Sparkle appcast.xml. See docs/RELEASING.md.
 #
 # Environment:
-#   ALLOWANCEBAR_VERSION  e.g. 2.4.1 (defaults to 2.4.1)
+#   ALLOWANCEBAR_VERSION  e.g. 2.5.0 (defaults to 2.5.0)
 #   SIGN_IDENTITY         code-signing identity; defaults to the self-signed
 #                         "GGV" certificate in the login keychain. A
 #                         "Developer ID Application" identity also enables
@@ -21,7 +21,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 SIGN_IDENTITY="${SIGN_IDENTITY:-GGV}"
-VERSION="${ALLOWANCEBAR_VERSION:-2.4.1}"
+VERSION="${ALLOWANCEBAR_VERSION:-2.5.0}"
 SPARKLE_ACCOUNT="AllowanceBar"
 REPO="gilitos92/AllowanceBar"
 
