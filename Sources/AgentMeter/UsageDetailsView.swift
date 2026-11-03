@@ -497,17 +497,19 @@ private struct CompactWindowMeter: View {
                 symbolFont: .system(size: 11, weight: .semibold)
             )
             .frame(width: 72, alignment: .trailing)
-            // Its own column, so a full critical badge keeps its 72 points,
+            // Its own 14-point column (the widest arrow is 13), so a full
+            // critical badge keeps its 72 points,
             // and rows without a pace stay aligned with the others.
             if showsPace {
-                Group {
+                ZStack(alignment: .leading) {
+                    Color.clear
                     if let pace {
                         Image(systemName: pace.symbolName)
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.secondary)
                     }
                 }
-                .frame(width: 12, alignment: .leading)
+                .frame(width: 14)
             }
         }
         .frame(height: 20)
