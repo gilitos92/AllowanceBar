@@ -156,11 +156,14 @@ enum StatusSnapshotWriter {
 
         let providers = store.visibleProviders.map { provider in
             let codexMeta = codexSnapshotMetadata(for: provider)
+            let state = store.state(for: provider.id)
+            // CLIProxyAPI rows always know their login's email.
+            let proxyEmail = provider is CLIProxyAccountProvider ? state.usage?.accountEmail : nil
             return ProviderInput(
                 id: provider.id,
                 displayName: provider.displayName,
-                state: store.state(for: provider.id),
-                accountEmail: codexMeta.accountEmail,
+                state: state,
+                accountEmail: codexMeta.accountEmail ?? proxyEmail,
                 planType: codexMeta.planType,
                 renewal: settings.renewal(for: provider.id)
             )

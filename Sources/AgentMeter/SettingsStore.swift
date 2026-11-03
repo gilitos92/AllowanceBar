@@ -167,6 +167,24 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(cliProxyClaudeEmails, forKey: CLIProxyConfig.claudeEmailsDefaultsKey) }
     }
 
+    /// Logins found on the CLIProxyAPI server at the last check, so their
+    /// rows (and their settings) appear right away at launch. Identifiers
+    /// only; no tokens.
+    @Published var cliProxyLogins: [CLIProxyLoginKey] {
+        didSet {
+            if let data = try? JSONEncoder().encode(cliProxyLogins) {
+                defaults.set(data, forKey: Keys.cliProxyLogins)
+            }
+        }
+    }
+
+    /// Last known email per local account (provider id). It lets a proxy row
+    /// for the same account stay hidden while that account is still loading.
+    var localAccountEmails: [String: String] {
+        get { defaults.dictionary(forKey: Keys.localAccountEmails) as? [String: String] ?? [:] }
+        set { defaults.set(newValue, forKey: Keys.localAccountEmails) }
+    }
+
     private let defaults: UserDefaults
     private var modeCache: [String: ProviderMode] = [:]
     private var menuBarCache: [String: Bool] = [:]
@@ -204,6 +222,8 @@ final class SettingsStore: ObservableObject {
         static let extraAccounts = "providerExtraAccounts"
         static let subscriptionRenewals = "subscriptionRenewals"
         static let compactMenuBar = "compactMenuBar"
+        static let cliProxyLogins = "cliProxyLogins"
+        static let localAccountEmails = "cliProxyLocalAccountEmails"
         static func mode(_ id: String) -> String { "provider.\(id).mode" }
         static func inMenuBar(_ id: String) -> String { "provider.\(id).inMenuBar" }
     }
@@ -280,6 +300,12 @@ final class SettingsStore: ObservableObject {
         self.cliProxyURL = defaults.string(forKey: CLIProxyConfig.urlDefaultsKey) ?? ""
         self.cliProxyClaudeEmails = defaults.dictionary(forKey: CLIProxyConfig.claudeEmailsDefaultsKey)
             as? [String: String] ?? [:]
+        if let data = defaults.data(forKey: Keys.cliProxyLogins),
+           let logins = try? JSONDecoder().decode([CLIProxyLoginKey].self, from: data) {
+            self.cliProxyLogins = logins
+        } else {
+            self.cliProxyLogins = []
+        }
     }
 
     func addAccount(_ account: ProviderAccountConfig) {

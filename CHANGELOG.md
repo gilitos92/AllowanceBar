@@ -7,6 +7,26 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Added
+- Every login on your [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)
+  server shows as its own row, with no setup per account: Claude, Codex,
+  Antigravity and Gemini. Enter the proxy's address and management key once,
+  in the new Settings → Providers → CLIProxyAPI section. Rows follow their
+  provider's other accounts, are named by email, and come and go as you add
+  or remove logins on the proxy. Turned-off logins are left out.
+- Antigravity limits (5-hour and weekly, per model group), read through
+  CLIProxyAPI.
+
+### Changed
+- A proxy login with the same email as an account on this Mac shows once,
+  through the local account. If the local account has no data or keeps
+  failing for 10 minutes, the proxy row shows instead; set a proxy row to On to always show both.
+- Proxy rows ask for usage at most every two minutes; the Refresh button asks
+  right away. Tokens still never leave the proxy.
+- The CLIProxyAPI settings moved from the Claude section to their own
+  section at the top of Settings → Providers.
+- The agent snapshot (`status.json`) includes `accountEmail` for proxy rows.
+
 ## [2.6.1] — 2026-11-03
 
 ### Added

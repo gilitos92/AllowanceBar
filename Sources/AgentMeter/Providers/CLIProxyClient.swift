@@ -2,12 +2,13 @@ import CryptoKit
 import Foundation
 
 /// Connection to a CLIProxyAPI server (https://github.com/router-for-me/CLIProxyAPI)
-/// that holds the user's Claude logins.
+/// that holds the user's Claude, Codex, Antigravity and Gemini logins.
 ///
-/// Claude Code stops renewing its own login when it sends requests through the
-/// proxy, so its token expires. The proxy keeps renewing its copies. Its
-/// management API makes the usage request with the account's token on the
-/// proxy machine, so the token never reaches Allowance Bar.
+/// Every login on the proxy shows as its own row (`CLIProxyAccountProvider`).
+/// Claude Code also stops renewing its own login when it sends requests
+/// through the proxy, so local Claude accounts use the proxy as a backup.
+/// The management API makes each usage request with the login's token on the
+/// proxy machine, so no token ever reaches Allowance Bar.
 struct CLIProxyConfig: Equatable, Sendable {
     var baseURL: URL
     var managementKey: String
@@ -70,7 +71,7 @@ struct CLIProxyConfig: Equatable, Sendable {
     }
 }
 
-/// Shares one login list per refresh across all Claude accounts, and stops
+/// Shares one login list per refresh across all accounts, and stops
 /// calling the proxy after it rejects the key. CLIProxyAPI bans an address
 /// for 30 minutes after 5 failed key checks, which would also lock out its
 /// own management page on that Mac.
@@ -137,53 +138,89 @@ struct CLIProxyClient: Sendable {
     let config: CLIProxyConfig
     var session: URLSession = HTTP.session
 
+    /// One login on the proxy. Holds identifiers only, never a token.
     struct Account: Equatable, Sendable {
+        let kind: CLIProxyLoginKind
         let authIndex: String
         let email: String
         let disabled: Bool
+        /// Codex: sent as `Chatgpt-Account-Id` so a login in several
+        /// workspaces reports the right one.
+        let chatgptAccountID: String?
+        /// Antigravity and Gemini: the Google Cloud project the quota belongs to.
+        let projectID: String?
+        /// Codex: the plan from the login's ID token claims.
+        let planType: String?
+
+        init(
+            kind: CLIProxyLoginKind = .claude,
+            authIndex: String,
+            email: String,
+            disabled: Bool,
+            chatgptAccountID: String? = nil,
+            projectID: String? = nil,
+            planType: String? = nil
+        ) {
+            self.kind = kind
+            self.authIndex = authIndex
+            self.email = email
+            self.disabled = disabled
+            self.chatgptAccountID = chatgptAccountID
+            self.projectID = projectID
+            self.planType = planType
+        }
     }
 
-    /// The proxy's Claude logins, shared through `CLIProxyAccountCache`.
+    /// Every supported login on the proxy, shared through `CLIProxyAccountCache`.
+    func logins(force: Bool = false, cache: CLIProxyAccountCache = .shared) async throws -> [Account] {
+        try await cache.accounts(for: config, force: force) { try await fetchLogins() }
+    }
+
+    /// The proxy's Claude logins.
     func claudeAccounts(force: Bool = false, cache: CLIProxyAccountCache = .shared) async throws -> [Account] {
-        try await cache.accounts(for: config, force: force) { try await fetchClaudeAccounts() }
+        try await logins(force: force, cache: cache).filter { $0.kind == .claude }
     }
 
-    private func fetchClaudeAccounts() async throws -> [Account] {
+    private func fetchLogins() async throws -> [Account] {
         let data = try await managementRequest(path: "auth-files", method: "GET", body: nil)
+        return try Self.parseLogins(data)
+    }
+
+    /// Keeps logins of supported kinds that have an index and an email.
+    static func parseLogins(_ data: Data) throws -> [Account] {
         guard let list = try? JSONDecoder().decode(AuthFilesResponse.self, from: data) else {
             throw CLIProxyError.badResponse
         }
         return list.files.compactMap { file in
-            guard (file.provider ?? file.type)?.lowercased() == "claude",
-                  let index = file.authIndex, let email = file.email, !email.isEmpty else {
+            guard let kind = CLIProxyLoginKind(authType: file.provider ?? file.type),
+                  let index = file.authIndex,
+                  let email = file.email?.trimmingCharacters(in: .whitespaces), !email.isEmpty else {
                 return nil
             }
-            return Account(authIndex: index.value, email: email, disabled: file.disabled ?? false)
+            return Account(
+                kind: kind,
+                authIndex: index.value,
+                email: email,
+                disabled: file.disabled ?? false,
+                chatgptAccountID: (file.idToken?.chatgptAccountID).nonEmpty,
+                projectID: file.projectID.nonEmpty,
+                planType: (file.idToken?.planType).nonEmpty
+            )
         }
     }
 
     /// Asks the proxy to call Anthropic's usage endpoint with one login's token.
     func claudeUsage(authIndex: String) async throws -> ClaudeProvider.UsageResponse {
-        let call = APICallRequest(
+        let result = try await apiCall(
             authIndex: authIndex,
             method: "GET",
             url: ClaudeProvider.usageURL.absoluteString,
             header: [
-                // The proxy replaces $TOKEN$ with the login's access token.
-                "Authorization": "Bearer $TOKEN$",
                 "Accept": "application/json",
                 "anthropic-beta": ClaudeProvider.betaHeader,
                 "User-Agent": ClaudeProvider.userAgent,
             ]
         )
-        let data = try await managementRequest(
-            path: "api-call",
-            method: "POST",
-            body: try JSONEncoder().encode(call)
-        )
-        guard let result = try? JSONDecoder().decode(APICallResponse.self, from: data) else {
-            throw CLIProxyError.badResponse
-        }
         switch result.statusCode {
         case 200:
             guard let usage = try? JSONDecoder().decode(
@@ -195,6 +232,104 @@ struct CLIProxyClient: Sendable {
         case 429: throw ClaudeError.rateLimited
         default: throw ClaudeError.httpStatus(result.statusCode)
         }
+    }
+
+    /// Codex limits from ChatGPT's usage endpoint, the one the Codex CLI and
+    /// CLIProxyAPI's own dashboard read.
+    static let codexUsageURL = "https://chatgpt.com/backend-api/wham/usage"
+    /// The User-Agent CLIProxyAPI's dashboard sends for this request.
+    static let codexUserAgent = "codex-tui/0.149.1 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.149.1)"
+
+    func codexUsage(_ account: Account) async throws -> Data {
+        var header = [
+            "Content-Type": "application/json",
+            "User-Agent": Self.codexUserAgent,
+        ]
+        if let accountID = account.chatgptAccountID {
+            header["Chatgpt-Account-Id"] = accountID
+        }
+        let result = try await apiCall(authIndex: account.authIndex, method: "GET", url: Self.codexUsageURL, header: header)
+        return try Self.upstreamBody(result)
+    }
+
+    /// Antigravity quota groups. Google serves them from several hosts; like
+    /// CLIProxyAPI's dashboard, try each until one answers.
+    static let antigravityQuotaURLs = [
+        "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
+        "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:retrieveUserQuotaSummary",
+        "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
+    ]
+    static let antigravityUserAgent = "antigravity/hub/2.23.0 darwin/arm64"
+
+    func antigravityUsage(_ account: Account) async throws -> Data {
+        guard let project = account.projectID else { throw CLIProxyError.missingProject }
+        let body = try JSONSerialization.data(withJSONObject: ["project": project])
+        var lastError: Error = CLIProxyError.badResponse
+        for url in Self.antigravityQuotaURLs {
+            let result = try await apiCall(
+                authIndex: account.authIndex,
+                method: "POST",
+                url: url,
+                header: ["Content-Type": "application/json", "User-Agent": Self.antigravityUserAgent],
+                body: String(decoding: body, as: UTF8.self)
+            )
+            do {
+                return try Self.upstreamBody(result)
+            } catch CLIProxyError.loginSignedOut {
+                throw CLIProxyError.loginSignedOut
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
+
+    /// Gemini CLI quota, the same request `GeminiProvider` makes locally.
+    func geminiUsage(_ account: Account) async throws -> Data {
+        let fields: [String: String] = account.projectID.map { ["project": $0] } ?? [:]
+        let body = try JSONSerialization.data(withJSONObject: fields)
+        let result = try await apiCall(
+            authIndex: account.authIndex,
+            method: "POST",
+            url: GeminiProvider.quotaURL.absoluteString,
+            header: ["Content-Type": "application/json"],
+            body: String(decoding: body, as: UTF8.self)
+        )
+        return try Self.upstreamBody(result)
+    }
+
+    /// The provider's answer body for a 200, or the matching error.
+    static func upstreamBody(_ result: APICallResponse) throws -> Data {
+        switch result.statusCode {
+        case 200: return Data(result.body.utf8)
+        case 401: throw CLIProxyError.loginSignedOut
+        case 429: throw CLIProxyError.upstreamRateLimited
+        default: throw CLIProxyError.upstreamStatus(result.statusCode)
+        }
+    }
+
+    /// Asks the proxy to make one request with a login's token. The proxy
+    /// replaces `$TOKEN$` with that login's access token, so the token stays
+    /// on the proxy.
+    func apiCall(
+        authIndex: String,
+        method: String,
+        url: String,
+        header: [String: String],
+        body: String? = nil
+    ) async throws -> APICallResponse {
+        var header = header
+        header["Authorization"] = "Bearer $TOKEN$"
+        let call = APICallRequest(authIndex: authIndex, method: method, url: url, header: header, data: body)
+        let data = try await managementRequest(
+            path: "api-call",
+            method: "POST",
+            body: try JSONEncoder().encode(call)
+        )
+        guard let result = try? JSONDecoder().decode(APICallResponse.self, from: data) else {
+            throw CLIProxyError.badResponse
+        }
+        return result
     }
 
     private func managementRequest(path: String, method: String, body: Data?) async throws -> Data {
@@ -239,10 +374,37 @@ struct CLIProxyClient: Sendable {
         let provider: String?
         let email: String?
         let disabled: Bool?
+        let projectID: String?
+        /// Codex only: claims the proxy decoded from the ID token. Holds no
+        /// token. Ignored when it isn't an object.
+        let idToken: IDTokenClaims?
 
         enum CodingKeys: String, CodingKey {
             case authIndex = "auth_index"
+            case projectID = "project_id"
+            case idToken = "id_token"
             case type, provider, email, disabled
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            authIndex = try? container.decodeIfPresent(FlexibleString.self, forKey: .authIndex)
+            type = try? container.decodeIfPresent(String.self, forKey: .type)
+            provider = try? container.decodeIfPresent(String.self, forKey: .provider)
+            email = try? container.decodeIfPresent(String.self, forKey: .email)
+            disabled = try? container.decodeIfPresent(Bool.self, forKey: .disabled)
+            projectID = try? container.decodeIfPresent(String.self, forKey: .projectID)
+            idToken = try? container.decodeIfPresent(IDTokenClaims.self, forKey: .idToken)
+        }
+    }
+
+    private struct IDTokenClaims: Decodable {
+        let chatgptAccountID: String?
+        let planType: String?
+
+        enum CodingKeys: String, CodingKey {
+            case chatgptAccountID = "chatgpt_account_id"
+            case planType = "plan_type"
         }
     }
 
@@ -264,14 +426,16 @@ struct CLIProxyClient: Sendable {
         let method: String
         let url: String
         let header: [String: String]
+        /// Request body as text; left out when nil.
+        let data: String?
 
         enum CodingKeys: String, CodingKey {
             case authIndex = "auth_index"
-            case method, url, header
+            case method, url, header, data
         }
     }
 
-    private struct APICallResponse: Decodable {
+    struct APICallResponse: Decodable {
         let statusCode: Int
         let body: String
 
@@ -295,6 +459,12 @@ enum CLIProxyError: LocalizedError, Equatable {
     case loginNotFound
     case loginDisabled
     case loginSignedOut
+    /// The login no longer exists on the proxy, or is turned off there.
+    case loginRemoved
+    case missingProject
+    case notConfigured
+    case upstreamRateLimited
+    case upstreamStatus(Int)
     case badResponse
     case httpStatus(Int)
 
@@ -327,11 +497,69 @@ enum CLIProxyError: LocalizedError, Equatable {
         case .loginDisabled:
             return L("The matching Claude login is turned off in CLIProxyAPI.")
         case .loginSignedOut:
-            return L("CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.")
+            return L("This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.")
+        case .loginRemoved:
+            return L("CLIProxyAPI no longer has this login, or it is turned off there.")
+        case .missingProject:
+            return L("CLIProxyAPI has no Google Cloud project for this login. Sign in again in CLIProxyAPI.")
+        case .notConfigured:
+            return L("Add the CLIProxyAPI management key in Settings.")
+        case .upstreamRateLimited:
+            return L("The provider rate-limited the usage request")
+        case .upstreamStatus(let code):
+            return L("The provider returned HTTP \(code) through CLIProxyAPI")
         case .badResponse:
             return L("Unexpected response from CLIProxyAPI")
         case .httpStatus(let code):
             return L("CLIProxyAPI returned HTTP \(code)")
         }
+    }
+}
+
+/// The proxy's login kinds that Allowance Bar can read limits for.
+enum CLIProxyLoginKind: String, Codable, CaseIterable, Sendable {
+    case claude
+    case codex
+    case antigravity
+    case gemini
+
+    /// CLIProxyAPI's auth `type`/`provider`. Gemini CLI logins are
+    /// "gemini-cli"; older auth files say "gemini".
+    init?(authType: String?) {
+        switch authType?.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: "_", with: "-") {
+        case "claude": self = .claude
+        case "codex": self = .codex
+        case "antigravity": self = .antigravity
+        case "gemini-cli", "gemini": self = .gemini
+        default: return nil
+        }
+    }
+
+    /// The Allowance Bar provider these logins belong with.
+    var baseProviderID: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .claude: return "Claude"
+        case .codex: return "Codex"
+        case .antigravity: return "Antigravity"
+        case .gemini: return "Gemini"
+        }
+    }
+
+    var shortCode: String {
+        switch self {
+        case .claude: return "Cl"
+        case .codex: return "Cx"
+        case .antigravity: return "Ag"
+        case .gemini: return "Ge"
+        }
+    }
+}
+
+private extension Optional where Wrapped == String {
+    var nonEmpty: String? {
+        guard let value = self?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+        return value
     }
 }

@@ -24,13 +24,27 @@ final class UsageStore: ObservableObject {
     private var refreshRequestObserver: NSObjectProtocol?
     private var accountsObserver: AnyCancellable?
     private var credentialGenerations: [String: Int] = [:]
+    /// Nil when the provider list was injected (tests): the proxy's logins
+    /// then never change it.
+    private let proxyConfig: (@Sendable () -> CLIProxyConfig?)?
 
     init(
         settings: SettingsStore,
-        providers: [any UsageProvider]? = nil
+        providers: [any UsageProvider]? = nil,
+        proxyConfig: (@Sendable () -> CLIProxyConfig?)? = nil
     ) {
         self.settings = settings
-        self.providers = providers ?? Self.defaultProviders(extraAccounts: settings.extraAccounts)
+        if let proxyConfig {
+            self.proxyConfig = proxyConfig
+        } else if providers == nil {
+            self.proxyConfig = { @Sendable in CLIProxyConfig.current() }
+        } else {
+            self.proxyConfig = nil
+        }
+        self.providers = providers ?? Self.defaultProviders(
+            extraAccounts: settings.extraAccounts,
+            proxyLogins: settings.cliProxyLogins
+        )
         for provider in self.providers {
             states[provider.id] = .loading
         }
@@ -70,22 +84,45 @@ final class UsageStore: ObservableObject {
         defaultProviders(extraAccounts: [])
     }
 
-    /// Base providers in display order, each followed by its extra accounts.
-    nonisolated static func defaultProviders(extraAccounts: [ProviderAccountConfig]) -> [any UsageProvider] {
+    /// Base providers in display order, each followed by its extra accounts
+    /// and then its CLIProxyAPI logins. Antigravity has no local provider, so
+    /// its proxy logins follow Gemini's.
+    nonisolated static func defaultProviders(
+        extraAccounts: [ProviderAccountConfig],
+        proxyLogins: [CLIProxyLoginKey] = []
+    ) -> [any UsageProvider] {
         let bases: [any UsageProvider] = [
             CodexProvider(), CursorProvider(), ClaudeProvider(), ClaudeAPIProvider(), GeminiProvider(),
             OpenRouterProvider(), DeepSeekProvider(), MoonshotProvider(),
             ZaiProvider(), VeniceProvider(),
         ]
+        func proxyRows(_ baseID: String) -> [any UsageProvider] {
+            proxyLogins
+                .filter { $0.kind.baseProviderID == baseID }
+                .map { CLIProxyAccountProvider(login: $0) }
+        }
         return bases.flatMap { base -> [any UsageProvider] in
-            [base] + extraAccounts
+            var rows: [any UsageProvider] = [base]
+            rows += extraAccounts
                 .filter { $0.baseProviderID == base.id }
                 .compactMap { $0.makeProvider() }
+            rows += proxyRows(base.id)
+            if base.id == "gemini" {
+                rows += proxyRows(CLIProxyLoginKind.antigravity.baseProviderID)
+            }
+            return rows
         }
     }
 
-    func rebuildProviders(extraAccounts: [ProviderAccountConfig]? = nil) {
-        let newProviders = Self.defaultProviders(extraAccounts: extraAccounts ?? settings.extraAccounts)
+    func rebuildProviders(
+        extraAccounts: [ProviderAccountConfig]? = nil,
+        proxyLogins: [CLIProxyLoginKey]? = nil,
+        forceRefresh: Bool = false
+    ) {
+        let newProviders = Self.defaultProviders(
+            extraAccounts: extraAccounts ?? settings.extraAccounts,
+            proxyLogins: proxyLogins ?? settings.cliProxyLogins
+        )
         let oldIDs = Set(providers.map(\.id))
         let newIDs = Set(newProviders.map(\.id))
         providers = newProviders
@@ -96,7 +133,7 @@ final class UsageStore: ObservableObject {
         for added in newIDs.subtracting(oldIDs) {
             states[added] = .loading
         }
-        refresh()
+        refresh(forceRefresh: forceRefresh)
     }
 
     deinit {
@@ -124,9 +161,59 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    /// Providers currently visible per settings (mode + detection).
+    /// Providers currently visible per settings (mode + detection). A
+    /// CLIProxyAPI login left on Auto is hidden while an account on this Mac
+    /// shows the same email for the same provider.
     var visibleProviders: [any UsageProvider] {
-        providers.filter { settings.mode(for: $0.id).isVisible(detected: $0.isDetected) }
+        let shown = providers.filter { settings.mode(for: $0.id).isVisible(detected: $0.isDetected) }
+        let local = localAccountEmails(among: shown)
+        return shown.filter { provider in
+            guard let proxy = provider as? CLIProxyAccountProvider,
+                  settings.mode(for: provider.id) == .auto else { return true }
+            return Self.localDuplicate(of: proxy.login, in: local) == nil
+        }
+    }
+
+    /// The name of the account on this Mac that a proxy row duplicates, if any.
+    func localDuplicateName(of provider: any UsageProvider) -> String? {
+        guard let proxy = provider as? CLIProxyAccountProvider else { return nil }
+        let shown = providers.filter { settings.mode(for: $0.id).isVisible(detected: $0.isDetected) }
+        return Self.localDuplicate(of: proxy.login, in: localAccountEmails(among: shown))
+    }
+
+    /// How long a local account may fail (showing stale data) before its
+    /// proxy row takes over. Short failures don't make rows come and go.
+    static let localFailureGrace: TimeInterval = 10 * 60
+
+    /// Email of every shown non-proxy account: from its latest data, or the
+    /// last known one while it loads. An account in error, or stale for
+    /// longer than `localFailureGrace`, has none, so its proxy row takes over.
+    private func localAccountEmails(among shown: [any UsageProvider]) -> [(providerID: String, name: String, email: String)] {
+        let remembered = settings.localAccountEmails
+        let now = Date()
+        return shown.compactMap { provider in
+            guard !(provider is CLIProxyAccountProvider) else { return nil }
+            let email: String?
+            switch state(for: provider.id) {
+            case .ready(let usage): email = usage.accountEmail
+            case .stale(let usage, _, let since):
+                email = now.timeIntervalSince(since) < Self.localFailureGrace ? usage.accountEmail : nil
+            case .loading: email = remembered[provider.id]
+            case .error: email = nil
+            }
+            guard let email, !email.isEmpty else { return nil }
+            return (provider.id, provider.displayName, email)
+        }
+    }
+
+    nonisolated static func localDuplicate(
+        of login: CLIProxyLoginKey,
+        in local: [(providerID: String, name: String, email: String)]
+    ) -> String? {
+        local.first { entry in
+            ProviderAccountConfig.baseProviderID(of: entry.providerID) == login.kind.baseProviderID
+                && entry.email.caseInsensitiveCompare(login.email) == .orderedSame
+        }?.name
     }
 
     func state(for providerID: String) -> ProviderState {
@@ -149,21 +236,48 @@ final class UsageStore: ObservableObject {
     }
 
     func refresh(forceRefresh: Bool = false) {
-        let providers = visibleProviders
         watchNewestCodexSession()
         lastRefreshed = Date()
         Task {
-            await withTaskGroup(of: Void.self) { group in
-                for provider in providers {
-                    group.addTask {
-                        await self.refreshProvider(provider, forceRefresh: forceRefresh)
-                        DebugLog.write("refresh: \(provider.id) done")
+            // A changed login list rebuilds the rows, which starts a new refresh.
+            if await syncProxyLogins(forceRefresh: forceRefresh) { return }
+            var fetched = Set<String>()
+            var pending = visibleProviders
+            // A local account that fails can reveal its proxy row, so fetch
+            // rows that became visible during the first pass too.
+            while !pending.isEmpty {
+                fetched.formUnion(pending.map(\.id))
+                await withTaskGroup(of: Void.self) { group in
+                    for provider in pending {
+                        group.addTask {
+                            await self.refreshProvider(provider, forceRefresh: forceRefresh)
+                            DebugLog.write("refresh: \(provider.id) done")
+                        }
                     }
                 }
+                pending = visibleProviders.filter { !fetched.contains($0.id) }
             }
             DebugLog.write("refresh: all done, writing snapshot")
             StatusSnapshotWriter.writeIfEnabled(store: self, settings: settings)
         }
+    }
+
+    /// Updates the rows to match the proxy's logins. Returns true when the
+    /// list changed and the rows were rebuilt. When the proxy can't be
+    /// reached, the last known rows stay and show the error themselves.
+    private func syncProxyLogins(forceRefresh: Bool) async -> Bool {
+        guard let proxyConfig else { return false }
+        let logins: [CLIProxyLoginKey]
+        if let config = proxyConfig() {
+            guard let accounts = try? await CLIProxyClient(config: config).logins() else { return false }
+            logins = CLIProxyLoginKey.keys(from: accounts)
+        } else {
+            logins = []
+        }
+        guard logins != settings.cliProxyLogins else { return false }
+        settings.cliProxyLogins = logins
+        rebuildProviders(proxyLogins: logins, forceRefresh: forceRefresh)
+        return true
     }
 
     private func refreshProvider(_ provider: any UsageProvider, forceRefresh: Bool) async {
@@ -172,6 +286,10 @@ final class UsageStore: ObservableObject {
             let usage = try await provider.fetch(forceRefresh: forceRefresh)
             guard credentialGenerations[provider.id, default: 0] == generation else { return }
             states[provider.id] = .ready(usage)
+            if !(provider is CLIProxyAccountProvider), let email = usage.accountEmail,
+               settings.localAccountEmails[provider.id] != email {
+                settings.localAccountEmails[provider.id] = email
+            }
             notificationManager.notifyIfNeeded(
                 provider: provider,
                 usage: usage,

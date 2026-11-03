@@ -1,7 +1,8 @@
 # Allowance Bar — Agent Context
 
 macOS menu bar app (SwiftUI, Swift Package, macOS 14+) showing AI coding usage
-limits for Codex, Cursor, Claude Code, Gemini, Claude API reporting (multiple accounts each), and
+limits for Codex, Cursor, Claude Code, Gemini, Claude API reporting (multiple accounts each),
+every CLIProxyAPI login (Claude, Codex, Antigravity, Gemini), and
 pay-as-you-go balances for OpenRouter, DeepSeek, Kimi, Z.ai, and Venice.
 Public repo: https://github.com/gilitos92/AllowanceBar, a fork of
 https://github.com/fdtorres1/AgentMeter (MIT; remote `origin` = this
@@ -137,6 +138,27 @@ announcement drafts, environment specifics) and complements this file.
   The proxy bans an IP for 30 min after 5 bad keys, so `CLIProxyAccountCache`
   stops after `invalidKey` until address/key change, waits out
   `tooManyAttempts`, and shares one login list per refresh.
+- **CLIProxyAPI rows** (v2.7.0, `CLIProxyAccountProvider.swift`): every
+  enabled `claude`/`codex`/`antigravity`/`gemini-cli` login in `auth-files`
+  becomes a row with id `<base>:proxy-<12 hex of SHA-256(kind, email,
+  gemini project)>` (`CLIProxyLoginKey`), saved in defaults
+  `cliProxyLogins`. `UsageStore.refresh` first syncs that list and rebuilds
+  the rows when it changes; injected provider lists (tests) never sync.
+  Requests, all via `api-call` with `$TOKEN$`: Codex `GET
+  chatgpt.com/backend-api/wham/usage` (+ `Chatgpt-Account-Id` from the
+  list's decoded `id_token` claims; `rate_limit.primary_window/
+  secondary_window{used_percent, limit_window_seconds, reset_at s}`);
+  Antigravity `POST .../v1internal:retrieveUserQuotaSummary` `{"project"}`
+  on three hosts in turn (`groups[].buckets[]{window 5h/weekly,
+  remainingFraction, resetTime}`); Gemini `retrieveUserQuota`. Formats copied
+  from CLIProxyAPI's Management Center (`src/features/quota/providers`).
+  Never download auth files (they hold tokens). `CLIProxyUsageCache` reuses
+  a row's answer for 2 min unless forced. Dedupe: a proxy row on Auto hides
+  while a shown local account of the same base reports the same
+  `ProviderUsage.accountEmail` (Claude `.claude.json`, Codex app-server,
+  Gemini `google_accounts.json`); remembered in defaults
+  `cliProxyLocalAccountEmails` for the loading phase; a local error, or
+  stale for over 10 min (`localFailureGrace`), shows the proxy row.
 - **Claude API** (`claude-api`, v1.12.0): separate from subscription Claude.
   Keychain API key must have organization reporting access. Read-only GET
   `/v1/organizations/cost_report` and `/v1/organizations/usage_report/messages`

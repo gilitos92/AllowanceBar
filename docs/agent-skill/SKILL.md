@@ -1,6 +1,6 @@
 ---
 name: allowancebar
-description: Check remaining AI coding usage limits and API balances (Codex, Cursor, Claude Code, Gemini, OpenRouter, DeepSeek, Kimi, Z.ai, Venice) through the local Allowance Bar menu bar app before starting large or long-running tasks. Use when planning work that will consume significant model quota, when choosing between providers, when a rate-limit or quota error occurs, or when the user asks how much usage they have left.
+description: Check remaining AI coding usage limits and API balances (Codex, Cursor, Claude Code, Gemini, Antigravity, OpenRouter, DeepSeek, Kimi, Z.ai, Venice) through the local Allowance Bar menu bar app before starting large or long-running tasks. Use when planning work that will consume significant model quota, when choosing between providers, when a rate-limit or quota error occurs, or when the user asks how much usage they have left.
 ---
 
 # Allowance Bar usage check
@@ -71,7 +71,8 @@ Each provider:
   Priority Tier. The API report may lag actual usage.
 - `asOf`, `staleSince`, `error` (redacted message) where applicable
 - `accountEmail` and `planType` (Codex): which signed-in account and plan the
-  entry belongs to
+  entry belongs to. CLIProxyAPI logins also have `accountEmail`; their ids
+  look like `codex:proxy-<hash>` or `antigravity:proxy-<hash>`.
 - `renewal` (optional): the user's subscription *billing* renewal date. This is
   not a usage window — never treat it as quota, and do not mention it unless
   the user asks about billing.

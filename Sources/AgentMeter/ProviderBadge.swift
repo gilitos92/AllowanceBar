@@ -25,6 +25,7 @@ struct ProviderBadge: View {
         case "cursor": return Color(red: 0.45, green: 0.36, blue: 0.90)
         case "claude", "claude-api": return Color(red: 0.85, green: 0.47, blue: 0.25)
         case "gemini": return Color(red: 0.26, green: 0.52, blue: 0.96)
+        case "antigravity": return Color(red: 0.86, green: 0.55, blue: 0.10)
         case "openrouter": return Color(red: 0.35, green: 0.42, blue: 0.85)
         case "deepseek": return Color(red: 0.20, green: 0.60, blue: 0.86)
         case "moonshot": return Color(red: 0.16, green: 0.22, blue: 0.48)

@@ -48,7 +48,9 @@ struct ClaudeProvider: AccountConfigurableProvider {
             plan = creds.subscriptionType
             guard !creds.isExpired else { throw ClaudeError.refreshRequired }
             let response = try await Self.fetchUsage(accessToken: creds.accessToken, session: session)
-            return Self.usage(from: response, plan: creds.subscriptionType, now: Date())
+            var usage = Self.usage(from: response, plan: creds.subscriptionType, now: Date())
+            usage.accountEmail = Self.accountEmail(atPath: accountInfoPath)
+            return usage
         } catch let error as ClaudeError where error.proxyCanHelp {
             localError = error
         }
@@ -57,7 +59,9 @@ struct ClaudeProvider: AccountConfigurableProvider {
         // The local plan describes the proxy login only if it is the same account.
         let localEmail = Self.accountEmail(atPath: accountInfoPath)
         let samePlan = localEmail.map { $0.caseInsensitiveCompare(proxyEmail) == .orderedSame } ?? false
-        return Self.usage(from: response, plan: samePlan ? plan : nil, now: Date())
+        var usage = Self.usage(from: response, plan: samePlan ? plan : nil, now: Date())
+        usage.accountEmail = proxyEmail
+        return usage
     }
 
     // MARK: - CLIProxyAPI
