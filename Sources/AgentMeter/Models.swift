@@ -266,13 +266,24 @@ struct ProviderUsage: Equatable {
     /// Balance readout for pay-as-you-go providers (may coexist with windows).
     var balance: BalanceInfo?
     var apiUsage: APIUsageSummary?
+    /// The signed-in account's email, when the provider knows it. Used to
+    /// show a CLIProxyAPI login only once when it is also on this Mac.
+    var accountEmail: String?
 
-    init(planName: String?, windows: [UsageWindow], asOf: Date?, balance: BalanceInfo? = nil, apiUsage: APIUsageSummary? = nil) {
+    init(
+        planName: String?,
+        windows: [UsageWindow],
+        asOf: Date?,
+        balance: BalanceInfo? = nil,
+        apiUsage: APIUsageSummary? = nil,
+        accountEmail: String? = nil
+    ) {
         self.planName = planName
         self.windows = windows
         self.asOf = asOf
         self.balance = balance
         self.apiUsage = apiUsage
+        self.accountEmail = accountEmail
     }
 
     /// The most constrained window, used for the menu bar summary.

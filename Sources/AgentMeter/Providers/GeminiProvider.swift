@@ -40,7 +40,24 @@ struct GeminiProvider: AccountConfigurableProvider {
         }
         let plan = await Self.loadTier(accessToken: creds.accessToken)
         let response = try await Self.fetchQuota(accessToken: creds.accessToken, projectId: plan.projectId)
-        return Self.usage(from: response, plan: plan.planName, now: Date())
+        var usage = Self.usage(from: response, plan: plan.planName, now: Date())
+        usage.accountEmail = Self.activeAccountEmail(credentialsPath: credentialsPath)
+        return usage
+    }
+
+    /// The Gemini CLI's signed-in email from `google_accounts.json`, next to
+    /// its credentials. That file holds no credentials.
+    static func activeAccountEmail(credentialsPath: String) -> String? {
+        struct Accounts: Decodable { let active: String? }
+        let path = URL(fileURLWithPath: credentialsPath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("google_accounts.json").path
+        guard let data = FileManager.default.contents(atPath: path),
+              let accounts = try? JSONDecoder().decode(Accounts.self, from: data),
+              let email = accounts.active?.trimmingCharacters(in: .whitespaces), !email.isEmpty else {
+            return nil
+        }
+        return email
     }
 
     // MARK: - Credentials

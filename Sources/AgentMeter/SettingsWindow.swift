@@ -181,6 +181,11 @@ private struct ProvidersSettingsTab: View {
 
     var body: some View {
         Form {
+            Section {
+                CLIProxySection(store: store, settings: settings)
+            } header: {
+                Text(L("CLIProxyAPI"))
+            }
             ForEach(store.providers, id: \.id) { provider in
                 Section {
                     Picker(L("Mode"), selection: Binding(
@@ -205,6 +210,12 @@ private struct ProvidersSettingsTab: View {
 
                     ProviderCredentialSection(provider: provider, store: store)
 
+                    if let localName = store.localDuplicateName(of: provider) {
+                        Text(String(format: L("Hidden because %@ shows the same account. Choose On to show both."), localName))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+
                     if !provider.id.contains(":"),
                        let support = ProviderAccountSupport.support(for: provider.id) {
                         ProviderAccountsSection(
@@ -215,9 +226,6 @@ private struct ProvidersSettingsTab: View {
                         )
                     }
 
-                    if provider.id == "claude" {
-                        CLIProxySection(store: store, settings: settings)
-                    }
                 } header: {
                     HStack(spacing: 6) {
                         ProviderBadge(provider: provider, size: 18)
@@ -230,8 +238,9 @@ private struct ProvidersSettingsTab: View {
     }
 }
 
-/// Optional CLIProxyAPI server that answers for Claude logins whose Claude
-/// Code token has expired or is missing on this Mac.
+/// Optional CLIProxyAPI server. Each of its Claude, Codex, Antigravity and
+/// Gemini logins shows as its own row, and it answers for Claude logins whose
+/// Claude Code token has expired or is missing on this Mac.
 private struct CLIProxySection: View {
     @ObservedObject var store: UsageStore
     @ObservedObject var settings: SettingsStore
@@ -245,18 +254,23 @@ private struct CLIProxySection: View {
     /// the key to a half-typed address.
     @State private var draftURL = ""
 
-    private var claudeProviderIDs: [String] {
-        store.providers.map(\.id).filter { ProviderAccountConfig.baseProviderID(of: $0) == "claude" }
+    private var localClaudeProviderIDs: [String] {
+        store.providers
+            .filter { !($0 is CLIProxyAccountProvider) }
+            .map(\.id)
+            .filter { ProviderAccountConfig.baseProviderID(of: $0) == "claude" }
+    }
+
+    /// Every row the proxy affects: local Claude accounts and proxy logins.
+    private var affectedProviderIDs: [String] {
+        localClaudeProviderIDs + store.providers.filter { $0 is CLIProxyAccountProvider }.map(\.id)
     }
 
     var body: some View {
         Group {
-            Text(L("CLIProxyAPI"))
+            Text(L("Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Text(L("When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy."))
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
 
             TextField(L("Server address"), text: $draftURL, prompt: Text(CLIProxyConfig.defaultURL))
                 .onSubmit(connectionDidChange)
@@ -289,7 +303,10 @@ private struct CLIProxySection: View {
                     Text(checkResult).font(.callout).foregroundStyle(.secondary)
                 }
                 if !proxyEmails.isEmpty {
-                    ForEach(claudeProviderIDs, id: \.self) { providerID in
+                    Text(L("When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ."))
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                    ForEach(localClaudeProviderIDs, id: \.self) { providerID in
                         loginPicker(for: providerID)
                     }
                 }
@@ -325,7 +342,7 @@ private struct CLIProxySection: View {
         settings.cliProxyURL = draftURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard hasKey else { return }
         check(force: true) {
-            store.credentialsDidChange(for: claudeProviderIDs)
+            store.credentialsDidChange(for: affectedProviderIDs)
         }
     }
 
@@ -341,11 +358,12 @@ private struct CLIProxySection: View {
         Task {
             let message: String
             do {
-                let accounts = try await CLIProxyClient(config: config).claudeAccounts(force: force)
-                proxyEmails = accounts.map(\.email)
-                message = accounts.isEmpty
-                    ? L("Connected. CLIProxyAPI has no Claude logins.")
-                    : String(format: L("Connected. Claude logins found: %lld."), accounts.count)
+                let accounts = try await CLIProxyClient(config: config).logins(force: force)
+                proxyEmails = accounts.filter { $0.kind == .claude }.map(\.email)
+                let count = CLIProxyLoginKey.keys(from: accounts).count
+                message = count == 0
+                    ? L("Connected. CLIProxyAPI has no Claude, Codex, Antigravity or Gemini logins that are turned on.")
+                    : String(format: L("Connected. Logins found: %lld."), count)
             } catch {
                 proxyEmails = []
                 message = error.localizedDescription
@@ -380,7 +398,7 @@ private struct CLIProxySection: View {
         hasKey = false
         checkResult = nil
         proxyEmails = []
-        store.credentialsDidChange(for: claudeProviderIDs)
+        store.credentialsDidChange(for: affectedProviderIDs)
         AccessibilityNotification.Announcement(L("Management key removed")).post()
     }
 }
@@ -855,7 +873,13 @@ private struct ProviderCredentialSection: View {
     var body: some View {
         switch provider.authKind {
         case .localCredentials:
-            LabeledContent(L("Status"), value: provider.isDetected ? L("Detected") : L("Not detected"))
+            if let help = provider.credentialHelpText, provider is CLIProxyAccountProvider {
+                Text(help)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                LabeledContent(L("Status"), value: provider.isDetected ? L("Detected") : L("Not detected"))
+            }
         case .apiKey(let keyURL):
             Group {
                 if let credentialError {

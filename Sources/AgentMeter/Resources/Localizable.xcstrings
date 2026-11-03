@@ -4477,22 +4477,6 @@
         }
       }
     },
-    "CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La sesión de Claude de CLIProxyAPI se cerró. Vuelve a iniciar sesión en CLIProxyAPI."
-          }
-        }
-      }
-    },
     "Unexpected response from CLIProxyAPI": {
       "localizations": {
         "en": {
@@ -4537,22 +4521,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "CLIProxyAPI"
-          }
-        }
-      }
-    },
-    "When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuando Claude Code envía solicitudes a través de CLIProxyAPI, su propia sesión deja de renovarse. Allowance Bar puede pedirle el uso al proxy. Tus tokens de Claude se quedan en el proxy."
           }
         }
       }
@@ -4617,38 +4585,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mismo correo que Claude Code"
-          }
-        }
-      }
-    },
-    "Connected. CLIProxyAPI has no Claude logins.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connected. CLIProxyAPI has no Claude logins."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Conectado. CLIProxyAPI no tiene sesiones de Claude."
-          }
-        }
-      }
-    },
-    "Connected. Claude logins found: %lld.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connected. Claude logins found: %lld."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Conectado. Sesiones de Claude encontradas: %lld."
           }
         }
       }
@@ -4905,6 +4841,230 @@
           "stringUnit": {
             "state": "translated",
             "value": "Una línea en cada barra marca el ritmo parejo: dónde estaría el uso si se repartiera por igual hasta el reinicio. Una flecha indica si vas por delante del ritmo (↗, podrías agotarlo antes), al ritmo (→) o por debajo del ritmo (↘, te sobra margen). La ventana nano muestra solo la flecha, después de cada porcentaje."
+          }
+        }
+      }
+    },
+    "This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este inicio de sesión de CLIProxyAPI está cerrado. Vuelve a iniciar sesión en CLIProxyAPI."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI no longer has this login, or it is turned off there.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI no longer has this login, or it is turned off there."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI ya no tiene este inicio de sesión, o está desactivado ahí."
+          }
+        }
+      }
+    },
+    "CLIProxyAPI has no Google Cloud project for this login. Sign in again in CLIProxyAPI.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI has no Google Cloud project for this login. Sign in again in CLIProxyAPI."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI no tiene un proyecto de Google Cloud para este inicio de sesión. Vuelve a iniciar sesión en CLIProxyAPI."
+          }
+        }
+      }
+    },
+    "Add the CLIProxyAPI management key in Settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add the CLIProxyAPI management key in Settings."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agrega la clave de administración de CLIProxyAPI en Configuración."
+          }
+        }
+      }
+    },
+    "The provider rate-limited the usage request": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider rate-limited the usage request"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El proveedor limitó la solicitud de uso"
+          }
+        }
+      }
+    },
+    "The provider returned HTTP %lld through CLIProxyAPI": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The provider returned HTTP %lld through CLIProxyAPI"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El proveedor devolvió HTTP %lld a través de CLIProxyAPI"
+          }
+        }
+      }
+    },
+    "This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta cuenta viene de CLIProxyAPI. Desactívala o elimínala ahí para ocultarla aquí."
+          }
+        }
+      }
+    },
+    "Group %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Group %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grupo %lld"
+          }
+        }
+      }
+    },
+    "Limit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limit"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Límite"
+          }
+        }
+      }
+    },
+    "Hidden because %@ shows the same account. Choose On to show both.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden because %@ shows the same account. Choose On to show both."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oculta porque %@ muestra la misma cuenta. Elige Activado para mostrar ambas."
+          }
+        }
+      }
+    },
+    "Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allowance Bar muestra cada inicio de sesión de Claude, Codex, Antigravity y Gemini de tu servidor CLIProxyAPI. Uno que coincide con una cuenta de esta Mac se muestra una sola vez. Tus tokens se quedan en el proxy."
+          }
+        }
+      }
+    },
+    "When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuando expira un inicio de sesión de Claude Code en esta Mac, Allowance Bar lo lee a través del inicio de sesión del proxy con el mismo correo. Elige otro aquí si los correos son distintos."
+          }
+        }
+      }
+    },
+    "Connected. CLIProxyAPI has no Claude, Codex, Antigravity or Gemini logins that are turned on.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected. CLIProxyAPI has no Claude, Codex, Antigravity or Gemini logins that are turned on."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectado. CLIProxyAPI no tiene inicios de sesión activos de Claude, Codex, Antigravity o Gemini."
+          }
+        }
+      }
+    },
+    "Connected. Logins found: %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected. Logins found: %lld."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectado. Inicios de sesión encontrados: %lld."
           }
         }
       }
