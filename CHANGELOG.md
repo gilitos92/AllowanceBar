@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.7.0] — 2026-11-03
+
 ### Added
 - Every login on your [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI)
   server shows as its own row, with no setup per account: Claude, Codex,

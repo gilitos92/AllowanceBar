@@ -125,9 +125,11 @@ its own row. Nothing else to set up per account:
 2. Each turned-on login appears as a row such as `Codex — you@example.com`,
    next to that provider's other accounts. Antigravity rows follow Gemini.
    Logins you add or remove on the proxy appear or disappear on the next
-   refresh.
+   refresh. Each ChatGPT workspace of one email gets its own row. Proxy rows
+   stay out of the menu bar title until you turn them on there, unless no
+   other row is in it.
 3. A login with the same email as an account on this Mac shows only once,
-   through the local account. If the local account has no data or keeps
+   through the local account (for Codex, the plan must match too). If the local account has no data or keeps
    failing for 10 minutes, the proxy row shows instead. Set a proxy row to **On** to always show both.
 4. To use a proxy on another Mac, set `management.allow-remote: true` in the
    proxy's config. Use an `https` address or the proxy Mac's Tailscale name
@@ -182,7 +184,8 @@ refreshes on wake.
   states show symbols, not just color.
 - **Several accounts per provider** — personal, work, and legacy
   subscriptions or keys each get their own meter, label, and menu bar code,
-  for every provider. Codex accounts can add billing-renewal reminders kept
+  for every provider. Logins on a [CLIProxyAPI](#cliproxyapi) server show
+  up on their own, with no setup per account. Codex accounts can add billing-renewal reminders kept
   strictly separate from usage windows. See
   [docs/MULTIPLE_ACCOUNTS.md](docs/MULTIPLE_ACCOUNTS.md) and
   [docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md).
