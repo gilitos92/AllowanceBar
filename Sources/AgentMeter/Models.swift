@@ -152,6 +152,15 @@ enum UsagePace: Equatable {
         }
     }
 
+    /// Text arrow for plain-text places such as the nano panel.
+    var arrow: String {
+        switch self {
+        case .ahead: return "↗"
+        case .on: return "→"
+        case .under: return "↘"
+        }
+    }
+
     var symbolName: String {
         switch self {
         case .ahead: return "arrow.up.right"
@@ -274,15 +283,24 @@ struct ProviderUsage: Equatable {
     /// Menu bar summary: percent when windows exist, balance otherwise.
     /// With `allWindows`, every window shows in provider order: the first one
     /// plain and the rest in parentheses, e.g. "8% (35%)".
-    func menuSummary(direction: CountDirection, allWindows: Bool = false) -> String? {
+    /// `showsPace` adds each window's pace arrow after its percent, e.g. "38%↗".
+    func menuSummary(
+        direction: CountDirection,
+        allWindows: Bool = false,
+        showsPace: Bool = false,
+        now: Date = Date()
+    ) -> String? {
+        func label(_ window: UsageWindow) -> String {
+            let percent = direction.percentLabel(window.usedPercent, menuBar: true)
+            guard showsPace, let pace = window.pace(now: now) else { return percent }
+            return percent + pace.arrow
+        }
         if allWindows, let first = windows.first, windows.count > 1 {
-            let rest = windows.dropFirst()
-                .map { direction.percentLabel($0.usedPercent, menuBar: true) }
-                .joined(separator: ", ")
-            return "\(direction.percentLabel(first.usedPercent, menuBar: true)) (\(rest))"
+            let rest = windows.dropFirst().map(label).joined(separator: ", ")
+            return "\(label(first)) (\(rest))"
         }
         if let worst = worstWindow {
-            return direction.percentLabel(worst.usedPercent, menuBar: true)
+            return label(worst)
         }
         return balance?.shortDisplay
     }

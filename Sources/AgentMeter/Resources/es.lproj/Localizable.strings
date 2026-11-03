@@ -78,8 +78,8 @@
 	<string>Límite de 5 h</string>
 	<key>7 days before</key>
 	<string>7 días antes</string>
-	<key>A line on each bar marks even pace: where usage would be if spread evenly until the reset. An arrow shows if you are ahead of pace (↗, may run out early), on pace (→) or under pace (↘, room to spare).</key>
-	<string>Una línea en cada barra marca el ritmo parejo: dónde estaría el uso si se repartiera por igual hasta el reinicio. Una flecha indica si vas por delante del ritmo (↗, podrías agotarlo antes), al ritmo (→) o por debajo del ritmo (↘, te sobra margen).</string>
+	<key>A line on each bar marks even pace: where usage would be if spread evenly until the reset. An arrow shows if you are ahead of pace (↗, may run out early), on pace (→) or under pace (↘, room to spare). The nano window shows only the arrow, after each percent.</key>
+	<string>Una línea en cada barra marca el ritmo parejo: dónde estaría el uso si se repartiera por igual hasta el reinicio. Una flecha indica si vas por delante del ritmo (↗, podrías agotarlo antes), al ritmo (→) o por debajo del ritmo (↘, te sobra margen). La ventana nano muestra solo la flecha, después de cada porcentaje.</string>
 	<key>A management key can control your whole OpenRouter account, including creating and deleting other API keys. Allowance Bar only reads usage and balance — it cannot spend credits or change anything. A regular API key is safer; use Connect to get a dedicated key for Allowance Bar that you can revoke anytime.</key>
 	<string>Una clave de administración puede controlar toda tu cuenta de OpenRouter, incluida la creación y eliminación de otras claves API. Allowance Bar solo lee el uso y el saldo; no puede gastar créditos ni cambiar nada. Una clave API normal es más segura; usa Conectar para obtener una clave dedicada para Allowance Bar que puedas revocar en cualquier momento.</string>
 	<key>API key</key>
@@ -542,6 +542,8 @@
 	<string>Mostrar en todos los escritorios</string>
 	<key>Show pace</key>
 	<string>Mostrar ritmo</string>
+	<key>Show pace in the nano window</key>
+	<string>Mostrar ritmo en la ventana nano</string>
 	<key>Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits.</key>
 	<string>Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex.</string>
 	<key>Shows your 5-hour and token quotas.</key>

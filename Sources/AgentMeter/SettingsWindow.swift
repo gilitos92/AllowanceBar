@@ -1090,8 +1090,9 @@ private struct DisplaySettingsTab: View {
 
             Section {
                 Toggle(L("Show pace"), isOn: $settings.showsPace)
+                Toggle(L("Show pace in the nano window"), isOn: $settings.nanoShowsPace)
             } footer: {
-                Text(L("A line on each bar marks even pace: where usage would be if spread evenly until the reset. An arrow shows if you are ahead of pace (↗, may run out early), on pace (→) or under pace (↘, room to spare)."))
+                Text(L("A line on each bar marks even pace: where usage would be if spread evenly until the reset. An arrow shows if you are ahead of pace (↗, may run out early), on pace (→) or under pace (↘, room to spare). The nano window shows only the arrow, after each percent."))
             }
         }
         .formStyle(.grouped)

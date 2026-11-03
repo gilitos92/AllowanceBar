@@ -12,13 +12,17 @@ struct UsageDetailsView: View {
     var body: some View {
         Group {
             if settings.usageDetailsNano {
-                NanoUsageView(
-                    entries: store.nanoEntries,
-                    accessibilityDescription: store.nanoAccessibilityDescription,
-                    settings: settings,
-                    isPointerInside: isPointerInside,
-                    close: { dismissWindow(id: "usage-details") }
-                )
+                // Pace arrows depend on the time, not only on refreshes, so
+                // redraw every 30 seconds like the meters.
+                TimelineView(.periodic(from: .now, by: 30)) { _ in
+                    NanoUsageView(
+                        entries: store.nanoEntries,
+                        accessibilityDescription: store.nanoAccessibilityDescription,
+                        settings: settings,
+                        isPointerInside: isPointerInside,
+                        close: { dismissWindow(id: "usage-details") }
+                    )
+                }
                 .padding(.bottom, -titleBarInset)
             } else if settings.usageDetailsCompact {
                 CompactUsageView(
