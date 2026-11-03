@@ -667,6 +667,21 @@ final class CLIProxyTests: XCTestCase {
     }
 
     @MainActor
+    func testProxyRowsFillTheTitleWhenNoOtherRowIsInIt() {
+        let suite = "CLIProxyTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        var proxy = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .codex, email: "me@example.com"))
+        proxy.proxyConfig = { nil }
+        let store = UsageStore(settings: settings, providers: [proxy])
+
+        XCTAssertNotEqual(store.menuBarEntries.map(\.text), ["Allowance Bar"])
+        settings.setShowsInMenuBar(false, for: proxy.id)
+        XCTAssertEqual(store.menuBarEntries.map(\.text), ["Allowance Bar"], "A row the user took out stays out")
+    }
+
+    @MainActor
     func testDiagnosticsLeaveOutProxyEmails() {
         let proxy = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .codex, email: "secret@example.com"))
 

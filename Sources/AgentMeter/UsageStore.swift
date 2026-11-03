@@ -349,7 +349,12 @@ final class UsageStore: ObservableObject {
     }
 
     private var titleProviders: [any UsageProvider] {
-        visibleProviders.filter { settings.showsInMenuBar($0.id) }
+        let visible = visibleProviders
+        let chosen = visible.filter { settings.showsInMenuBar($0.id) }
+        guard chosen.isEmpty else { return chosen }
+        // A Mac that reads every login through the proxy still gets usage
+        // in the title: proxy rows nobody took out of it fill in.
+        return visible.filter { $0 is CLIProxyAccountProvider && !settings.hasMenuBarChoice($0.id) }
     }
 
     /// Colored menu bar segments with per-provider severity.

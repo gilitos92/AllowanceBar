@@ -372,6 +372,11 @@ final class SettingsStore: ObservableObject {
         return shows
     }
 
+    /// Whether the user picked a menu bar setting for this row.
+    func hasMenuBarChoice(_ providerID: String) -> Bool {
+        defaults.object(forKey: Keys.inMenuBar(providerID)) != nil
+    }
+
     func setShowsInMenuBar(_ shows: Bool, for providerID: String) {
         menuBarCache[providerID] = shows
         defaults.set(shows, forKey: Keys.inMenuBar(providerID))
