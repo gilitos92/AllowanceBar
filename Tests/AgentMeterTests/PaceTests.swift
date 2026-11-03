@@ -155,4 +155,12 @@ final class PaceTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "PaceTests-\(UUID())"))
         XCTAssertTrue(SettingsStore(defaults: defaults).nanoShowsPace)
     }
+
+    @MainActor func testNanoShowsPaceFollowsShowPaceUntilSet() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "PaceTests-\(UUID())"))
+        defaults.set(false, forKey: "showsPace")
+        XCTAssertFalse(SettingsStore(defaults: defaults).nanoShowsPace)
+        defaults.set(true, forKey: "nanoShowsPace")
+        XCTAssertTrue(SettingsStore(defaults: defaults).nanoShowsPace)
+    }
 }

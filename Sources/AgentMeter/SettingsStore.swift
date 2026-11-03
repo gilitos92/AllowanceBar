@@ -223,7 +223,9 @@ final class SettingsStore: ObservableObject {
         self.resetTimeStyle = storedResetStyle.flatMap(ResetTimeStyle.init(rawValue:)) ?? .relative
         self.showsPace = defaults.object(forKey: Keys.showsPace) as? Bool ?? true
         self.paceNotificationsEnabled = defaults.bool(forKey: Keys.paceNotificationsEnabled)
-        self.nanoShowsPace = defaults.object(forKey: Keys.nanoShowsPace) as? Bool ?? true
+        // Until set on its own, follows Show pace, so turning pace off in
+        // 2.6.0 keeps it off in the nano window too.
+        self.nanoShowsPace = defaults.object(forKey: Keys.nanoShowsPace) as? Bool ?? self.showsPace
         let storedBalanceThreshold = defaults.double(forKey: Keys.balanceNotificationThreshold)
         self.balanceNotificationThreshold = Self.balanceThresholdOptions.contains(storedBalanceThreshold)
             ? storedBalanceThreshold
