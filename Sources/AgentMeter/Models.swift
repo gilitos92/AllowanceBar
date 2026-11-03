@@ -34,6 +34,33 @@ struct UsageWindow: Equatable {
     let label: String
     let usedPercent: Double
     let resetsAt: Date?
+    /// Full length of the window (e.g. 5 hours). Needed with `resetsAt` to
+    /// know how much of the window has passed, for the pace marker.
+    let duration: TimeInterval?
+
+    init(label: String, usedPercent: Double, resetsAt: Date?, duration: TimeInterval? = nil) {
+        self.label = label
+        self.usedPercent = usedPercent
+        self.resetsAt = resetsAt
+        self.duration = duration
+    }
+
+    /// Share of the window that has passed, 0...1. Nil when the window's
+    /// length or reset is unknown, or `now` falls outside the window (stale
+    /// data after a reset, or a reset farther away than one window).
+    func elapsedFraction(now: Date = Date()) -> Double? {
+        guard let resetsAt, let duration, duration > 0 else { return nil }
+        let left = resetsAt.timeIntervalSince(now)
+        guard left > 0, left <= duration else { return nil }
+        return (duration - left) / duration
+    }
+
+    /// Usage compared with even use across the window. Nil when the elapsed
+    /// share is unknown.
+    func pace(now: Date = Date()) -> UsagePace? {
+        guard let elapsed = elapsedFraction(now: now) else { return nil }
+        return UsagePace(gap: usedPercent - elapsed * 100)
+    }
 
     var remainingDescription: String? {
         resetDescription(style: .relative)
@@ -100,6 +127,53 @@ struct UsageWindow: Equatable {
                 }
             }
             return L("resets \(date) (\(duration))")
+        }
+    }
+}
+
+/// Pace: percent of the limit used minus percent of the window elapsed.
+/// A gap within ±5 points counts as on pace.
+enum UsagePace: Equatable {
+    /// Using the limit faster than time passes; it may run out before reset.
+    case ahead
+    case on
+    /// Room to spare for the rest of the window.
+    case under
+
+    static let tolerance: Double = 5
+
+    init(gap: Double) {
+        if gap > Self.tolerance {
+            self = .ahead
+        } else if gap < -Self.tolerance {
+            self = .under
+        } else {
+            self = .on
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .ahead: return "arrow.up.right"
+        case .on: return "arrow.right"
+        case .under: return "arrow.down.right"
+        }
+    }
+
+    /// Short phrase for VoiceOver and the icon tooltip.
+    var phrase: String {
+        switch self {
+        case .ahead: return L("ahead of pace")
+        case .on: return L("on pace")
+        case .under: return L("under pace")
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .ahead: return L("Ahead of pace: using it faster than time passes.")
+        case .on: return L("On pace: about even with the time passed.")
+        case .under: return L("Under pace: room to spare before the reset.")
         }
     }
 }

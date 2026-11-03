@@ -203,7 +203,13 @@ struct GeminiProvider: AccountConfigurableProvider {
             .sorted { $0.order < $1.order }
             .compactMap { family -> UsageWindow? in
                 guard let entry = worst[family.label] else { return nil }
-                return UsageWindow(label: family.label, usedPercent: entry.used, resetsAt: entry.reset)
+                // Every Gemini quota family is a 24-hour window.
+                return UsageWindow(
+                    label: family.label,
+                    usedPercent: entry.used,
+                    resetsAt: entry.reset,
+                    duration: 24 * 3600
+                )
             }
 
         return ProviderUsage(planName: plan, windows: windows, asOf: now)

@@ -8,6 +8,8 @@
 	<string>% usado</string>
 	<key>%@ accounts</key>
 	<string>Cuentas de %@</string>
+	<key>%@ ahead of pace</key>
+	<string>%@ por delante del ritmo</string>
 	<key>%@ at %@%%</key>
 	<string>%@ al %@%%</string>
 	<key>%@ balance</key>
@@ -36,6 +38,8 @@
 	<string>%@, %@, %@</string>
 	<key>%@: %@</key>
 	<string>%@: %@</string>
+	<key>%@: %@%% used with %@%% of the window gone.</key>
+	<string>%@: %@%% usado con %@%% de la ventana transcurrido.</string>
 	<key>%@d %@h</key>
 	<string>%@d %@h</string>
 	<key>%@h %@m</key>
@@ -74,6 +78,8 @@
 	<string>Límite de 5 h</string>
 	<key>7 days before</key>
 	<string>7 días antes</string>
+	<key>A line on each bar marks even pace: where usage would be if spread evenly until the reset. An arrow shows if you are ahead of pace (↗, may run out early), on pace (→) or under pace (↘, room to spare).</key>
+	<string>Una línea en cada barra marca el ritmo parejo: dónde estaría el uso si se repartiera por igual hasta el reinicio. Una flecha indica si vas por delante del ritmo (↗, podrías agotarlo antes), al ritmo (→) o por debajo del ritmo (↘, te sobra margen).</string>
 	<key>A management key can control your whole OpenRouter account, including creating and deleting other API keys. Allowance Bar only reads usage and balance — it cannot spend credits or change anything. A regular API key is safer; use Connect to get a dedicated key for Allowance Bar that you can revoke anytime.</key>
 	<string>Una clave de administración puede controlar toda tu cuenta de OpenRouter, incluida la creación y eliminación de otras claves API. Allowance Bar solo lee el uso y el saldo; no puede gastar créditos ni cambiar nada. Una clave API normal es más segura; usa Conectar para obtener una clave dedicada para Allowance Bar que puedas revocar en cualquier momento.</string>
 	<key>API key</key>
@@ -102,6 +108,10 @@
 	<string>Ajusta qué tan transparente es el fondo de la ventana.</string>
 	<key>Admin key</key>
 	<string>Clave de administrador</string>
+	<key>Ahead of pace: using it faster than time passes.</key>
+	<string>Por delante del ritmo: lo usas más rápido de lo que pasa el tiempo.</string>
+	<key>Alert when a limit runs ahead of pace</key>
+	<string>Avisar cuando un límite va por delante del ritmo</string>
 	<key>Alert when remaining falls below</key>
 	<string>Avisar cuando lo restante baje de</string>
 	<key>Alert when usage crosses threshold</key>
@@ -128,6 +138,8 @@
 	<string>Anthropic devolvió HTTP %lld</string>
 	<key>Apple</key>
 	<string>Apple</string>
+	<key>At this rate it runs out in %@.</key>
+	<string>A este ritmo se agota en %@.</string>
 	<key>Auto</key>
 	<string>Automático</string>
 	<key>Auto usage</key>
@@ -288,6 +300,10 @@
 	<string>Activa las notificaciones para cambiar esto.</string>
 	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</key>
 	<string>Escribe una dirección de servidor válida. Un proxy en otra Mac necesita https o un nombre de Tailscale que termine en .ts.net.</string>
+	<key>Even pace: %lld%% left by now.</key>
+	<string>Ritmo parejo: %lld%% restante a estas alturas.</string>
+	<key>Even pace: %lld%% used by now.</key>
+	<string>Ritmo parejo: %lld%% usado a estas alturas.</string>
 	<key>Exact</key>
 	<string>Exacto</string>
 	<key>Expand</key>
@@ -412,10 +428,14 @@
 	<string>No has iniciado sesión en Gemini (ejecuta 'gemini' para autenticarte)</string>
 	<key>Not signed in — run the login command in Settings</key>
 	<string>Sin iniciar sesión — ejecuta el comando de inicio de sesión en Ajustes</string>
+	<key>Notifies once per limit window when usage is 15 or more points ahead of even pace, after the first 10% of the window. At that rate the limit runs out before it resets.</key>
+	<string>Avisa una vez por ventana de límite cuando el uso va 15 puntos o más por delante del ritmo parejo, después del primer 10% de la ventana. A ese ritmo, el límite se agota antes de reiniciarse.</string>
 	<key>Off</key>
 	<string>Desactivado</string>
 	<key>On</key>
 	<string>Activado</string>
+	<key>On pace: about even with the time passed.</key>
+	<string>Al ritmo: va parejo con el tiempo transcurrido.</string>
 	<key>One notification per limit window, re-armed when the window resets. "20% left" is the same alert as "80% used" — it follows your Display setting.</key>
 	<string>Una notificación por ventana de límite, reactivada cuando la ventana se restablece. "20% restante" es la misma alerta que "80% usado" — sigue tu configuración de Visualización.</string>
 	<key>One notification per limit window, re-armed when the window resets. Balance alerts apply to pay-as-you-go providers.</key>
@@ -520,6 +540,8 @@
 	<string>Mostrar en la barra de menús</string>
 	<key>Show on All Desktops</key>
 	<string>Mostrar en todos los escritorios</string>
+	<key>Show pace</key>
+	<string>Mostrar ritmo</string>
 	<key>Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits.</key>
 	<string>Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex.</string>
 	<key>Shows your 5-hour and token quotas.</key>
@@ -572,6 +594,8 @@
 	<string>Registrar fecha de renovación</string>
 	<key>Unavailable via API</key>
 	<string>No disponible mediante API</string>
+	<key>Under pace: room to spare before the reset.</key>
+	<string>Por debajo del ritmo: te sobra margen antes del reinicio.</string>
 	<key>Unexpected Claude API report</key>
 	<string>Informe inesperado de Claude API</string>
 	<key>Unexpected response from Anthropic</key>
@@ -650,6 +674,8 @@
 	<string>El monitoreo de Z.ai solo admite planes GLM Coding. La facturación y el saldo de la API estándar no están disponibles mediante una API.</string>
 	<key>Z.ai returned HTTP %lld</key>
 	<string>Z.ai devolvió HTTP %lld</string>
+	<key>ahead of pace</key>
+	<string>por delante del ritmo</string>
 	<key>cursor.com returned HTTP %lld</key>
 	<string>cursor.com devolvió HTTP %lld</string>
 	<key>data is stale</key>
@@ -682,6 +708,8 @@
 	<string>falta el código</string>
 	<key>nearly used up</key>
 	<string>casi agotado</string>
+	<key>on pace</key>
+	<string>al ritmo</string>
 	<key>resets %@</key>
 	<string>se restablece %@</string>
 	<key>resets %@ (%@)</key>
@@ -696,5 +724,7 @@
 	<string>se restablece pronto</string>
 	<key>soon</key>
 	<string>pronto</string>
+	<key>under pace</key>
+	<string>por debajo del ritmo</string>
 </dict>
 </plist>

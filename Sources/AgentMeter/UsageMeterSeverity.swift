@@ -50,6 +50,9 @@ struct UsageMeterBar: View {
     /// 0...100.
     let percent: Double
     let severity: UsageMeterSeverity
+    /// Even-pace position, 0...100 in the same units as `percent`: where the
+    /// fill would end with even use across the window. Nil hides the marker.
+    var paceMarkerPercent: Double? = nil
 
     var body: some View {
         GeometryReader { proxy in
@@ -58,12 +61,31 @@ struct UsageMeterBar: View {
                 Capsule()
                     .fill(severity.color)
                     .frame(width: proxy.size.width * min(1, max(0, percent / 100)))
+                if let paceMarkerPercent {
+                    // Taller than the bar, with a background-colored edge, so
+                    // it stays visible on top of a fill of the same color.
+                    let x = proxy.size.width * min(1, max(0, paceMarkerPercent / 100))
+                    Capsule()
+                        .fill(.primary)
+                        .frame(width: 2, height: 14)
+                        .padding(.horizontal, 1)
+                        .background(Capsule().fill(Color(nsColor: .windowBackgroundColor)))
+                        .position(x: min(max(x, 2), max(2, proxy.size.width - 2)), y: proxy.size.height / 2)
+                }
             }
         }
         .frame(height: 6)
         // Matches the spacing the system progress bar used to reserve.
         .padding(.vertical, 6)
         .accessibilityHidden(true)
+    }
+}
+
+extension CountDirection {
+    /// Where the bar's fill would end with even use: the elapsed share in
+    /// "% used" mode, the share of time left in "% left" mode.
+    nonisolated func paceMarkerPercent(for window: UsageWindow, now: Date) -> Double? {
+        window.elapsedFraction(now: now).map { displayPercent($0 * 100) }
     }
 }
 

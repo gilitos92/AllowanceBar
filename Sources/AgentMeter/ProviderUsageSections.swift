@@ -322,7 +322,8 @@ private struct WindowMeter: View {
     }
 
     private func meter(at now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let pace = settings.showsPace ? window.pace(now: now) : nil
+        return VStack(alignment: .leading, spacing: 2) {
             HStack {
                 Text(window.label).font(.callout.weight(.medium))
                 Spacer()
@@ -331,8 +332,20 @@ private struct WindowMeter: View {
                     symbolName: severity.symbolName,
                     badge: severity.badgeStyle
                 )
+                if let pace {
+                    Image(systemName: pace.symbolName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
             }
-            UsageMeterBar(percent: progressValue, severity: severity)
+            UsageMeterBar(
+                percent: progressValue,
+                severity: severity,
+                paceMarkerPercent: settings.showsPace
+                    ? settings.countDirection.paceMarkerPercent(for: window, now: now)
+                    : nil
+            )
             if let reset = window.resetDescription(style: settings.resetTimeStyle, now: now) {
                 Text(reset)
                     .font(.subheadline.weight(.medium))
@@ -343,6 +356,7 @@ private struct WindowMeter: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(meterAccessibilityLabel)
         .accessibilityValue(meterAccessibilityValue(at: now))
+        .help(pace.map { PaceDescription.tooltip(pace: $0, window: window, direction: settings.countDirection, now: now) } ?? "")
     }
 
     private var progressValue: Double {
@@ -365,6 +379,21 @@ private struct WindowMeter: View {
         if let qualifier = severity.qualifier {
             value = MenuBarAccessibilitySummary.appendQualifier(value, qualifier)
         }
+        if settings.showsPace, let pace = window.pace(now: now) {
+            value = "\(value), \(pace.phrase)"
+        }
         return value
+    }
+}
+
+/// Text that explains a window's pace in a tooltip.
+enum PaceDescription {
+    static func tooltip(pace: UsagePace, window: UsageWindow, direction: CountDirection, now: Date) -> String {
+        guard let marker = direction.paceMarkerPercent(for: window, now: now) else { return pace.explanation }
+        let value = Int(marker.rounded())
+        let even = direction == .remaining
+            ? L("Even pace: \(value)% left by now.")
+            : L("Even pace: \(value)% used by now.")
+        return "\(even) \(pace.explanation)"
     }
 }

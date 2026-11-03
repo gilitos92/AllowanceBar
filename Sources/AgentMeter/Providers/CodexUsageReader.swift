@@ -161,8 +161,14 @@ struct CodexUsageReader {
         return UsageWindow(
             label: Self.windowLabel(minutes: minutes),
             usedPercent: usedPercent,
-            resetsAt: resetsAt
+            resetsAt: resetsAt,
+            duration: Self.windowDuration(minutes: minutes)
         )
+    }
+
+    /// Nil when Codex did not say how long the window is.
+    static func windowDuration(minutes: Int) -> TimeInterval? {
+        minutes > 0 ? TimeInterval(minutes * 60) : nil
     }
 
     static func windowLabel(minutes: Int) -> String {

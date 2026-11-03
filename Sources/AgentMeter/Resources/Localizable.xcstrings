@@ -4748,6 +4748,156 @@
           }
         }
       }
+    },
+    "ahead of pace": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "por delante del ritmo"
+          }
+        }
+      }
+    },
+    "on pace": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "al ritmo"
+          }
+        }
+      }
+    },
+    "under pace": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "por debajo del ritmo"
+          }
+        }
+      }
+    },
+    "Ahead of pace: using it faster than time passes.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por delante del ritmo: lo usas más rápido de lo que pasa el tiempo."
+          }
+        }
+      }
+    },
+    "On pace: about even with the time passed.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al ritmo: va parejo con el tiempo transcurrido."
+          }
+        }
+      }
+    },
+    "Under pace: room to spare before the reset.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Por debajo del ritmo: te sobra margen antes del reinicio."
+          }
+        }
+      }
+    },
+    "Even pace: %lld%% left by now.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo parejo: %lld%% restante a estas alturas."
+          }
+        }
+      }
+    },
+    "Even pace: %lld%% used by now.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo parejo: %lld%% usado a estas alturas."
+          }
+        }
+      }
+    },
+    "Show pace": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar ritmo"
+          }
+        }
+      }
+    },
+    "A line on each bar marks even pace: where usage would be if spread evenly until the reset. An arrow shows if you are ahead of pace (↗, may run out early), on pace (→) or under pace (↘, room to spare).": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una línea en cada barra marca el ritmo parejo: dónde estaría el uso si se repartiera por igual hasta el reinicio. Una flecha indica si vas por delante del ritmo (↗, podrías agotarlo antes), al ritmo (→) o por debajo del ritmo (↘, te sobra margen)."
+          }
+        }
+      }
+    },
+    "Alert when a limit runs ahead of pace": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avisar cuando un límite va por delante del ritmo"
+          }
+        }
+      }
+    },
+    "Notifies once per limit window when usage is 15 or more points ahead of even pace, after the first 10% of the window. At that rate the limit runs out before it resets.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avisa una vez por ventana de límite cuando el uso va 15 puntos o más por delante del ritmo parejo, después del primer 10% de la ventana. A ese ritmo, el límite se agota antes de reiniciarse."
+          }
+        }
+      }
+    },
+    "%@ ahead of pace": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ por delante del ritmo"
+          }
+        }
+      }
+    },
+    "%@: %@%% used with %@%% of the window gone.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: %@%% usado con %@%% de la ventana transcurrido."
+          }
+        }
+      }
+    },
+    "At this rate it runs out in %@.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A este ritmo se agota en %@."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

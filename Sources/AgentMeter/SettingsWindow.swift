@@ -1087,6 +1087,12 @@ private struct DisplaySettingsTab: View {
             } footer: {
                 Text(L("Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits."))
             }
+
+            Section {
+                Toggle(L("Show pace"), isOn: $settings.showsPace)
+            } footer: {
+                Text(L("A line on each bar marks even pace: where usage would be if spread evenly until the reset. An arrow shows if you are ahead of pace (↗, may run out early), on pace (→) or under pace (↘, room to spare)."))
+            }
         }
         .formStyle(.grouped)
     }
@@ -1145,6 +1151,19 @@ private struct AlertsSettingsTab: View {
                     ? L("One notification per limit window, re-armed when the window resets. \"20% left\" is the same alert as \"80% used\" — it follows your Display setting.")
                     : L("One notification per limit window, re-armed when the window resets. Balance alerts apply to pay-as-you-go providers.")
                 )
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle(L("Alert when a limit runs ahead of pace"), isOn: $settings.paceNotificationsEnabled)
+                    .onChange(of: settings.paceNotificationsEnabled) { _, enabled in
+                        if enabled {
+                            store.notificationManager.requestAuthorizationIfNeeded()
+                        }
+                    }
+            } footer: {
+                Text(L("Notifies once per limit window when usage is 15 or more points ahead of even pace, after the first 10% of the window. At that rate the limit runs out before it resets."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
