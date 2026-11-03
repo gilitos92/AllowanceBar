@@ -21,7 +21,7 @@ enum Diagnostics {
         for provider in store.providers {
             lines.append(formatProvider(
                 id: provider.id,
-                displayName: provider.displayName,
+                displayName: diagnosticsName(of: provider),
                 detected: provider.isDetected,
                 authKindName: authKindCaseName(provider.authKind),
                 mode: settings.mode(for: provider.id),
@@ -31,6 +31,13 @@ enum Diagnostics {
             lines.append("")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Proxy rows are named by their email, which a pasted report would
+    /// leak; their hashed id already tells them apart.
+    static func diagnosticsName(of provider: any UsageProvider) -> String {
+        guard let proxy = provider as? CLIProxyAccountProvider else { return provider.displayName }
+        return "\(proxy.login.kind.displayName) via CLIProxyAPI"
     }
 
     nonisolated static func formatProvider(

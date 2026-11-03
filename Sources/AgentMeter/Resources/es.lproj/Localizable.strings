@@ -102,6 +102,8 @@
 	<string>Agregar cuenta de %@</string>
 	<key>Add account…</key>
 	<string>Agregar cuenta…</string>
+	<key>Add the CLIProxyAPI management key in Settings.</key>
+	<string>Agrega la clave de administración de CLIProxyAPI en Configuración.</string>
 	<key>Adds this account to Allowance Bar using the folder name as its label.</key>
 	<string>Agrega esta cuenta a Allowance Bar usando el nombre de la carpeta como etiqueta.</string>
 	<key>Adjust how see-through the window background is.</key>
@@ -124,6 +126,8 @@
 	<string>Allowance Bar</string>
 	<key>Allowance Bar could not reach the provider to check this key. That is usually a network issue or a temporary API change. Your saved key was not removed.</key>
 	<string>Allowance Bar no pudo contactar al proveedor para verificar esta clave. Suele ser un problema de red o un cambio temporal en la API. Tu clave guardada no se eliminó.</string>
+	<key>Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.</key>
+	<string>Allowance Bar muestra cada inicio de sesión de Claude, Codex, Antigravity y Gemini de tu servidor CLIProxyAPI. Uno que coincide con una cuenta de esta Mac se muestra una sola vez. Tus tokens se quedan en el proxy.</string>
 	<key>Also show this window on every desktop and over full-screen apps. Requires Keep on Top.</key>
 	<string>Muestra también esta ventana en todos los escritorios y sobre apps en pantalla completa. Requiere Mantener encima.</string>
 	<key>An Admin key can see billing details and manage other keys. Allowance Bar only reads your balance; it cannot spend credits or change settings. An Inference key is safer and also works with Allowance Bar.</key>
@@ -160,10 +164,14 @@
 	<string>Facturado por</string>
 	<key>CLIProxyAPI</key>
 	<string>CLIProxyAPI</string>
+	<key>CLIProxyAPI has no Google Cloud project for this login. Sign in again in CLIProxyAPI.</key>
+	<string>CLIProxyAPI no tiene un proyecto de Google Cloud para este inicio de sesión. Vuelve a iniciar sesión en CLIProxyAPI.</string>
 	<key>CLIProxyAPI has no management key. Set management.secret-key in its config.</key>
 	<string>CLIProxyAPI no tiene clave de administración. Configura management.secret-key en su configuración.</string>
 	<key>CLIProxyAPI has no matching Claude login. Choose one in Settings.</key>
 	<string>CLIProxyAPI no tiene una sesión de Claude que coincida. Elige una en Configuración.</string>
+	<key>CLIProxyAPI no longer has this login, or it is turned off there.</key>
+	<string>CLIProxyAPI ya no tiene este inicio de sesión, o está desactivado ahí.</string>
 	<key>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</key>
 	<string>CLIProxyAPI solo acepta solicitudes de administración desde su propia Mac. Pon allow-remote en true en su configuración.</string>
 	<key>CLIProxyAPI paused requests after failed attempts. Try again later.</key>
@@ -172,8 +180,6 @@
 	<string>CLIProxyAPI rechazó la clave de administración. Revísala en Configuración.</string>
 	<key>CLIProxyAPI returned HTTP %lld</key>
 	<string>CLIProxyAPI devolvió HTTP %lld</string>
-	<key>CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.</key>
-	<string>La sesión de Claude de CLIProxyAPI se cerró. Vuelve a iniciar sesión en CLIProxyAPI.</string>
 	<key>Cache creation tokens</key>
 	<string>Tokens de creación de caché</string>
 	<key>Cache read tokens</key>
@@ -228,10 +234,10 @@
 	<string>Barra de menús compacta (solo el peor)</string>
 	<key>Connected</key>
 	<string>Conectado</string>
-	<key>Connected. CLIProxyAPI has no Claude logins.</key>
-	<string>Conectado. CLIProxyAPI no tiene sesiones de Claude.</string>
-	<key>Connected. Claude logins found: %lld.</key>
-	<string>Conectado. Sesiones de Claude encontradas: %lld.</string>
+	<key>Connected. CLIProxyAPI has no Claude, Codex, Antigravity or Gemini logins that are turned on.</key>
+	<string>Conectado. CLIProxyAPI no tiene inicios de sesión activos de Claude, Codex, Antigravity o Gemini.</string>
+	<key>Connected. Logins found: %lld.</key>
+	<string>Conectado. Inicios de sesión encontrados: %lld.</string>
 	<key>Connection failed</key>
 	<string>Conexión fallida</string>
 	<key>Connect…</key>
@@ -340,6 +346,10 @@
 	<string>Google Play</string>
 	<key>Google returned HTTP %lld</key>
 	<string>Google devolvió HTTP %lld</string>
+	<key>Group %lld</key>
+	<string>Grupo %lld</string>
+	<key>Hidden because %@ shows the same account. Choose On to show both.</key>
+	<string>Oculta porque %@ muestra la misma cuenta. Elige Activado para mostrar ambas.</string>
 	<key>I confirmed this date today</key>
 	<string>Confirmé esta fecha hoy</string>
 	<key>Icon only</key>
@@ -380,6 +390,8 @@
 	<string>Última confirmación: %@</string>
 	<key>Launch at Login</key>
 	<string>Abrir al iniciar sesión</string>
+	<key>Limit</key>
+	<string>Límite</string>
 	<key>Limited key</key>
 	<string>Clave limitada</string>
 	<key>Loading…</key>
@@ -574,10 +586,18 @@
 	<string>Venice rechazó la clave.</string>
 	<key>The matching Claude login is turned off in CLIProxyAPI.</key>
 	<string>La sesión de Claude que coincide está desactivada en CLIProxyAPI.</string>
+	<key>The provider rate-limited the usage request</key>
+	<string>El proveedor limitó la solicitud de uso</string>
+	<key>The provider returned HTTP %lld through CLIProxyAPI</key>
+	<string>El proveedor devolvió HTTP %lld a través de CLIProxyAPI</string>
 	<key>This API key lets apps use your OpenRouter credits up to a spending limit you set. Allowance Bar only reads how much has been used; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
 	<string>Esta clave API permite que las apps usen tus créditos de OpenRouter hasta un límite de gasto que tú defines. Allowance Bar solo lee cuánto se ha usado; no puede gastar dinero ni cambiar tu cuenta. Si usaste Conectar, OpenRouter creó una clave dedicada solo para Allowance Bar que puedes revocar en cualquier momento.</string>
 	<key>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
 	<string>Esta clave API permite que las apps usen tus créditos de OpenRouter. Allowance Bar solo lee el uso; no puede gastar dinero ni cambiar tu cuenta. Si usaste Conectar, OpenRouter creó una clave dedicada solo para Allowance Bar que puedes revocar en cualquier momento.</string>
+	<key>This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.</key>
+	<string>Este inicio de sesión de CLIProxyAPI está cerrado. Vuelve a iniciar sesión en CLIProxyAPI.</string>
+	<key>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</key>
+	<string>Esta cuenta viene de CLIProxyAPI. Desactívala o elimínala ahí para ocultarla aquí.</string>
 	<key>This folder is already added</key>
 	<string>Esta carpeta ya está agregada</string>
 	<key>This key is tied to a GLM Coding Plan subscription. Allowance Bar reads your time and token quotas (they reset every few hours). It cannot spend money, call models, or change your account.</key>
@@ -652,8 +672,8 @@
 	<string>Semanal (Opus)</string>
 	<key>Weekly limit</key>
 	<string>Límite semanal</string>
-	<key>When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy.</key>
-	<string>Cuando Claude Code envía solicitudes a través de CLIProxyAPI, su propia sesión deja de renovarse. Allowance Bar puede pedirle el uso al proxy. Tus tokens de Claude se quedan en el proxy.</string>
+	<key>When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.</key>
+	<string>Cuando expira un inicio de sesión de Claude Code en esta Mac, Allowance Bar lo lee a través del inicio de sesión del proxy con el mismo correo. Elige otro aquí si los correos son distintos.</string>
 	<key>Window</key>
 	<string>Ventana</string>
 	<key>Window Options</key>

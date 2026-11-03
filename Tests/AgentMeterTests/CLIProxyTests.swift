@@ -31,6 +31,12 @@ private final class MockCLIProxyServer {
         return apiCallBodies.last
     }
 
+    func apiCalls() -> [[String: Any]] {
+        lock.lock()
+        defer { lock.unlock() }
+        return apiCallBodies
+    }
+
     func respond(to request: URLRequest) -> (Int, Data) {
         lock.lock()
         defer { lock.unlock() }
@@ -48,14 +54,50 @@ private final class MockCLIProxyServer {
             {"files":[
               {"auth_index":"idx-main","type":"claude","provider":"claude","email":"Main@Example.com","disabled":false},
               {"auth_index":"idx-off","type":"claude","provider":"claude","email":"off@example.com","disabled":true},
-              {"auth_index":"idx-codex","type":"codex","provider":"codex","email":"main@example.com","disabled":false}
+              {"auth_index":"idx-codex","type":"codex","provider":"codex","email":"main@example.com","disabled":false,
+               "id_token":{"chatgpt_account_id":"acct-123","plan_type":"plus"}},
+              {"auth_index":"idx-codex-team","type":"codex","provider":"codex","email":"main@example.com","disabled":false,
+               "id_token":{"chatgpt_account_id":"acct-team","plan_type":"team"}},
+              {"auth_index":7,"type":"antigravity","provider":"antigravity","email":"ag@example.com","project_id":"proj-ag"},
+              {"auth_index":"idx-gem","type":"gemini-cli","provider":"gemini-cli","email":"gem@example.com","project_id":"proj-gem"},
+              {"auth_index":"idx-kimi","type":"kimi","provider":"kimi","email":"k@example.com","id_token":"not-an-object"}
             ]}
             """.utf8))
         case "/v0/management/api-call":
             let body = request.httpBodyStreamData() ?? request.httpBody ?? Data()
-            apiCallBodies.append((try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:])
-            let usage = #"{\"five_hour\":{\"utilization\":42.0}}"#
-            return (200, Data(#"{"status_code":\#(upstreamStatus),"header":{},"body":"\#(usage)"}"#.utf8))
+            let call = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
+            apiCallBodies.append(call)
+            let url = call["url"] as? String ?? ""
+            var status = upstreamStatus
+            let upstream: String
+            if url.contains("api.anthropic.com") {
+                upstream = #"{"five_hour":{"utilization":42.0}}"#
+            } else if url.contains("wham/usage") {
+                upstream = """
+                {"plan_type":"plus","rate_limit":{"allowed":true,"limit_reached":false,
+                 "primary_window":{"used_percent":12,"limit_window_seconds":18000,"reset_at":1785902974},
+                 "secondary_window":{"used_percent":40,"limit_window_seconds":604800,"reset_after_seconds":3600}},
+                 "credits":{"has_credits":false}}
+                """
+            } else if url.contains("retrieveUserQuotaSummary") {
+                // The first host fails, like a project that only one host serves.
+                if url.contains("daily-cloudcode-pa.googleapis.com") { status = 404 }
+                upstream = """
+                {"groups":[
+                  {"displayName":"Gemini Models","buckets":[
+                    {"window":"weekly","displayName":"Weekly Limit Remaining","remainingFraction":0.5,"resetTime":"2026-11-10T00:00:00Z"},
+                    {"window":"5h","displayName":"Five Hour Limit Remaining","remainingFraction":0.9,"resetTime":"2026-11-03T05:00:00Z"}]},
+                  {"displayName":"Claude and GPT models","buckets":[
+                    {"window":"5h","remainingFraction":"25%"}]}
+                ]}
+                """
+            } else if url.contains("retrieveUserQuota") {
+                upstream = #"{"buckets":[{"modelId":"gemini-2.5-pro","remainingFraction":0.75,"resetTime":"2026-11-04T00:00:00Z"}]}"#
+            } else {
+                upstream = "{}"
+            }
+            let wrapped: [String: Any] = ["status_code": status, "header": [:], "body": upstream]
+            return (200, try! JSONSerialization.data(withJSONObject: wrapped))
         case "/api/oauth/usage":
             return (200, Data(#"{"five_hour":{"utilization":7.0}}"#.utf8))
         default:
@@ -350,5 +392,327 @@ final class CLIProxyTests: XCTestCase {
         let config = CLIProxyConfig.current(defaults: defaults, managementKey: { "k" })
         XCTAssertEqual(config?.baseURL.absoluteString, CLIProxyConfig.defaultURL)
         XCTAssertEqual(config?.claudeEmails, ["claude": "main@example.com"])
+    }
+    // MARK: - Every proxy login as its own row
+
+    private func proxyRow(_ login: CLIProxyLoginKey, cache: CLIProxyAccountCache = CLIProxyAccountCache()) -> CLIProxyAccountProvider {
+        var provider = CLIProxyAccountProvider(login: login)
+        provider.session = session
+        let config = config
+        provider.proxyConfig = { config }
+        provider.accountCache = cache
+        provider.usageCache = CLIProxyUsageCache()
+        return provider
+    }
+
+    func testLoginListKeepsEverySupportedKind() async throws {
+        let logins = try await CLIProxyClient(config: config, session: session).logins(cache: CLIProxyAccountCache())
+
+        XCTAssertEqual(logins.map(\.kind), [.claude, .claude, .codex, .codex, .antigravity, .gemini], "Kimi is not supported yet")
+        let codex = try XCTUnwrap(logins.first { $0.kind == .codex })
+        XCTAssertEqual(codex.chatgptAccountID, "acct-123")
+        XCTAssertEqual(codex.planType, "plus")
+        let antigravity = try XCTUnwrap(logins.first { $0.kind == .antigravity })
+        XCTAssertEqual(antigravity.authIndex, "7")
+        XCTAssertEqual(antigravity.projectID, "proj-ag")
+    }
+
+    func testRowsSkipTurnedOffLoginsAndKeepStableIDs() throws {
+        let accounts = [
+            CLIProxyClient.Account(kind: .gemini, authIndex: "g", email: "g@example.com", disabled: false, projectID: "p"),
+            CLIProxyClient.Account(kind: .codex, authIndex: "c", email: "B@example.com", disabled: false),
+            CLIProxyClient.Account(kind: .codex, authIndex: "c2", email: "a@example.com", disabled: false),
+            CLIProxyClient.Account(kind: .claude, authIndex: "o", email: "off@example.com", disabled: true),
+            CLIProxyClient.Account(kind: .codex, authIndex: "dup", email: "b@EXAMPLE.com", disabled: false),
+        ]
+
+        let keys = CLIProxyLoginKey.keys(from: accounts)
+
+        XCTAssertEqual(keys.map(\.email), ["a@example.com", "B@example.com", "g@example.com"])
+        let id = keys[1].providerID
+        XCTAssertTrue(id.hasPrefix("codex:proxy-"))
+        XCTAssertEqual(ProviderAccountConfig.baseProviderID(of: id), "codex")
+        XCTAssertEqual(id, CLIProxyLoginKey(kind: .codex, email: "b@example.com").providerID, "Email case must not change the id")
+        XCTAssertNotEqual(
+            CLIProxyLoginKey(kind: .gemini, email: "g@example.com", projectID: "p").providerID,
+            CLIProxyLoginKey(kind: .gemini, email: "g@example.com", projectID: "q").providerID,
+            "Each Gemini project has its own quota"
+        )
+        XCTAssertEqual(
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", projectID: "p"),
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com"),
+            "Only Gemini keys use the project"
+        )
+        XCTAssertNotEqual(
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", accountID: "personal").providerID,
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", accountID: "team").providerID,
+            "Each ChatGPT workspace has its own limits"
+        )
+        XCTAssertEqual(
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", accountID: "w", planType: "plus").providerID,
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", accountID: "w", planType: "pro").providerID,
+            "A plan change keeps the row"
+        )
+        XCTAssertNil(CLIProxyLoginKey(kind: .claude, email: "x@example.com", accountID: "w").accountID)
+    }
+
+    func testCodexWorkspacesWithOneEmailGetTheirOwnRows() async throws {
+        let accounts = try await CLIProxyClient(config: config, session: session).logins(cache: CLIProxyAccountCache())
+        let keys = CLIProxyLoginKey.keys(from: accounts).filter { $0.kind == .codex }
+        XCTAssertEqual(keys.map(\.accountID), ["acct-123", "acct-team"])
+        let team = try XCTUnwrap(keys.last)
+
+        let usage = try await proxyRow(team).fetch()
+
+        XCTAssertEqual(usage.windows.count, 2)
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
+        XCTAssertEqual(call["auth_index"] as? String, "idx-codex-team")
+        XCTAssertEqual((call["header"] as? [String: String])?["Chatgpt-Account-Id"], "acct-team")
+    }
+
+    func testCodexLoginReadsChatGPTUsageThroughTheProxy() async throws {
+        let provider = proxyRow(CLIProxyLoginKey(kind: .codex, email: "MAIN@example.com"))
+
+        let usage = try await provider.fetch()
+
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [12, 40])
+        XCTAssertEqual(usage.windows.map(\.duration), [5 * 3600, 7 * 24 * 3600])
+        XCTAssertEqual(usage.windows.first?.resetsAt, Date(timeIntervalSince1970: 1785902974))
+        XCTAssertNotNil(usage.windows.last?.resetsAt)
+        XCTAssertEqual(usage.planName, CodexPlan.displayName("plus"))
+        XCTAssertEqual(usage.accountEmail, "main@example.com")
+        XCTAssertEqual(provider.displayName, "Codex — MAIN@example.com")
+        XCTAssertEqual(provider.shortCode, "CxM")
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
+        XCTAssertEqual(call["auth_index"] as? String, "idx-codex")
+        XCTAssertEqual(call["url"] as? String, CLIProxyClient.codexUsageURL)
+        let header = try XCTUnwrap(call["header"] as? [String: String])
+        XCTAssertEqual(header["Authorization"], "Bearer $TOKEN$", "The token must stay on the proxy")
+        XCTAssertEqual(header["Chatgpt-Account-Id"], "acct-123")
+        XCTAssertNil(call["data"], "A GET sends no body")
+    }
+
+    func testCodexBlockedWindowWithoutPercentCountsAsFull() throws {
+        let data = Data(#"{"rate_limit":{"limit_reached":true,"primary_window":{"limit_window_seconds":18000}}}"#.utf8)
+
+        let usage = try CLIProxyAccountProvider.codexUsage(from: data, fallbackPlan: "pro", now: Date())
+
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [100])
+        XCTAssertEqual(usage.planName, CodexPlan.displayName("pro"))
+    }
+
+    func testAntigravityLoginTriesTheNextHostAndNamesEachGroup() async throws {
+        let provider = proxyRow(CLIProxyLoginKey(kind: .antigravity, email: "ag@example.com"))
+
+        let usage = try await provider.fetch()
+
+        XCTAssertEqual(usage.windows.map(\.label), [
+            "Gemini · \(L("5h limit"))",
+            "Gemini · \(L("Weekly limit"))",
+            "Claude and GPT · \(L("5h limit"))",
+        ])
+        XCTAssertEqual(usage.windows.map(\.usedPercent).map { $0.rounded() }, [10, 50, 75])
+        XCTAssertEqual(usage.windows.first?.duration, 5 * 3600)
+        let calls = MockCLIProxyURLProtocol.server.apiCalls()
+        XCTAssertEqual(calls.count, 2, "The second host answers")
+        XCTAssertEqual(calls.last?["auth_index"] as? String, "7")
+        let data = try XCTUnwrap(calls.last?["data"] as? String)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: Data(data.utf8)) as? [String: String], ["project": "proj-ag"])
+    }
+
+    func testGeminiLoginAsksForItsProjectsQuota() async throws {
+        let provider = proxyRow(CLIProxyLoginKey(kind: .gemini, email: "gem@example.com", projectID: "proj-gem"))
+
+        let usage = try await provider.fetch()
+
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [25])
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
+        XCTAssertEqual(call["url"] as? String, GeminiProvider.quotaURL.absoluteString)
+        XCTAssertEqual(call["data"] as? String, #"{"project":"proj-gem"}"#)
+    }
+
+    func testRemovedOrTurnedOffLoginIsReported() async throws {
+        for login in [
+            CLIProxyLoginKey(kind: .codex, email: "gone@example.com"),
+            CLIProxyLoginKey(kind: .claude, email: "off@example.com"),
+        ] {
+            do {
+                _ = try await proxyRow(login).fetch()
+                XCTFail("\(login.email) is not an enabled login")
+            } catch let error as CLIProxyError {
+                XCTAssertEqual(error, .loginRemoved)
+            }
+        }
+    }
+
+    func testRowReusesItsUsageUntilAnExplicitRefresh() async throws {
+        let provider = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+
+        _ = try await provider.fetch()
+        _ = try await provider.fetch()
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 1)
+
+        _ = try await provider.fetch(forceRefresh: true)
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2)
+    }
+
+    func testSignedOutCodexLoginIsReported() async throws {
+        MockCLIProxyURLProtocol.server.upstreamStatus = 401
+
+        do {
+            _ = try await proxyRow(CLIProxyLoginKey(kind: .codex, email: "main@example.com")).fetch()
+            XCTFail("ChatGPT rejecting the proxy's token should fail")
+        } catch let error as CLIProxyError {
+            XCTAssertEqual(error, .loginSignedOut)
+        }
+    }
+
+    func testRowsFollowTheirProviderAndAntigravityFollowsGemini() {
+        let logins = [
+            CLIProxyLoginKey(kind: .claude, email: "c@example.com"),
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com"),
+            CLIProxyLoginKey(kind: .antigravity, email: "a@example.com"),
+            CLIProxyLoginKey(kind: .gemini, email: "g@example.com"),
+        ]
+
+        let ids = UsageStore.defaultProviders(extraAccounts: [], proxyLogins: logins).map(\.id)
+
+        func index(_ id: String) -> Int { ids.firstIndex(of: id) ?? -1 }
+        XCTAssertEqual(index(logins[1].providerID), index("codex") + 1)
+        XCTAssertEqual(index(logins[0].providerID), index("claude") + 1)
+        XCTAssertEqual(index(logins[3].providerID), index("gemini") + 1)
+        XCTAssertEqual(index(logins[2].providerID), index("gemini") + 2)
+        XCTAssertEqual(index("openrouter"), index("gemini") + 3)
+    }
+
+    func testDuplicateNeedsTheSameProviderAndEmail() {
+        let local = [
+            UsageStore.LocalAccount(providerID: "codex", name: "Codex", email: "Me@example.com"),
+            UsageStore.LocalAccount(providerID: "claude:\(UUID().uuidString)", name: "Claude — Work", email: "work@example.com"),
+        ]
+        func duplicate(_ login: CLIProxyLoginKey) -> String? {
+            UsageStore.localDuplicate(of: login, in: local, logins: [login])
+        }
+
+        XCTAssertEqual(duplicate(CLIProxyLoginKey(kind: .codex, email: "me@EXAMPLE.com")), "Codex")
+        XCTAssertEqual(duplicate(CLIProxyLoginKey(kind: .claude, email: "work@example.com")), "Claude — Work")
+        XCTAssertNil(duplicate(CLIProxyLoginKey(kind: .claude, email: "me@example.com")))
+        XCTAssertNil(duplicate(CLIProxyLoginKey(kind: .antigravity, email: "me@example.com")))
+    }
+
+    func testCodexDuplicateAlsoNeedsTheSameWorkspacePlan() {
+        let personal = CLIProxyLoginKey(kind: .codex, email: "me@example.com", accountID: "p", planType: "plus")
+        let team = CLIProxyLoginKey(kind: .codex, email: "me@example.com", accountID: "t", planType: "team")
+        let both = [personal, team]
+        let local = [UsageStore.LocalAccount(providerID: "codex", name: "Codex", email: "me@example.com", planName: "Plus")]
+
+        XCTAssertEqual(UsageStore.localDuplicate(of: personal, in: local, logins: both), "Codex")
+        XCTAssertNil(UsageStore.localDuplicate(of: team, in: local, logins: both), "A team workspace is not the personal one")
+        let loading = [UsageStore.LocalAccount(providerID: "codex", name: "Codex", email: "me@example.com")]
+        XCTAssertNil(UsageStore.localDuplicate(of: personal, in: loading, logins: both), "With the plan unknown, either could be it")
+        XCTAssertNil(UsageStore.localDuplicate(of: team, in: loading, logins: both))
+        XCTAssertEqual(UsageStore.localDuplicate(of: team, in: loading, logins: [team]), "Codex")
+    }
+
+    @MainActor
+    func testProxyRowHidesBehindTheSameLocalAccountUnlessTurnedOn() async throws {
+        let suite = "CLIProxyTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        var proxy = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .codex, email: "me@example.com"))
+        proxy.proxyConfig = { nil }
+        let local = LocalAccountStub(id: "codex", email: "ME@example.com")
+        let store = UsageStore(settings: settings, providers: [local, proxy])
+
+        let deadline = Date().addingTimeInterval(3)
+        while store.state(for: "codex").usage == nil {
+            guard Date() < deadline else { return XCTFail("The local account never loaded") }
+            try await Task.sleep(nanoseconds: 1_000_000)
+        }
+
+        XCTAssertEqual(store.visibleProviders.map(\.id), ["codex"])
+        XCTAssertEqual(store.localDuplicateName(of: proxy), "Codex")
+        XCTAssertEqual(settings.localAccountEmails["codex"], "ME@example.com")
+        settings.setMode(.on, for: proxy.id)
+        XCTAssertEqual(store.visibleProviders.map(\.id), ["codex", proxy.id])
+    }
+
+    @MainActor
+    func testRememberedEmailHidesTheProxyRowWhileTheLocalAccountLoads() {
+        let suite = "CLIProxyTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        settings.localAccountEmails = ["codex": "me@example.com"]
+        var proxy = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .codex, email: "me@example.com"))
+        proxy.proxyConfig = { nil }
+        let store = UsageStore(settings: settings, providers: [LocalAccountStub(id: "codex", email: nil, delay: 10), proxy])
+
+        XCTAssertEqual(store.visibleProviders.map(\.id), ["codex"])
+    }
+
+    @MainActor
+    func testProxyRowsStayOutOfTheMenuBarTitleUntilChosen() {
+        let suite = "CLIProxyTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        let id = CLIProxyLoginKey(kind: .codex, email: "me@example.com").providerID
+
+        XCTAssertFalse(settings.showsInMenuBar(id))
+        XCTAssertTrue(settings.showsInMenuBar("codex"))
+        settings.setShowsInMenuBar(true, for: id)
+        XCTAssertTrue(SettingsStore(defaults: defaults).showsInMenuBar(id))
+    }
+
+    @MainActor
+    func testProxyRowsFillTheTitleWhenNoOtherRowIsInIt() {
+        let suite = "CLIProxyTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        var proxy = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .codex, email: "me@example.com"))
+        proxy.proxyConfig = { nil }
+        let store = UsageStore(settings: settings, providers: [proxy])
+
+        XCTAssertNotEqual(store.menuBarEntries.map(\.text), ["Allowance Bar"])
+        settings.setShowsInMenuBar(false, for: proxy.id)
+        XCTAssertEqual(store.menuBarEntries.map(\.text), ["Allowance Bar"], "A row the user took out stays out")
+    }
+
+    @MainActor
+    func testDiagnosticsLeaveOutProxyEmails() {
+        let proxy = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .codex, email: "secret@example.com"))
+
+        XCTAssertEqual(Diagnostics.diagnosticsName(of: proxy), "Codex via CLIProxyAPI")
+        XCTAssertEqual(Diagnostics.diagnosticsName(of: LocalAccountStub(id: "codex", email: nil)), "Codex")
+    }
+
+    @MainActor
+    func testLoginsPersistAcrossLaunches() {
+        let suite = "CLIProxyTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let logins = [CLIProxyLoginKey(kind: .gemini, email: "g@example.com", projectID: "p")]
+
+        SettingsStore(defaults: defaults).cliProxyLogins = logins
+
+        XCTAssertEqual(SettingsStore(defaults: defaults).cliProxyLogins, logins)
+    }
+}
+
+/// A local account that reports an email after an optional delay.
+private struct LocalAccountStub: UsageProvider {
+    let id: String
+    let email: String?
+    var delay: TimeInterval = 0
+    var displayName: String { "Codex" }
+    var shortCode: String { "Cx" }
+    var isDetected: Bool { true }
+
+    func fetch() async throws -> ProviderUsage {
+        if delay > 0 { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
+        return ProviderUsage(planName: nil, windows: [], asOf: Date(), accountEmail: email)
     }
 }

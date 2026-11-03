@@ -58,6 +58,8 @@
 	<string>Add %@ account</string>
 	<key>Add account…</key>
 	<string>Add account…</string>
+	<key>Add the CLIProxyAPI management key in Settings.</key>
+	<string>Add the CLIProxyAPI management key in Settings.</string>
 	<key>Adds this account to Allowance Bar using the folder name as its label.</key>
 	<string>Adds this account to Allowance Bar using the folder name as its label.</string>
 	<key>Adjust how see-through the window background is.</key>
@@ -68,6 +70,8 @@
 	<string>Allowance Bar</string>
 	<key>Allowance Bar could not reach the provider to check this key. That is usually a network issue or a temporary API change. Your saved key was not removed.</key>
 	<string>Allowance Bar could not reach the provider to check this key. That is usually a network issue or a temporary API change. Your saved key was not removed.</string>
+	<key>Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.</key>
+	<string>Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.</string>
 	<key>Also show this window on every desktop and over full-screen apps. Requires Keep on Top.</key>
 	<string>Also show this window on every desktop and over full-screen apps. Requires Keep on Top.</string>
 	<key>An Admin key can see billing details and manage other keys. Allowance Bar only reads your balance; it cannot spend credits or change settings. An Inference key is safer and also works with Allowance Bar.</key>
@@ -90,10 +94,14 @@
 	<string>Billed through</string>
 	<key>CLIProxyAPI</key>
 	<string>CLIProxyAPI</string>
+	<key>CLIProxyAPI has no Google Cloud project for this login. Sign in again in CLIProxyAPI.</key>
+	<string>CLIProxyAPI has no Google Cloud project for this login. Sign in again in CLIProxyAPI.</string>
 	<key>CLIProxyAPI has no management key. Set management.secret-key in its config.</key>
 	<string>CLIProxyAPI has no management key. Set management.secret-key in its config.</string>
 	<key>CLIProxyAPI has no matching Claude login. Choose one in Settings.</key>
 	<string>CLIProxyAPI has no matching Claude login. Choose one in Settings.</string>
+	<key>CLIProxyAPI no longer has this login, or it is turned off there.</key>
+	<string>CLIProxyAPI no longer has this login, or it is turned off there.</string>
 	<key>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</key>
 	<string>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</string>
 	<key>CLIProxyAPI paused requests after failed attempts. Try again later.</key>
@@ -102,8 +110,6 @@
 	<string>CLIProxyAPI rejected the management key. Check it in Settings.</string>
 	<key>CLIProxyAPI returned HTTP %lld</key>
 	<string>CLIProxyAPI returned HTTP %lld</string>
-	<key>CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.</key>
-	<string>CLIProxyAPI's Claude login is signed out. Sign in again in CLIProxyAPI.</string>
 	<key>Cache creation tokens</key>
 	<string>Cache creation tokens</string>
 	<key>Cache read tokens</key>
@@ -150,10 +156,10 @@
 	<string>Command-line tool not on your PATH.</string>
 	<key>Compact View</key>
 	<string>Compact View</string>
-	<key>Connected. CLIProxyAPI has no Claude logins.</key>
-	<string>Connected. CLIProxyAPI has no Claude logins.</string>
-	<key>Connected. Claude logins found: %lld.</key>
-	<string>Connected. Claude logins found: %lld.</string>
+	<key>Connected. CLIProxyAPI has no Claude, Codex, Antigravity or Gemini logins that are turned on.</key>
+	<string>Connected. CLIProxyAPI has no Claude, Codex, Antigravity or Gemini logins that are turned on.</string>
+	<key>Connected. Logins found: %lld.</key>
+	<string>Connected. Logins found: %lld.</string>
 	<key>Connection failed</key>
 	<string>Connection failed</string>
 	<key>Copies the Terminal command to sign in this %@ account</key>
@@ -212,6 +218,10 @@
 	<string>Glass</string>
 	<key>Google Play</key>
 	<string>Google Play</string>
+	<key>Group %lld</key>
+	<string>Group %lld</string>
+	<key>Hidden because %@ shows the same account. Choose On to show both.</key>
+	<string>Hidden because %@ shows the same account. Choose On to show both.</string>
 	<key>I confirmed this date today</key>
 	<string>I confirmed this date today</string>
 	<key>Inference and Admin Venice API keys are supported. x402 wallet balances are not supported.</key>
@@ -242,6 +252,8 @@
 	<string>Last checked %@</string>
 	<key>Last confirmed %@</key>
 	<string>Last confirmed %@</string>
+	<key>Limit</key>
+	<string>Limit</string>
 	<key>Limited key</key>
 	<string>Limited key</string>
 	<key>Login command copied</key>
@@ -350,10 +362,18 @@
 	<string>The key was rejected by Venice.</string>
 	<key>The matching Claude login is turned off in CLIProxyAPI.</key>
 	<string>The matching Claude login is turned off in CLIProxyAPI.</string>
+	<key>The provider rate-limited the usage request</key>
+	<string>The provider rate-limited the usage request</string>
+	<key>The provider returned HTTP %lld through CLIProxyAPI</key>
+	<string>The provider returned HTTP %lld through CLIProxyAPI</string>
 	<key>This API key lets apps use your OpenRouter credits up to a spending limit you set. Allowance Bar only reads how much has been used; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
 	<string>This API key lets apps use your OpenRouter credits up to a spending limit you set. Allowance Bar only reads how much has been used; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</string>
 	<key>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</key>
 	<string>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</string>
+	<key>This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.</key>
+	<string>This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.</string>
+	<key>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</key>
+	<string>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</string>
 	<key>This folder is already added</key>
 	<string>This folder is already added</string>
 	<key>This key is tied to a GLM Coding Plan subscription. Allowance Bar reads your time and token quotas (they reset every few hours). It cannot spend money, call models, or change your account.</key>
@@ -396,8 +416,8 @@
 	<string>Waiting for browser authorization…</string>
 	<key>Website &amp; source code</key>
 	<string>Website &amp; source code</string>
-	<key>When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy.</key>
-	<string>When Claude Code sends requests through CLIProxyAPI, its own login stops renewing. Allowance Bar can then ask the proxy for usage. Your Claude tokens stay on the proxy.</string>
+	<key>When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.</key>
+	<string>When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.</string>
 	<key>Window Options</key>
 	<string>Window Options</string>
 	<key>Works for usage monitoring.</key>

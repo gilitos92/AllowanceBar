@@ -61,12 +61,16 @@ struct CodexProvider: UsageProvider {
             )
         }
         if let cached {
-            if primary, let logUsage = try? logReader.readUsage(),
+            let email = cached.reading.email
+            if primary, var logUsage = try? logReader.readUsage(),
                let logAsOf = logUsage.asOf,
                logAsOf > cached.timestamp {
+                logUsage.accountEmail = email
                 return logUsage
             }
-            return CodexAppServerClient.usage(from: cached.reading, now: now)
+            var usage = CodexAppServerClient.usage(from: cached.reading, now: now)
+            usage.accountEmail = email
+            return usage
         }
 
         do {
@@ -75,18 +79,22 @@ struct CodexProvider: UsageProvider {
             await MainActor.run {
                 CodexAccountCache.shared.store(reading, for: providerID, at: now)
             }
-            let usage = CodexAppServerClient.usage(from: reading, now: now)
+            var usage = CodexAppServerClient.usage(from: reading, now: now)
+            usage.accountEmail = reading.email
 
-            if primary, let logUsage = try? logReader.readUsage(),
+            if primary, var logUsage = try? logReader.readUsage(),
                let logAsOf = logUsage.asOf,
                logAsOf > now {
+                logUsage.accountEmail = reading.email
                 return logUsage
             }
             return usage
         } catch {
             DebugLog.write("codex app-server \(providerID): failed: \(error)")
             if primary {
-                return try logReader.readUsage()
+                var usage = try logReader.readUsage()
+                usage.accountEmail = await MainActor.run { CodexAccountCache.shared.lastEmail(for: providerID) }
+                return usage
             }
             if case CodexAppServerError.notSignedIn = error {
                 throw CodexAppServerError.notSignedIn

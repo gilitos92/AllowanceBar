@@ -43,7 +43,7 @@ Top-level object:
 | `asOf` | `String?` (ISO 8601) | Data timestamp; for Claude API this is the last check time, not report coverage |
 | `staleSince` | `String?` (ISO 8601) | Present when `state` is `stale` |
 | `error` | `String?` | Redacted error message for `error` / `stale` |
-| `accountEmail` | `String?` | Signed-in account email — Codex accounts only (added in 1.11.0) |
+| `accountEmail` | `String?` | Signed-in account email — Codex accounts (added in 1.11.0) and CLIProxyAPI logins (added in 2.7.0) |
 | `planType` | `String?` | Plan / tier label as shown in the app's plan capsule (e.g. `Pro`, `Pro Lite`, `Ultra`, `Credits`, `Inference key`); present for any provider that reports one (added in 1.11.0) |
 | `renewal` | `RenewalStatus?` | User-entered subscription renewal — billing information, NOT a usage window; do not use it for quota decisions (Codex accounts; added in 1.11.0) |
 | `apiUsage` | `APIUsageStatus?` | Claude organization API usage report, when available; does not represent prepaid credits |
@@ -170,6 +170,7 @@ Within `schemaVersion` 1, changes are **additive only** (new optional fields). B
 | 1.11.0 | Added optional `accountEmail`, `planType`, `renewal` on `ProviderStatus`; extra Codex accounts appear as `codex:<uuid>` providers |
 | 1.12.0 | Added optional Claude API `apiUsage` report on `ProviderStatus` |
 | 2.4.0 | No new fields; extra accounts of any provider appear as `<id>:<uuid>` providers |
+| 2.7.0 | No new fields; CLIProxyAPI logins appear as `<id>:proxy-<hash>` providers (including `antigravity:proxy-<hash>`) with `accountEmail` set |
 
 ## URL schemes
 
