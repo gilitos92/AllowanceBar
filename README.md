@@ -151,6 +151,10 @@ refreshes on wake.
 - **Reads well before it runs out** — count usage up ("80% used") or down
   ("20% left"), relative or exact reset times (with a remaining duration), and optional notifications when
   a limit window or balance crosses your threshold.
+- **Shows your pace** — a line on each bar marks even pace (where usage would
+  be if spread evenly until the reset), and an arrow says if you are ahead of
+  pace (↗, may run out early), on pace (→) or under pace (↘). An optional
+  alert warns when a limit runs well ahead of pace.
 - **Never cries wolf** — if a provider briefly fails to respond, the last
   known numbers stay visible (dimmed, with a "stale since…" note) instead of
   an alarming error in your menu bar.

@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.6.0] — 2026-11-03
+
 ### Added
 - Pace on every usage bar. A line on the bar marks even pace: where usage
   would be if spread evenly until the reset. An arrow next to the percent
