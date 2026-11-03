@@ -117,7 +117,8 @@ final class UsageStore: ObservableObject {
     func rebuildProviders(
         extraAccounts: [ProviderAccountConfig]? = nil,
         proxyLogins: [CLIProxyLoginKey]? = nil,
-        forceRefresh: Bool = false
+        forceRefresh: Bool = false,
+        refreshing: Bool = true
     ) {
         let newProviders = Self.defaultProviders(
             extraAccounts: extraAccounts ?? settings.extraAccounts,
@@ -133,7 +134,7 @@ final class UsageStore: ObservableObject {
         for added in newIDs.subtracting(oldIDs) {
             states[added] = .loading
         }
-        refresh(forceRefresh: forceRefresh)
+        if refreshing { refresh(forceRefresh: forceRefresh) }
     }
 
     deinit {
@@ -167,10 +168,11 @@ final class UsageStore: ObservableObject {
     var visibleProviders: [any UsageProvider] {
         let shown = providers.filter { settings.mode(for: $0.id).isVisible(detected: $0.isDetected) }
         let local = localAccountEmails(among: shown)
+        let logins = proxyLogins
         return shown.filter { provider in
             guard let proxy = provider as? CLIProxyAccountProvider,
                   settings.mode(for: provider.id) == .auto else { return true }
-            return Self.localDuplicate(of: proxy.login, in: local) == nil
+            return Self.localDuplicate(of: proxy.login, in: local, logins: logins) == nil
         }
     }
 
@@ -178,7 +180,11 @@ final class UsageStore: ObservableObject {
     func localDuplicateName(of provider: any UsageProvider) -> String? {
         guard let proxy = provider as? CLIProxyAccountProvider else { return nil }
         let shown = providers.filter { settings.mode(for: $0.id).isVisible(detected: $0.isDetected) }
-        return Self.localDuplicate(of: proxy.login, in: localAccountEmails(among: shown))
+        return Self.localDuplicate(of: proxy.login, in: localAccountEmails(among: shown), logins: proxyLogins)
+    }
+
+    private var proxyLogins: [CLIProxyLoginKey] {
+        providers.compactMap { ($0 as? CLIProxyAccountProvider)?.login }
     }
 
     /// How long a local account may fail (showing stale data) before its
@@ -188,31 +194,55 @@ final class UsageStore: ObservableObject {
     /// Email of every shown non-proxy account: from its latest data, or the
     /// last known one while it loads. An account in error, or stale for
     /// longer than `localFailureGrace`, has none, so its proxy row takes over.
-    private func localAccountEmails(among shown: [any UsageProvider]) -> [(providerID: String, name: String, email: String)] {
+    private func localAccountEmails(among shown: [any UsageProvider]) -> [LocalAccount] {
         let remembered = settings.localAccountEmails
         let now = Date()
         return shown.compactMap { provider in
             guard !(provider is CLIProxyAccountProvider) else { return nil }
-            let email: String?
+            var usage: ProviderUsage?
             switch state(for: provider.id) {
-            case .ready(let usage): email = usage.accountEmail
-            case .stale(let usage, _, let since):
-                email = now.timeIntervalSince(since) < Self.localFailureGrace ? usage.accountEmail : nil
-            case .loading: email = remembered[provider.id]
-            case .error: email = nil
+            case .ready(let current): usage = current
+            case .stale(let last, _, let since):
+                usage = now.timeIntervalSince(since) < Self.localFailureGrace ? last : nil
+            case .loading:
+                guard let email = remembered[provider.id], !email.isEmpty else { return nil }
+                return LocalAccount(providerID: provider.id, name: provider.displayName, email: email)
+            case .error: usage = nil
             }
-            guard let email, !email.isEmpty else { return nil }
-            return (provider.id, provider.displayName, email)
+            guard let usage, let email = usage.accountEmail, !email.isEmpty else { return nil }
+            return LocalAccount(providerID: provider.id, name: provider.displayName, email: email, planName: usage.planName)
         }
     }
 
+    /// An account on this Mac, as the proxy-row dedupe sees it.
+    struct LocalAccount: Sendable {
+        let providerID: String
+        let name: String
+        let email: String
+        /// Unknown while the account loads.
+        var planName: String?
+    }
+
+    /// The local account that shows the same login as `login`, if any.
+    ///
+    /// The email must match. For Codex, one email can have several
+    /// workspaces, so the plans must match too when both are known. When more
+    /// than one proxy login fits a local account, it's unclear which one is
+    /// the same, so none of them is hidden.
     nonisolated static func localDuplicate(
         of login: CLIProxyLoginKey,
-        in local: [(providerID: String, name: String, email: String)]
+        in local: [LocalAccount],
+        logins: [CLIProxyLoginKey]
     ) -> String? {
-        local.first { entry in
-            ProviderAccountConfig.baseProviderID(of: entry.providerID) == login.kind.baseProviderID
-                && entry.email.caseInsensitiveCompare(login.email) == .orderedSame
+        func fits(_ login: CLIProxyLoginKey, _ entry: LocalAccount) -> Bool {
+            guard ProviderAccountConfig.baseProviderID(of: entry.providerID) == login.kind.baseProviderID,
+                  entry.email.caseInsensitiveCompare(login.email) == .orderedSame else { return false }
+            guard let localPlan = entry.planName,
+                  let proxyPlan = CodexPlan.displayName(login.planType) else { return true }
+            return localPlan.caseInsensitiveCompare(proxyPlan) == .orderedSame
+        }
+        return local.first { entry in
+            fits(login, entry) && logins.filter { fits($0, entry) }.count <= 1
         }?.name
     }
 
@@ -239,33 +269,43 @@ final class UsageStore: ObservableObject {
         watchNewestCodexSession()
         lastRefreshed = Date()
         Task {
-            // A changed login list rebuilds the rows, which starts a new refresh.
-            if await syncProxyLogins(forceRefresh: forceRefresh) { return }
+            // The proxy's login list loads next to the fetches, so a slow or
+            // unreachable proxy never delays the other rows.
+            let sync = Task { await self.syncProxyLogins() }
             var fetched = Set<String>()
-            var pending = visibleProviders
-            // A local account that fails can reveal its proxy row, so fetch
-            // rows that became visible during the first pass too.
-            while !pending.isEmpty {
-                fetched.formUnion(pending.map(\.id))
-                await withTaskGroup(of: Void.self) { group in
-                    for provider in pending {
-                        group.addTask {
-                            await self.refreshProvider(provider, forceRefresh: forceRefresh)
-                            DebugLog.write("refresh: \(provider.id) done")
-                        }
-                    }
-                }
-                pending = visibleProviders.filter { !fetched.contains($0.id) }
-            }
+            await fetchVisible(skipping: &fetched, forceRefresh: forceRefresh)
             DebugLog.write("refresh: all done, writing snapshot")
             StatusSnapshotWriter.writeIfEnabled(store: self, settings: settings)
+            // Rows the new login list added.
+            guard await sync.value else { return }
+            await fetchVisible(skipping: &fetched, forceRefresh: forceRefresh)
+            StatusSnapshotWriter.writeIfEnabled(store: self, settings: settings)
+        }
+    }
+
+    /// Fetches every visible row not in `fetched`. A local account that fails
+    /// can reveal its proxy row, so rows that become visible meanwhile are
+    /// fetched too.
+    private func fetchVisible(skipping fetched: inout Set<String>, forceRefresh: Bool) async {
+        var pending = visibleProviders.filter { !fetched.contains($0.id) }
+        while !pending.isEmpty {
+            fetched.formUnion(pending.map(\.id))
+            await withTaskGroup(of: Void.self) { group in
+                for provider in pending {
+                    group.addTask {
+                        await self.refreshProvider(provider, forceRefresh: forceRefresh)
+                        DebugLog.write("refresh: \(provider.id) done")
+                    }
+                }
+            }
+            pending = visibleProviders.filter { !fetched.contains($0.id) }
         }
     }
 
     /// Updates the rows to match the proxy's logins. Returns true when the
     /// list changed and the rows were rebuilt. When the proxy can't be
     /// reached, the last known rows stay and show the error themselves.
-    private func syncProxyLogins(forceRefresh: Bool) async -> Bool {
+    private func syncProxyLogins() async -> Bool {
         guard let proxyConfig else { return false }
         let logins: [CLIProxyLoginKey]
         if let config = proxyConfig() {
@@ -276,7 +316,7 @@ final class UsageStore: ObservableObject {
         }
         guard logins != settings.cliProxyLogins else { return false }
         settings.cliProxyLogins = logins
-        rebuildProviders(proxyLogins: logins, forceRefresh: forceRefresh)
+        rebuildProviders(proxyLogins: logins, refreshing: false)
         return true
     }
 
@@ -284,7 +324,8 @@ final class UsageStore: ObservableObject {
         let generation = credentialGenerations[provider.id, default: 0]
         do {
             let usage = try await provider.fetch(forceRefresh: forceRefresh)
-            guard credentialGenerations[provider.id, default: 0] == generation else { return }
+            guard credentialGenerations[provider.id, default: 0] == generation,
+                  providers.contains(where: { $0.id == provider.id }) else { return }
             states[provider.id] = .ready(usage)
             if !(provider is CLIProxyAccountProvider), let email = usage.accountEmail,
                settings.localAccountEmails[provider.id] != email {
@@ -296,7 +337,8 @@ final class UsageStore: ObservableObject {
                 settings: settings
             )
         } catch {
-            guard credentialGenerations[provider.id, default: 0] == generation else { return }
+            guard credentialGenerations[provider.id, default: 0] == generation,
+                  providers.contains(where: { $0.id == provider.id }) else { return }
             let previous = states[provider.id] ?? .loading
             states[provider.id] = ProviderState.nextState(
                 after: previous,

@@ -141,9 +141,12 @@ announcement drafts, environment specifics) and complements this file.
 - **CLIProxyAPI rows** (v2.7.0, `CLIProxyAccountProvider.swift`): every
   enabled `claude`/`codex`/`antigravity`/`gemini-cli` login in `auth-files`
   becomes a row with id `<base>:proxy-<12 hex of SHA-256(kind, email,
-  gemini project)>` (`CLIProxyLoginKey`), saved in defaults
-  `cliProxyLogins`. `UsageStore.refresh` first syncs that list and rebuilds
-  the rows when it changes; injected provider lists (tests) never sync.
+  gemini project, codex workspace id)>` (`CLIProxyLoginKey`; one email can
+  have a personal and a team ChatGPT workspace), saved in defaults
+  `cliProxyLogins`. `UsageStore.refresh` syncs that list next to the
+  fetches (a slow proxy never delays other rows), rebuilds the rows when it
+  changes, then fetches the new ones; injected provider lists (tests) never
+  sync.
   Requests, all via `api-call` with `$TOKEN$`: Codex `GET
   chatgpt.com/backend-api/wham/usage` (+ `Chatgpt-Account-Id` from the
   list's decoded `id_token` claims; `rate_limit.primary_window/
@@ -156,7 +159,8 @@ announcement drafts, environment specifics) and complements this file.
   a row's answer for 2 min unless forced. Dedupe: a proxy row on Auto hides
   while a shown local account of the same base reports the same
   `ProviderUsage.accountEmail` (Claude `.claude.json`, Codex app-server,
-  Gemini `google_accounts.json`); remembered in defaults
+  Gemini `google_accounts.json`) and, for Codex, the same plan when both are
+  known; never when several proxy logins fit one local account; remembered in defaults
   `cliProxyLocalAccountEmails` for the loading phase; a local error, or
   stale for over 10 min (`localFailureGrace`), shows the proxy row.
 - **Claude API** (`claude-api`, v1.12.0): separate from subscription Claude.

@@ -9,23 +9,44 @@ struct CLIProxyLoginKey: Codable, Equatable, Hashable, Sendable {
     /// Gemini only: CLIProxyAPI can hold one login per project for the same
     /// email, and each project has its own quota.
     let projectID: String?
+    /// Codex only: the ChatGPT workspace. One email can sign in to a personal
+    /// and a team workspace, and each has its own limits.
+    let accountID: String?
+    /// Codex only: the workspace's plan, used to tell which proxy login an
+    /// account on this Mac matches. Not part of the row's id.
+    let planType: String?
 
-    init(kind: CLIProxyLoginKind, email: String, projectID: String? = nil) {
+    init(
+        kind: CLIProxyLoginKind,
+        email: String,
+        projectID: String? = nil,
+        accountID: String? = nil,
+        planType: String? = nil
+    ) {
         self.kind = kind
         self.email = email
         self.projectID = kind == .gemini ? projectID : nil
+        self.accountID = kind == .codex ? accountID : nil
+        self.planType = kind == .codex ? planType : nil
     }
 
     init(account: CLIProxyClient.Account) {
-        self.init(kind: account.kind, email: account.email, projectID: account.projectID)
+        self.init(
+            kind: account.kind,
+            email: account.email,
+            projectID: account.projectID,
+            accountID: account.chatgptAccountID,
+            planType: account.planType
+        )
     }
 
     /// Stable id, e.g. `codex:proxy-1a2b3c4d5e6f`. The prefix before ":" is
     /// the base provider, so badges and per-provider rules treat the row like
     /// that provider's other accounts.
     var providerID: String {
-        let identity = [kind.rawValue, email.lowercased(), projectID ?? ""].joined(separator: "\n")
-        let digest = SHA256.hash(data: Data(identity.utf8))
+        var parts = [kind.rawValue, email.lowercased(), projectID ?? ""]
+        if let accountID { parts.append(accountID) }
+        let digest = SHA256.hash(data: Data(parts.joined(separator: "\n").utf8))
         let hex = digest.map { String(format: "%02x", $0) }.joined()
         return "\(kind.baseProviderID):\(Self.idPrefix)\(hex.prefix(12))"
     }
@@ -36,6 +57,7 @@ struct CLIProxyLoginKey: Codable, Equatable, Hashable, Sendable {
         account.kind == kind
             && account.email.caseInsensitiveCompare(email) == .orderedSame
             && (projectID == nil || account.projectID == projectID)
+            && (accountID == nil || account.chatgptAccountID == accountID)
     }
 
     /// One key per enabled login, in a steady order (kind, then email).
@@ -51,7 +73,7 @@ struct CLIProxyLoginKey: Codable, Equatable, Hashable, Sendable {
                 if lhsOrder != rhsOrder { return lhsOrder < rhsOrder }
                 let byEmail = lhs.email.localizedCaseInsensitiveCompare(rhs.email)
                 if byEmail != .orderedSame { return byEmail == .orderedAscending }
-                return (lhs.projectID ?? "") < (rhs.projectID ?? "")
+                return (lhs.projectID ?? lhs.accountID ?? "") < (rhs.projectID ?? rhs.accountID ?? "")
             }
             .filter { seen.insert($0.providerID).inserted }
     }

@@ -56,6 +56,8 @@ private final class MockCLIProxyServer {
               {"auth_index":"idx-off","type":"claude","provider":"claude","email":"off@example.com","disabled":true},
               {"auth_index":"idx-codex","type":"codex","provider":"codex","email":"main@example.com","disabled":false,
                "id_token":{"chatgpt_account_id":"acct-123","plan_type":"plus"}},
+              {"auth_index":"idx-codex-team","type":"codex","provider":"codex","email":"main@example.com","disabled":false,
+               "id_token":{"chatgpt_account_id":"acct-team","plan_type":"team"}},
               {"auth_index":7,"type":"antigravity","provider":"antigravity","email":"ag@example.com","project_id":"proj-ag"},
               {"auth_index":"idx-gem","type":"gemini-cli","provider":"gemini-cli","email":"gem@example.com","project_id":"proj-gem"},
               {"auth_index":"idx-kimi","type":"kimi","provider":"kimi","email":"k@example.com","id_token":"not-an-object"}
@@ -406,7 +408,7 @@ final class CLIProxyTests: XCTestCase {
     func testLoginListKeepsEverySupportedKind() async throws {
         let logins = try await CLIProxyClient(config: config, session: session).logins(cache: CLIProxyAccountCache())
 
-        XCTAssertEqual(logins.map(\.kind), [.claude, .claude, .codex, .antigravity, .gemini], "Kimi is not supported yet")
+        XCTAssertEqual(logins.map(\.kind), [.claude, .claude, .codex, .codex, .antigravity, .gemini], "Kimi is not supported yet")
         let codex = try XCTUnwrap(logins.first { $0.kind == .codex })
         XCTAssertEqual(codex.chatgptAccountID, "acct-123")
         XCTAssertEqual(codex.planType, "plus")
@@ -441,6 +443,31 @@ final class CLIProxyTests: XCTestCase {
             CLIProxyLoginKey(kind: .codex, email: "x@example.com"),
             "Only Gemini keys use the project"
         )
+        XCTAssertNotEqual(
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", accountID: "personal").providerID,
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", accountID: "team").providerID,
+            "Each ChatGPT workspace has its own limits"
+        )
+        XCTAssertEqual(
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", accountID: "w", planType: "plus").providerID,
+            CLIProxyLoginKey(kind: .codex, email: "x@example.com", accountID: "w", planType: "pro").providerID,
+            "A plan change keeps the row"
+        )
+        XCTAssertNil(CLIProxyLoginKey(kind: .claude, email: "x@example.com", accountID: "w").accountID)
+    }
+
+    func testCodexWorkspacesWithOneEmailGetTheirOwnRows() async throws {
+        let accounts = try await CLIProxyClient(config: config, session: session).logins(cache: CLIProxyAccountCache())
+        let keys = CLIProxyLoginKey.keys(from: accounts).filter { $0.kind == .codex }
+        XCTAssertEqual(keys.map(\.accountID), ["acct-123", "acct-team"])
+        let team = try XCTUnwrap(keys.last)
+
+        let usage = try await proxyRow(team).fetch()
+
+        XCTAssertEqual(usage.windows.count, 2)
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
+        XCTAssertEqual(call["auth_index"] as? String, "idx-codex-team")
+        XCTAssertEqual((call["header"] as? [String: String])?["Chatgpt-Account-Id"], "acct-team")
     }
 
     func testCodexLoginReadsChatGPTUsageThroughTheProxy() async throws {
@@ -560,14 +587,31 @@ final class CLIProxyTests: XCTestCase {
 
     func testDuplicateNeedsTheSameProviderAndEmail() {
         let local = [
-            (providerID: "codex", name: "Codex", email: "Me@example.com"),
-            (providerID: "claude:\(UUID().uuidString)", name: "Claude — Work", email: "work@example.com"),
+            UsageStore.LocalAccount(providerID: "codex", name: "Codex", email: "Me@example.com"),
+            UsageStore.LocalAccount(providerID: "claude:\(UUID().uuidString)", name: "Claude — Work", email: "work@example.com"),
         ]
+        func duplicate(_ login: CLIProxyLoginKey) -> String? {
+            UsageStore.localDuplicate(of: login, in: local, logins: [login])
+        }
 
-        XCTAssertEqual(UsageStore.localDuplicate(of: CLIProxyLoginKey(kind: .codex, email: "me@EXAMPLE.com"), in: local), "Codex")
-        XCTAssertEqual(UsageStore.localDuplicate(of: CLIProxyLoginKey(kind: .claude, email: "work@example.com"), in: local), "Claude — Work")
-        XCTAssertNil(UsageStore.localDuplicate(of: CLIProxyLoginKey(kind: .claude, email: "me@example.com"), in: local))
-        XCTAssertNil(UsageStore.localDuplicate(of: CLIProxyLoginKey(kind: .antigravity, email: "me@example.com"), in: local))
+        XCTAssertEqual(duplicate(CLIProxyLoginKey(kind: .codex, email: "me@EXAMPLE.com")), "Codex")
+        XCTAssertEqual(duplicate(CLIProxyLoginKey(kind: .claude, email: "work@example.com")), "Claude — Work")
+        XCTAssertNil(duplicate(CLIProxyLoginKey(kind: .claude, email: "me@example.com")))
+        XCTAssertNil(duplicate(CLIProxyLoginKey(kind: .antigravity, email: "me@example.com")))
+    }
+
+    func testCodexDuplicateAlsoNeedsTheSameWorkspacePlan() {
+        let personal = CLIProxyLoginKey(kind: .codex, email: "me@example.com", accountID: "p", planType: "plus")
+        let team = CLIProxyLoginKey(kind: .codex, email: "me@example.com", accountID: "t", planType: "team")
+        let both = [personal, team]
+        let local = [UsageStore.LocalAccount(providerID: "codex", name: "Codex", email: "me@example.com", planName: "Plus")]
+
+        XCTAssertEqual(UsageStore.localDuplicate(of: personal, in: local, logins: both), "Codex")
+        XCTAssertNil(UsageStore.localDuplicate(of: team, in: local, logins: both), "A team workspace is not the personal one")
+        let loading = [UsageStore.LocalAccount(providerID: "codex", name: "Codex", email: "me@example.com")]
+        XCTAssertNil(UsageStore.localDuplicate(of: personal, in: loading, logins: both), "With the plan unknown, either could be it")
+        XCTAssertNil(UsageStore.localDuplicate(of: team, in: loading, logins: both))
+        XCTAssertEqual(UsageStore.localDuplicate(of: team, in: loading, logins: [team]), "Codex")
     }
 
     @MainActor
