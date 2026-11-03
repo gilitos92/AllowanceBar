@@ -132,14 +132,16 @@ enum CodexAppServerClient {
             windows.append(UsageWindow(
                 label: CodexUsageReader.windowLabel(minutes: primary.windowMinutes),
                 usedPercent: primary.usedPercent,
-                resetsAt: primary.resetsAt
+                resetsAt: primary.resetsAt,
+                duration: CodexUsageReader.windowDuration(minutes: primary.windowMinutes)
             ))
         }
         if let secondary = reading.rateLimits?.secondary {
             windows.append(UsageWindow(
                 label: CodexUsageReader.windowLabel(minutes: secondary.windowMinutes),
                 usedPercent: secondary.usedPercent,
-                resetsAt: secondary.resetsAt
+                resetsAt: secondary.resetsAt,
+                duration: CodexUsageReader.windowDuration(minutes: secondary.windowMinutes)
             ))
         }
 

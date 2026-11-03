@@ -207,18 +207,23 @@ struct ClaudeProvider: AccountConfigurableProvider {
     }
 
     static func usage(from response: UsageResponse, plan: String?, now: Date) -> ProviderUsage {
-        func window(_ w: UsageResponse.Window?, _ label: String) -> UsageWindow? {
+        func window(_ w: UsageResponse.Window?, _ label: String, hours: Double) -> UsageWindow? {
             guard let w, let utilization = w.utilization else { return nil }
             let resetsAt = w.resetsAt.flatMap {
                 ISO8601DateFormatter.flexible.date(from: $0) ?? ISO8601DateFormatter.plain.date(from: $0)
             }
-            return UsageWindow(label: label, usedPercent: max(0, min(100, utilization)), resetsAt: resetsAt)
+            return UsageWindow(
+                label: label,
+                usedPercent: max(0, min(100, utilization)),
+                resetsAt: resetsAt,
+                duration: hours * 3600
+            )
         }
 
         let windows = [
-            window(response.fiveHour, L("5h limit")),
-            window(response.sevenDay, L("Weekly limit")),
-            window(response.sevenDayOpus, L("Weekly (Opus)")),
+            window(response.fiveHour, L("5h limit"), hours: 5),
+            window(response.sevenDay, L("Weekly limit"), hours: 7 * 24),
+            window(response.sevenDayOpus, L("Weekly (Opus)"), hours: 7 * 24),
         ].compactMap { $0 }
 
         return ProviderUsage(planName: plan?.capitalized, windows: windows, asOf: now)

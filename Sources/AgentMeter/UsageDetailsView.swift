@@ -200,7 +200,12 @@ private struct CompactUsageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(entries) { entry in
-                CompactProviderRow(entry: entry, countDirection: settings.countDirection, labelWidth: labelWidth)
+                CompactProviderRow(
+                    entry: entry,
+                    countDirection: settings.countDirection,
+                    showsPace: settings.showsPace,
+                    labelWidth: labelWidth
+                )
             }
         }
         // Size the label column to the widest label so bars sit close to it
@@ -384,6 +389,7 @@ private struct CompactControlButton: View {
 private struct CompactProviderRow: View {
     let entry: CompactUsageEntry
     let countDirection: CountDirection
+    let showsPace: Bool
     let labelWidth: CGFloat?
 
     var body: some View {
@@ -398,6 +404,7 @@ private struct CompactProviderRow: View {
                             providerName: entry.provider.displayName,
                             window: window,
                             countDirection: countDirection,
+                            showsPace: showsPace,
                             labelWidth: labelWidth
                         )
                     }
@@ -443,6 +450,7 @@ private struct CompactWindowMeter: View {
     let providerName: String
     let window: UsageWindow
     let countDirection: CountDirection
+    let showsPace: Bool
     let labelWidth: CGFloat?
 
     private static let barWidth: CGFloat = 80
@@ -455,6 +463,7 @@ private struct CompactWindowMeter: View {
 
     private func meter(at now: Date) -> some View {
         let severity = UsageMeterSeverity.forUsedPercent(window.usedPercent)
+        let pace = showsPace ? window.pace(now: now) : nil
         return HStack(spacing: 8) {
             HStack(spacing: 5) {
                 Text(window.label)
@@ -474,7 +483,11 @@ private struct CompactWindowMeter: View {
                 }
             }
             .frame(width: labelWidth, alignment: .leading)
-            UsageMeterBar(percent: countDirection.displayPercent(window.usedPercent), severity: severity)
+            UsageMeterBar(
+                percent: countDirection.displayPercent(window.usedPercent),
+                severity: severity,
+                paceMarkerPercent: showsPace ? countDirection.paceMarkerPercent(for: window, now: now) : nil
+            )
                 .frame(width: Self.barWidth)
             // Severity is never shown by color alone.
             SeverityValueLabel(
@@ -484,20 +497,40 @@ private struct CompactWindowMeter: View {
                 symbolFont: .system(size: 11, weight: .semibold)
             )
             .frame(width: 72, alignment: .trailing)
+            // Its own 14-point column (the widest arrow is 13), so a full
+            // critical badge keeps its 72 points,
+            // and rows without a pace stay aligned with the others.
+            if showsPace {
+                ZStack(alignment: .leading) {
+                    Color.clear
+                    if let pace {
+                        Image(systemName: pace.symbolName)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 14)
+            }
         }
         .frame(height: 20)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(format: L("%@, %@"), providerName, window.label))
-        .accessibilityValue(accessibilityValue(severity: severity, now: now))
+        .accessibilityValue(accessibilityValue(severity: severity, pace: pace, now: now))
+        .help(pace.map { PaceDescription.tooltip(pace: $0, window: window, direction: countDirection, now: now) } ?? "")
     }
 
-    private func accessibilityValue(severity: UsageMeterSeverity, now: Date) -> String {
+    private func accessibilityValue(severity: UsageMeterSeverity, pace: UsagePace?, now: Date) -> String {
         var value = countDirection.accessibilityPercentPhrase(window.usedPercent)
         if let reset = window.resetDescription(style: .relative, now: now) {
             value = "\(value), \(reset)"
         }
-        guard let qualifier = severity.qualifier else { return value }
-        return MenuBarAccessibilitySummary.appendQualifier(value, qualifier)
+        if let qualifier = severity.qualifier {
+            value = MenuBarAccessibilitySummary.appendQualifier(value, qualifier)
+        }
+        if let pace {
+            value = "\(value), \(pace.phrase)"
+        }
+        return value
     }
 }
 

@@ -51,6 +51,16 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(resetTimeStyle.rawValue, forKey: Keys.resetTimeStyle) }
     }
 
+    /// Even-pace marker on each bar and the pace arrow next to the percent.
+    @Published var showsPace: Bool {
+        didSet { defaults.set(showsPace, forKey: Keys.showsPace) }
+    }
+
+    /// Alert once per window when usage runs well ahead of pace.
+    @Published var paceNotificationsEnabled: Bool {
+        didSet { defaults.set(paceNotificationsEnabled, forKey: Keys.paceNotificationsEnabled) }
+    }
+
     @Published var balanceNotificationThreshold: Double {
         didSet { defaults.set(balanceNotificationThreshold, forKey: Keys.balanceNotificationThreshold) }
     }
@@ -172,6 +182,8 @@ final class SettingsStore: ObservableObject {
         static let countDirection = "countDirection"
         static let resetTimeStyle = "resetTimeStyle"
         static let balanceNotificationThreshold = "balanceNotificationThreshold"
+        static let showsPace = "showsPace"
+        static let paceNotificationsEnabled = "paceNotificationsEnabled"
         static let menuBarStyle = "menuBarStyle"
         static let menuBarShowsAllLimits = "menuBarShowsAllLimits"
         static let nanoShowsAllLimits = "nanoShowsAllLimits"
@@ -203,6 +215,8 @@ final class SettingsStore: ObservableObject {
         self.countDirection = storedDirection.flatMap(CountDirection.init(rawValue:)) ?? .used
         let storedResetStyle = defaults.string(forKey: Keys.resetTimeStyle)
         self.resetTimeStyle = storedResetStyle.flatMap(ResetTimeStyle.init(rawValue:)) ?? .relative
+        self.showsPace = defaults.object(forKey: Keys.showsPace) as? Bool ?? true
+        self.paceNotificationsEnabled = defaults.bool(forKey: Keys.paceNotificationsEnabled)
         let storedBalanceThreshold = defaults.double(forKey: Keys.balanceNotificationThreshold)
         self.balanceNotificationThreshold = Self.balanceThresholdOptions.contains(storedBalanceThreshold)
             ? storedBalanceThreshold
