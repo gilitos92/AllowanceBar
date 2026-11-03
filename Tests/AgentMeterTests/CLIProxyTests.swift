@@ -653,6 +653,28 @@ final class CLIProxyTests: XCTestCase {
     }
 
     @MainActor
+    func testProxyRowsStayOutOfTheMenuBarTitleUntilChosen() {
+        let suite = "CLIProxyTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(defaults: defaults)
+        let id = CLIProxyLoginKey(kind: .codex, email: "me@example.com").providerID
+
+        XCTAssertFalse(settings.showsInMenuBar(id))
+        XCTAssertTrue(settings.showsInMenuBar("codex"))
+        settings.setShowsInMenuBar(true, for: id)
+        XCTAssertTrue(SettingsStore(defaults: defaults).showsInMenuBar(id))
+    }
+
+    @MainActor
+    func testDiagnosticsLeaveOutProxyEmails() {
+        let proxy = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .codex, email: "secret@example.com"))
+
+        XCTAssertEqual(Diagnostics.diagnosticsName(of: proxy), "Codex via CLIProxyAPI")
+        XCTAssertEqual(Diagnostics.diagnosticsName(of: LocalAccountStub(id: "codex", email: nil)), "Codex")
+    }
+
+    @MainActor
     func testLoginsPersistAcrossLaunches() {
         let suite = "CLIProxyTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

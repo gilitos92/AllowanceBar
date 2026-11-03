@@ -362,7 +362,9 @@ final class SettingsStore: ObservableObject {
         if let cached = menuBarCache[providerID] { return cached }
         let shows: Bool
         if defaults.object(forKey: Keys.inMenuBar(providerID)) == nil {
-            shows = true
+            // Proxy logins appear on their own, often many at once; a title
+            // segment for each could push the menu bar item out of sight.
+            shows = !providerID.contains(":\(CLIProxyLoginKey.idPrefix)")
         } else {
             shows = defaults.bool(forKey: Keys.inMenuBar(providerID))
         }
