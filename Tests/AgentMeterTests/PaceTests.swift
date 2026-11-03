@@ -119,4 +119,40 @@ final class PaceTests: XCTestCase {
         settings.showsPace = false
         XCTAssertFalse(SettingsStore(defaults: defaults).showsPace)
     }
+
+    func testNanoSummaryAddsPaceArrows() {
+        let usage = ProviderUsage(
+            planName: nil,
+            windows: [
+                UsageWindow(label: "5h limit", usedPercent: 38, resetsAt: now.addingTimeInterval(4 * 3600), duration: 5 * 3600),
+                window(used: 24, left: week / 2, duration: week),
+                UsageWindow(label: "Other", usedPercent: 10, resetsAt: nil),
+            ],
+            asOf: now
+        )
+        // 38% used, 20% gone: ahead. 24% used, 50% gone: under. No length: no arrow.
+        XCTAssertEqual(usage.menuSummary(direction: .used, allWindows: true, showsPace: true, now: now), "38%↗ (24%↘, 10%)")
+        XCTAssertEqual(usage.menuSummary(direction: .used, allWindows: true, now: now), "38% (24%, 10%)")
+        XCTAssertEqual(usage.menuSummary(direction: .used, showsPace: true, now: now), "38%↗")
+    }
+
+    func testNanoSpokenSummaryIncludesPace() {
+        let usage = ProviderUsage(
+            planName: nil,
+            windows: [window(used: 24, left: week / 2, duration: week)],
+            asOf: now
+        )
+        let input = MenuBarAccessibilitySummary.ProviderInput(displayName: "Claude", state: .ready(usage))
+        let spoken = MenuBarAccessibilitySummary.build(
+            providers: [input], countDirection: .used, balanceThreshold: 5, includesPace: true, now: now
+        )
+        XCTAssertTrue(spoken.hasSuffix(UsagePace.under.phrase), spoken)
+        let plain = MenuBarAccessibilitySummary.build(providers: [input], countDirection: .used, balanceThreshold: 5, now: now)
+        XCTAssertFalse(plain.contains(UsagePace.under.phrase))
+    }
+
+    @MainActor func testNanoShowsPaceDefaultsOn() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "PaceTests-\(UUID())"))
+        XCTAssertTrue(SettingsStore(defaults: defaults).nanoShowsPace)
+    }
 }

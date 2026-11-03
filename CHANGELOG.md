@@ -7,6 +7,11 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Added
+- The nano Usage Details window shows each limit's pace arrow after its
+  percent, e.g. "Cl 38%↗". VoiceOver reads the pace too. Turn it off in
+  Settings → Display → Show pace in the nano window.
+
 ## [2.6.0] — 2026-11-03
 
 ### Added

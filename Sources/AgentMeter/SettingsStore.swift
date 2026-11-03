@@ -56,6 +56,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(showsPace, forKey: Keys.showsPace) }
     }
 
+    /// Pace arrow after each percent in the nano Usage Details panel.
+    @Published var nanoShowsPace: Bool {
+        didSet { defaults.set(nanoShowsPace, forKey: Keys.nanoShowsPace) }
+    }
+
     /// Alert once per window when usage runs well ahead of pace.
     @Published var paceNotificationsEnabled: Bool {
         didSet { defaults.set(paceNotificationsEnabled, forKey: Keys.paceNotificationsEnabled) }
@@ -184,6 +189,7 @@ final class SettingsStore: ObservableObject {
         static let balanceNotificationThreshold = "balanceNotificationThreshold"
         static let showsPace = "showsPace"
         static let paceNotificationsEnabled = "paceNotificationsEnabled"
+        static let nanoShowsPace = "nanoShowsPace"
         static let menuBarStyle = "menuBarStyle"
         static let menuBarShowsAllLimits = "menuBarShowsAllLimits"
         static let nanoShowsAllLimits = "nanoShowsAllLimits"
@@ -217,6 +223,7 @@ final class SettingsStore: ObservableObject {
         self.resetTimeStyle = storedResetStyle.flatMap(ResetTimeStyle.init(rawValue:)) ?? .relative
         self.showsPace = defaults.object(forKey: Keys.showsPace) as? Bool ?? true
         self.paceNotificationsEnabled = defaults.bool(forKey: Keys.paceNotificationsEnabled)
+        self.nanoShowsPace = defaults.object(forKey: Keys.nanoShowsPace) as? Bool ?? true
         let storedBalanceThreshold = defaults.double(forKey: Keys.balanceNotificationThreshold)
         self.balanceNotificationThreshold = Self.balanceThresholdOptions.contains(storedBalanceThreshold)
             ? storedBalanceThreshold

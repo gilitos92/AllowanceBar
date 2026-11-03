@@ -11,7 +11,9 @@ enum MenuBarAccessibilitySummary {
         providers: [ProviderInput],
         countDirection: CountDirection,
         balanceThreshold: Double,
-        allWindows: Bool = false
+        allWindows: Bool = false,
+        includesPace: Bool = false,
+        now: Date = Date()
     ) -> String {
         guard !providers.isEmpty else { return L("Allowance Bar") }
 
@@ -21,7 +23,9 @@ enum MenuBarAccessibilitySummary {
                 state: $0.state,
                 countDirection: countDirection,
                 balanceThreshold: balanceThreshold,
-                allWindows: allWindows
+                allWindows: allWindows,
+                includesPace: includesPace,
+                now: now
             )
         }
         return ([L("Allowance Bar")] + segments).joined(separator: ". ")
@@ -32,7 +36,9 @@ enum MenuBarAccessibilitySummary {
         state: ProviderState,
         countDirection: CountDirection,
         balanceThreshold: Double,
-        allWindows: Bool = false
+        allWindows: Bool = false,
+        includesPace: Bool = false,
+        now: Date = Date()
     ) -> String {
         switch state {
         case .loading:
@@ -44,7 +50,9 @@ enum MenuBarAccessibilitySummary {
                 usage: usage,
                 countDirection: countDirection,
                 balanceThreshold: balanceThreshold,
-                allWindows: allWindows
+                allWindows: allWindows,
+                includesPace: includesPace,
+                now: now
             ) {
                 return appendQualifier(
                     String(format: L("%@: %@"), displayName, value),
@@ -57,7 +65,9 @@ enum MenuBarAccessibilitySummary {
                 usage: usage,
                 countDirection: countDirection,
                 balanceThreshold: balanceThreshold,
-                allWindows: allWindows
+                allWindows: allWindows,
+                includesPace: includesPace,
+                now: now
             ) ?? L("No usage data")
             return String(format: L("%@: %@"), displayName, value)
         }
@@ -67,15 +77,24 @@ enum MenuBarAccessibilitySummary {
         usage: ProviderUsage,
         countDirection: CountDirection,
         balanceThreshold: Double,
-        allWindows: Bool
+        allWindows: Bool,
+        includesPace: Bool,
+        now: Date
     ) -> String? {
+        func phrase(_ window: UsageWindow) -> String {
+            var text = windowPhrase(window, countDirection: countDirection)
+            if includesPace, let pace = window.pace(now: now) {
+                text = appendQualifier(text, pace.phrase)
+            }
+            return text
+        }
         if allWindows, usage.windows.count > 1 {
             return usage.windows
-                .map { "\($0.label), \(windowPhrase($0, countDirection: countDirection))" }
+                .map { "\($0.label), \(phrase($0))" }
                 .joined(separator: "; ")
         }
         if let worst = usage.worstWindow {
-            return windowPhrase(worst, countDirection: countDirection)
+            return phrase(worst)
         }
         if let balance = usage.balance {
             var text = balance.accessibilityPhrase
