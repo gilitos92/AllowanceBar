@@ -86,6 +86,58 @@ struct ThresholdTracker {
     }
 }
 
+/// Tracks which usage windows have run well ahead of pace. One alert per
+/// window; it re-arms only after that window's reset has passed.
+struct PaceTracker {
+    /// Points ahead of even pace that trigger an alert.
+    static let alertGap: Double = 15
+    /// Early in a window a little use is far "ahead"; wait this long first.
+    static let minimumElapsed: Double = 0.1
+
+    private var notifiedResetsAt: [String: Date]
+    private let defaults: UserDefaults
+
+    private static let stateKey = "paceTrackerNotifiedResetsAt"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        let raw = defaults.dictionary(forKey: Self.stateKey) as? [String: Double] ?? [:]
+        self.notifiedResetsAt = raw.mapValues { Date(timeIntervalSince1970: $0) }
+    }
+
+    mutating func alerts(providerID: String, usage: ProviderUsage, now: Date = Date()) -> [UsageWindow] {
+        var result: [UsageWindow] = []
+        for window in usage.windows {
+            let key = "\(providerID)|\(window.label)"
+            if let notified = notifiedResetsAt[key] {
+                guard notified <= now else { continue }
+                notifiedResetsAt.removeValue(forKey: key)
+            }
+            guard let resetsAt = window.resetsAt,
+                  window.usedPercent < 100,
+                  let elapsed = window.elapsedFraction(now: now),
+                  elapsed >= Self.minimumElapsed,
+                  window.usedPercent - elapsed * 100 >= Self.alertGap else { continue }
+            notifiedResetsAt[key] = resetsAt
+            result.append(window)
+        }
+        defaults.set(notifiedResetsAt.mapValues { $0.timeIntervalSince1970 }, forKey: Self.stateKey)
+        return result
+    }
+
+    /// When the limit runs out if use keeps its average rate so far. Nil when
+    /// it is not ahead of pace.
+    static func projectedRunOut(for window: UsageWindow, now: Date = Date()) -> Date? {
+        guard let resetsAt = window.resetsAt, let duration = window.duration,
+              let elapsed = window.elapsedFraction(now: now),
+              elapsed > 0, window.usedPercent > 0 else { return nil }
+        let start = resetsAt.addingTimeInterval(-duration)
+        let percentPerSecond = window.usedPercent / now.timeIntervalSince(start)
+        let runOut = now.addingTimeInterval((100 - window.usedPercent) / percentPerSecond)
+        return runOut < resetsAt ? runOut : nil
+    }
+}
+
 /// Tracks which renewal dates have already triggered a reminder notification.
 struct RenewalTracker {
     private var lastRenewalNotified: [String: Date] = [:]
@@ -128,6 +180,7 @@ struct RenewalTracker {
 final class NotificationManager {
     private var tracker = ThresholdTracker()
     private var renewalTracker = RenewalTracker()
+    private var paceTracker = PaceTracker()
     private var authorizationRequested = false
 
     func notifyIfNeeded(
@@ -135,6 +188,12 @@ final class NotificationManager {
         usage: ProviderUsage,
         settings: SettingsStore
     ) {
+        if settings.paceNotificationsEnabled {
+            for window in paceTracker.alerts(providerID: provider.id, usage: usage) {
+                postPaceNotification(provider: provider, window: window)
+            }
+        }
+
         guard settings.notificationsEnabled else { return }
 
         let crossings = tracker.crossings(
@@ -186,6 +245,33 @@ final class NotificationManager {
 
         let request = UNNotificationRequest(
             identifier: "\(provider.id)-\(window.label)-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func postPaceNotification(provider: any UsageProvider, window: UsageWindow) {
+        let now = Date()
+        let content = UNMutableNotificationContent()
+        content.title = L("\(provider.displayName) ahead of pace")
+        let used = Int(window.usedPercent.rounded())
+        let elapsed = Int(((window.elapsedFraction(now: now) ?? 0) * 100).rounded())
+        var body = L("\(window.label): \(String(used))% used with \(String(elapsed))% of the window gone.")
+        if let runOut = PaceTracker.projectedRunOut(for: window, now: now) {
+            let estimate = UsageWindow(label: window.label, usedPercent: 0, resetsAt: runOut)
+            if let left = estimate.shortRemainingDescription(now: now) {
+                body += " " + L("At this rate it runs out in \(left).")
+            }
+        }
+        if let remaining = window.remainingDescription {
+            body += " " + remaining.prefix(1).uppercased() + remaining.dropFirst() + "."
+        }
+        content.body = body
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "\(provider.id)-\(window.label)-pace-\(now.timeIntervalSince1970)",
             content: content,
             trigger: nil
         )

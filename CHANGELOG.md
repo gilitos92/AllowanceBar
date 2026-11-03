@@ -7,6 +7,20 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.6.0] — 2026-11-03
+
+### Added
+- Pace on every usage bar. A line on the bar marks even pace: where usage
+  would be if spread evenly until the reset. An arrow next to the percent
+  says if you are ahead of pace (↗, may run out early), on pace (→) or under
+  pace (↘, room to spare); within 5 points counts as on pace. Hover for the
+  details; VoiceOver reads it too. Works for Codex, Claude, Gemini and
+  Cursor (when Cursor reports its billing cycle start). Turn it off in
+  Settings → Display → Show pace.
+- Optional pace alert (Settings → Alerts, off by default): one notification
+  per limit window when usage gets 15 or more points ahead of even pace,
+  after the first 10% of the window, with when it runs out at that rate.
+
 ## [2.5.0] — 2026-10-26
 
 ### Added

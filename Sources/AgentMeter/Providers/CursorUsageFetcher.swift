@@ -123,6 +123,7 @@ struct CursorUsageFetcher: Sendable {
             var pooled: Pool?
         }
 
+        var billingCycleStart: String?
         var billingCycleEnd: String?
         var membershipType: String?
         var individualUsage: IndividualUsage?
@@ -134,6 +135,13 @@ struct CursorUsageFetcher: Sendable {
         if let end = summary.billingCycleEnd {
             resetsAt = ISO8601DateFormatter.flexible.date(from: end)
                 ?? ISO8601DateFormatter.plain.date(from: end)
+        }
+        var cycleLength: TimeInterval?
+        if let resetsAt, let start = summary.billingCycleStart.flatMap({
+            ISO8601DateFormatter.flexible.date(from: $0) ?? ISO8601DateFormatter.plain.date(from: $0)
+        }) {
+            let length = resetsAt.timeIntervalSince(start)
+            cycleLength = length > 0 ? length : nil
         }
 
         func clamp(_ value: Double) -> Double { max(0, min(100, value)) }
@@ -149,21 +157,24 @@ struct CursorUsageFetcher: Sendable {
             windows.append(UsageWindow(
                 label: L("Included usage"),
                 usedPercent: clamp(totalPercent),
-                resetsAt: resetsAt
+                resetsAt: resetsAt,
+                duration: cycleLength
             ))
         }
         if let autoPercent = plan?.autoPercentUsed {
             windows.append(UsageWindow(
                 label: L("Auto usage"),
                 usedPercent: clamp(autoPercent),
-                resetsAt: resetsAt
+                resetsAt: resetsAt,
+                duration: cycleLength
             ))
         }
         if let apiPercent = plan?.apiPercentUsed {
             windows.append(UsageWindow(
                 label: L("API usage"),
                 usedPercent: clamp(apiPercent),
-                resetsAt: resetsAt
+                resetsAt: resetsAt,
+                duration: cycleLength
             ))
         }
 
@@ -175,9 +186,9 @@ struct CursorUsageFetcher: Sendable {
                 return used / limit * 100
             }
             if let overall = poolPercent(summary.individualUsage?.overall) {
-                windows.append(UsageWindow(label: L("Personal cap"), usedPercent: clamp(overall), resetsAt: resetsAt))
+                windows.append(UsageWindow(label: L("Personal cap"), usedPercent: clamp(overall), resetsAt: resetsAt, duration: cycleLength))
             } else if let pooled = poolPercent(summary.teamUsage?.pooled) {
-                windows.append(UsageWindow(label: L("Team pool"), usedPercent: clamp(pooled), resetsAt: resetsAt))
+                windows.append(UsageWindow(label: L("Team pool"), usedPercent: clamp(pooled), resetsAt: resetsAt, duration: cycleLength))
             }
         }
 
