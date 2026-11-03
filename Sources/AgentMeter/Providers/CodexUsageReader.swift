@@ -168,7 +168,7 @@ struct CodexUsageReader {
 
     /// Nil when Codex did not say how long the window is.
     static func windowDuration(minutes: Int) -> TimeInterval? {
-        minutes > 0 ? TimeInterval(minutes * 60) : nil
+        minutes > 0 ? TimeInterval(minutes) * 60 : nil
     }
 
     static func windowLabel(minutes: Int) -> String {

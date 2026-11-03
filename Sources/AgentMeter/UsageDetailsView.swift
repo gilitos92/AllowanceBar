@@ -490,20 +490,25 @@ private struct CompactWindowMeter: View {
             )
                 .frame(width: Self.barWidth)
             // Severity is never shown by color alone.
-            HStack(spacing: 3) {
-                SeverityValueLabel(
-                    text: countDirection.percentLabel(window.usedPercent, menuBar: true),
-                    symbolName: severity.symbolName,
-                    badge: severity.badgeStyle,
-                    symbolFont: .system(size: 11, weight: .semibold)
-                )
-                if let pace {
-                    Image(systemName: pace.symbolName)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
+            SeverityValueLabel(
+                text: countDirection.percentLabel(window.usedPercent, menuBar: true),
+                symbolName: severity.symbolName,
+                badge: severity.badgeStyle,
+                symbolFont: .system(size: 11, weight: .semibold)
+            )
             .frame(width: 72, alignment: .trailing)
+            // Its own column, so a full critical badge keeps its 72 points,
+            // and rows without a pace stay aligned with the others.
+            if showsPace {
+                Group {
+                    if let pace {
+                        Image(systemName: pace.symbolName)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 12, alignment: .leading)
+            }
         }
         .frame(height: 20)
         .accessibilityElement(children: .ignore)
