@@ -224,9 +224,15 @@ final class SettingsStore: ObservableObject {
         let showsPace = defaults.object(forKey: Keys.showsPace) as? Bool ?? true
         self.showsPace = showsPace
         self.paceNotificationsEnabled = defaults.bool(forKey: Keys.paceNotificationsEnabled)
-        // Until set on its own, follows Show pace, so turning pace off in
-        // 2.6.0 keeps it off in the nano window too.
-        self.nanoShowsPace = defaults.object(forKey: Keys.nanoShowsPace) as? Bool ?? showsPace
+        // Starts from Show pace, so turning pace off in 2.6.0 keeps it off in
+        // the nano window too. Saved right away, so it never changes later
+        // unless the user flips it.
+        if let stored = defaults.object(forKey: Keys.nanoShowsPace) as? Bool {
+            self.nanoShowsPace = stored
+        } else {
+            self.nanoShowsPace = showsPace
+            defaults.set(showsPace, forKey: Keys.nanoShowsPace)
+        }
         let storedBalanceThreshold = defaults.double(forKey: Keys.balanceNotificationThreshold)
         self.balanceNotificationThreshold = Self.balanceThresholdOptions.contains(storedBalanceThreshold)
             ? storedBalanceThreshold

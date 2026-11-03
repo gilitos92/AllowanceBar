@@ -160,6 +160,9 @@ final class PaceTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "PaceTests-\(UUID())"))
         defaults.set(false, forKey: "showsPace")
         XCTAssertFalse(SettingsStore(defaults: defaults).nanoShowsPace)
+        // The copy is saved, so turning Show pace on later leaves it alone.
+        SettingsStore(defaults: defaults).showsPace = true
+        XCTAssertFalse(SettingsStore(defaults: defaults).nanoShowsPace)
         defaults.set(true, forKey: "nanoShowsPace")
         XCTAssertTrue(SettingsStore(defaults: defaults).nanoShowsPace)
     }
