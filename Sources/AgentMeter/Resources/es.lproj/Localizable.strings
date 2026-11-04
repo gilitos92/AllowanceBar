@@ -292,6 +292,8 @@
 	<string>DeepSeek devolvió HTTP %lld</string>
 	<key>Default (%@)</key>
 	<string>Predeterminada (%@)</string>
+	<key>Default account</key>
+	<string>Cuenta predeterminada</string>
 	<key>Detected</key>
 	<string>Detectado</string>
 	<key>Diagnostics copied</key>

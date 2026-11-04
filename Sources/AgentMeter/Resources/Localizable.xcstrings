@@ -1577,6 +1577,16 @@
         }
       }
     },
+    "Default account": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta predeterminada"
+          }
+        }
+      }
+    },
     "DeepSeek key rejected — check the key in Settings": {
       "localizations": {
         "es": {
