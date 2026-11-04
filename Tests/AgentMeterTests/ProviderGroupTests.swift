@@ -68,6 +68,25 @@ final class ProviderGroupTests: XCTestCase {
         XCTAssertEqual(labels[proxy.id], .init(name: "me@example.com", detail: "CLIProxyAPI"))
     }
 
+    func testSameLabelsWithDifferentEmailsKeepTheirEmails() {
+        let group = ProviderGroup.groups([
+            Stub(id: "claude:A", displayName: "Claude — Work"),
+            Stub(id: "claude:B", displayName: "Claude — Work"),
+        ])[0]
+        let labels = group.accountLabels(emails: ["claude:A": "a@example.com", "claude:B": "b@example.com"])
+        XCTAssertEqual(labels["claude:A"], .init(name: "Work", detail: "a@example.com"))
+        XCTAssertEqual(labels["claude:B"], .init(name: "Work", detail: "b@example.com"))
+    }
+
+    func testGeminiProxyLoginsOfOneEmailShowTheirProject() {
+        let first = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .gemini, email: "g@example.com", projectID: "alpha"))
+        let second = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .gemini, email: "g@example.com", projectID: "beta"))
+        let group = ProviderGroup.groups([first, second])[0]
+        let labels = group.accountLabels(emails: [:])
+        XCTAssertEqual(labels[first.id], .init(name: "g@example.com", detail: "CLIProxyAPI · alpha"))
+        XCTAssertEqual(labels[second.id], .init(name: "g@example.com", detail: "CLIProxyAPI · beta"))
+    }
+
     func testHiddenDefaultAccountStillNamesTheGroup() {
         let claudeOnlyExtras = ProviderGroup.groups([
             Stub(id: "claude:A", displayName: "Claude — Work", shortCode: "ClW"),

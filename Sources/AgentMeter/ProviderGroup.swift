@@ -53,13 +53,25 @@ struct ProviderGroup: Identifiable {
         }
         // The local login and a CLIProxyAPI login of the same email can both
         // show; say where each comes from so they don't look identical.
-        let counts = Dictionary(grouping: labels.values.map { $0.name.lowercased() }, by: { $0 }).mapValues(\.count)
+        // Accounts already told apart by their email keep it as it is.
+        let counts = Dictionary(grouping: labels.values.map(Self.comparisonKey), by: { $0 }).mapValues(\.count)
         for provider in members {
-            guard let label = labels[provider.id], (counts[label.name.lowercased()] ?? 0) > 1 else { continue }
-            let source = provider is CLIProxyAccountProvider ? "CLIProxyAPI" : L("This Mac")
-            labels[provider.id] = AccountLabel(name: label.name, detail: source)
+            guard let label = labels[provider.id], (counts[Self.comparisonKey(label)] ?? 0) > 1 else { continue }
+            let source: String
+            if let proxy = provider as? CLIProxyAccountProvider {
+                // One Gemini email can have a login per project.
+                source = ["CLIProxyAPI", proxy.login.projectID].compactMap { $0 }.joined(separator: " · ")
+            } else {
+                source = L("This Mac")
+            }
+            let detail = [label.detail, source].compactMap { $0 }.joined(separator: " · ")
+            labels[provider.id] = AccountLabel(name: label.name, detail: detail)
         }
         return labels
+    }
+
+    private static func comparisonKey(_ label: AccountLabel) -> String {
+        "\(label.name.lowercased())\n\(label.detail?.lowercased() ?? "")"
     }
 
     private func accountName(of provider: any UsageProvider, email: String?) -> String {
