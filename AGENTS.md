@@ -156,12 +156,20 @@ announcement drafts, environment specifics) and complements this file.
   Antigravity `POST .../v1internal:retrieveUserQuotaSummary` `{"project"}`
   on three hosts in turn (`groups[].buckets[]{window 5h/weekly,
   remainingFraction, resetTime}`); Gemini `retrieveUserQuota`. Plans
-  (v2.9.1, `CLIProxyClient.plan(for:)`, best effort, `CLIProxyPlanCache`:
-  6 h, failures retried after 15 min, last plan kept): Claude `GET
-  api.anthropic.com/api/oauth/profile` (`organization.organization_type`
-  `claude_pro`/`claude_max`/…, else `account.has_claude_max/pro`; mapped to
-  Claude Code's `subscriptionType` words), Gemini `loadCodeAssist`
-  (`currentTier.id`); Codex from the login list; Antigravity none. Formats copied
+  (v2.9.1, `CLIProxyClient.plan(for:)`, best effort, run with `async let`
+  next to the usage request, 8 s timeout, `CLIProxyPlanCache`: 6 h,
+  failures retried after 15 min, last plan kept): Claude `GET
+  api.anthropic.com/api/oauth/profile` (order from the Management Center's
+  `claude/data.ts`: active `claude_team` org → `has_claude_max` →
+  `has_claude_pro` → `organization_type` minus `claude_` → both flags false
+  = free; mapped to Claude Code's `subscriptionType` words); Gemini
+  `loadCodeAssist` with the login's project (`cloudaicompanionProject` +
+  `metadata.duetProject`); Antigravity `daily-cloudcode-pa…:loadCodeAssist`
+  `{"metadata":{"ideType":"ANTIGRAVITY"}}` (Management Center's
+  `antigravitySubscription.ts`); Codex from the login list. Google tiers:
+  `GeminiProvider.tierName` shows `paidTier` before `currentTier` (Pro/Ultra
+  report a free current tier), using Google's `name`, like gemini-cli
+  `setup.ts`; ids only as fallback. Formats copied
   from CLIProxyAPI's Management Center (`src/features/quota/providers`).
   Never download auth files (they hold tokens). `CLIProxyUsageCache` reuses
   a row's answer for 2 min unless forced. Dedupe: a proxy row on Auto hides
