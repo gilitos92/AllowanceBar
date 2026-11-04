@@ -131,8 +131,8 @@ its own row. Nothing else to set up per account:
 3. A login with the same email as an account on this Mac shows only once,
    through the local account (for Codex, the plan must match too). If the local account has no data or keeps
    failing for 10 minutes, the proxy row shows instead. Set a proxy row to **On** to always show both.
-4. Each account shows its place in the proxy's order of use, from the login
-   priorities: **Proxy #1** next to the plan, **#1** in the compact and
+4. Each account shows its place among its provider's logins in the proxy's
+   order of use, from the login priorities: **Proxy #1** next to the plan, **#1** in the compact and
    nano panels. The proxy sends new requests to the highest priority first,
    and equal priorities share a place. Accounts on this Mac show the place
    of the proxy login with the same email. It appears when the proxy has more

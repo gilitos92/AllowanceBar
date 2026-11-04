@@ -1123,7 +1123,7 @@ private struct DisplaySettingsTab: View {
                 Toggle(L("Show CLIProxyAPI priority"), isOn: $settings.showsProxyPriority)
                 Toggle(L("Show CLIProxyAPI priority in the nano window"), isOn: $settings.nanoShowsProxyPriority)
             } footer: {
-                Text(L("Shows each account's place in CLIProxyAPI's order of use, e.g. “Proxy #1”, from its login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry."))
+                Text(L("Shows each account's place among its provider's logins in CLIProxyAPI's order of use, e.g. “Proxy #1”, from the login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry."))
             }
         }
         .formStyle(.grouped)

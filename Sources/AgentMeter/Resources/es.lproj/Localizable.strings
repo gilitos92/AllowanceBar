@@ -482,8 +482,8 @@
 	<string>Tokens de salida</string>
 	<key>Personal cap</key>
 	<string>Límite personal</string>
-	<key>Place %lld of %lld in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</key>
-	<string>Puesto %1$lld de %2$lld en el orden de uso de CLIProxyAPI (prioridad %3$lld). El proxy envía las solicitudes nuevas primero a la prioridad más alta.</string>
+	<key>Place %lld of %lld among %@ logins in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</key>
+	<string>Puesto %1$lld de %2$lld entre los inicios de sesión de %3$@ en el orden de uso de CLIProxyAPI (prioridad %4$lld). El proxy envía las solicitudes nuevas primero a la prioridad más alta.</string>
 	<key>Prepaid credits</key>
 	<string>Créditos prepagados</string>
 	<key>Pro (24h)</key>
@@ -566,8 +566,8 @@
 	<string>Mostrar ritmo</string>
 	<key>Show pace in the nano window</key>
 	<string>Mostrar ritmo en la ventana nano</string>
-	<key>Shows each account's place in CLIProxyAPI's order of use, e.g. “Proxy #1”, from its login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</key>
-	<string>Muestra el puesto de cada cuenta en el orden de uso de CLIProxyAPI, p. ej. “Proxy #1”, según las prioridades de sus inicios de sesión. El proxy envía las solicitudes nuevas primero a la prioridad más alta. Aparece cuando el proxy tiene más de un inicio de sesión de un proveedor con prioridades distintas. La ventana nano muestra solo “#1”, después de cada entrada.</string>
+	<key>Shows each account's place among its provider's logins in CLIProxyAPI's order of use, e.g. “Proxy #1”, from the login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</key>
+	<string>Muestra el puesto de cada cuenta entre los inicios de sesión de su proveedor en el orden de uso de CLIProxyAPI, p. ej. “Proxy #1”, según las prioridades. El proxy envía las solicitudes nuevas primero a la prioridad más alta. Aparece cuando el proxy tiene más de un inicio de sesión de un proveedor con prioridades distintas. La ventana nano muestra solo “#1”, después de cada entrada.</string>
 	<key>Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits.</key>
 	<string>Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex.</string>
 	<key>Shows your 5-hour and token quotas.</key>
@@ -744,8 +744,8 @@
 	<string>casi agotado</string>
 	<key>on pace</key>
 	<string>al ritmo</string>
-	<key>place %lld of %lld in CLIProxyAPI order, priority %lld</key>
-	<string>puesto %1$lld de %2$lld en el orden de CLIProxyAPI, prioridad %3$lld</string>
+	<key>place %lld of %lld among %@ logins in CLIProxyAPI order, priority %lld</key>
+	<string>puesto %1$lld de %2$lld entre los inicios de sesión de %3$@ en el orden de CLIProxyAPI, prioridad %4$lld</string>
 	<key>resets %@</key>
 	<string>se restablece %@</string>
 	<key>resets %@ (%@)</key>

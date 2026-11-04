@@ -437,8 +437,12 @@ struct CLIProxyClient: Sendable {
             let container = try decoder.singleValueContainer()
             if let number = try? container.decode(Int.self) {
                 value = number
-            } else if let number = try? container.decode(Double.self), number.isFinite {
-                value = Int(number)
+            } else if let number = try? container.decode(Double.self) {
+                // Int(_:) would crash on a value out of Int's range.
+                guard let exact = Int(exactly: number) else {
+                    throw DecodingError.dataCorruptedError(in: container, debugDescription: "not an integer")
+                }
+                value = exact
             } else {
                 let string = try container.decode(String.self).trimmingCharacters(in: .whitespaces)
                 guard let number = Int(string) else {

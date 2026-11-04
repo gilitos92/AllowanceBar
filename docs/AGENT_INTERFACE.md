@@ -82,8 +82,10 @@ does not imply a balance or remaining credit amount. The `claude-api`
 | `loginCount` | `Int` | Enabled proxy logins of the same provider |
 
 CLIProxyAPI sends new requests to the enabled logins with the highest priority
-first. The field is left out when the order says nothing: the proxy has only
-one login of that provider, or all of them share one priority.
+first. The place counts only logins of the same provider; when several
+providers serve the same model, the proxy can also rank them together. The
+field is left out when the order says nothing: the proxy has only one login of
+that provider, or all of them share one priority.
 
 `RenewalStatus` (added in 1.11.0):
 

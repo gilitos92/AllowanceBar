@@ -306,10 +306,15 @@ final class UsageStore: ObservableObject {
             await fetchVisible(skipping: &fetched, forceRefresh: forceRefresh)
             DebugLog.write("refresh: all done, writing snapshot")
             StatusSnapshotWriter.writeIfEnabled(store: self, settings: settings)
+            let change = await sync.value
             // Rows the new login list added.
-            guard await sync.value else { return }
-            await fetchVisible(skipping: &fetched, forceRefresh: forceRefresh)
-            StatusSnapshotWriter.writeIfEnabled(store: self, settings: settings)
+            if change.rows {
+                await fetchVisible(skipping: &fetched, forceRefresh: forceRefresh)
+            }
+            // New rows or new places in the proxy's order.
+            if change.rows || change.priorities {
+                StatusSnapshotWriter.writeIfEnabled(store: self, settings: settings)
+            }
         }
     }
 
@@ -332,15 +337,16 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    /// Updates the rows to match the proxy's logins. Returns true when the
-    /// list changed and the rows were rebuilt. When the proxy can't be
+    /// Updates the rows to match the proxy's logins. `rows` is true when the
+    /// list changed and the rows were rebuilt; `priorities` when the login
+    /// list changed in any way, priorities included. When the proxy can't be
     /// reached, the last known rows stay and show the error themselves.
-    private func syncProxyLogins() async -> Bool {
-        guard let proxyConfig else { return false }
+    private func syncProxyLogins() async -> (rows: Bool, priorities: Bool) {
+        guard let proxyConfig else { return (false, false) }
         let logins: [CLIProxyLoginKey]
         let accounts: [CLIProxyClient.Account]
         if let config = proxyConfig() {
-            guard let list = try? await CLIProxyClient(config: config).logins() else { return false }
+            guard let list = try? await CLIProxyClient(config: config).logins() else { return (false, false) }
             accounts = list
             logins = CLIProxyLoginKey.keys(from: accounts)
         } else {
@@ -348,11 +354,12 @@ final class UsageStore: ObservableObject {
             logins = []
         }
         // Priorities change without changing the rows.
-        if accounts != proxyAccounts { proxyAccounts = accounts }
-        guard logins != settings.cliProxyLogins else { return false }
+        let accountsChanged = accounts != proxyAccounts
+        if accountsChanged { proxyAccounts = accounts }
+        guard logins != settings.cliProxyLogins else { return (false, accountsChanged) }
         settings.cliProxyLogins = logins
         rebuildProviders(proxyLogins: logins, refreshing: false)
-        return true
+        return (true, accountsChanged)
     }
 
     private func refreshProvider(_ provider: any UsageProvider, forceRefresh: Bool) async {

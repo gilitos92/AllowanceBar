@@ -18,13 +18,18 @@ final class ProxyPriorityTests: XCTestCase {
           {"auth_index":"a","provider":"claude","email":"a@example.com","priority":3},
           {"auth_index":"b","provider":"claude","email":"b@example.com","priority":"2"},
           {"auth_index":"c","provider":"claude","email":"c@example.com"},
-          {"auth_index":"d","provider":"claude","email":"d@example.com","priority":"high"}
+          {"auth_index":"d","provider":"claude","email":"d@example.com","priority":"high"},
+          {"auth_index":"e","provider":"claude","email":"e@example.com","priority":1e19},
+          {"auth_index":"f","provider":"claude","email":"f@example.com","priority":2.5}
         ]}
         """#.utf8)
 
         let logins = try CLIProxyClient.parseLogins(data)
 
-        XCTAssertEqual(logins.map(\.priority), [3, 2, 0, 0], "A missing or unreadable priority counts as 0, like the proxy")
+        XCTAssertEqual(
+            logins.map(\.priority), [3, 2, 0, 0, 0, 0],
+            "A missing, unreadable or out-of-range priority counts as 0 and never crashes"
+        )
     }
 
     func testHighestPriorityComesFirstAndTiesShareAPlace() {
@@ -39,9 +44,9 @@ final class ProxyPriorityTests: XCTestCase {
             ProxyPriority.of(CLIProxyLoginKey(kind: .claude, email: email), in: accounts)
         }
 
-        XCTAssertEqual(place("TOP@example.com"), ProxyPriority(priority: 3, place: 1, loginCount: 3))
+        XCTAssertEqual(place("TOP@example.com"), ProxyPriority(kind: .claude, priority: 3, place: 1, loginCount: 3))
         XCTAssertEqual(place("tie@example.com")?.place, 1)
-        XCTAssertEqual(place("low@example.com"), ProxyPriority(priority: 1, place: 3, loginCount: 3))
+        XCTAssertEqual(place("low@example.com"), ProxyPriority(kind: .claude, priority: 1, place: 3, loginCount: 3))
         XCTAssertNil(place("off@example.com"), "Turned-off logins get no place")
         XCTAssertNil(
             ProxyPriority.of(CLIProxyLoginKey(kind: .codex, email: "low@example.com"), in: accounts),
@@ -56,11 +61,13 @@ final class ProxyPriorityTests: XCTestCase {
     }
 
     func testLabels() {
-        let priority = ProxyPriority(priority: 3, place: 1, loginCount: 3)
+        let priority = ProxyPriority(kind: .claude, priority: 3, place: 1, loginCount: 3)
 
         XCTAssertEqual(priority.shortLabel, "#1")
         XCTAssertEqual(priority.label, "Proxy #1")
         XCTAssertTrue(priority.phrase.contains("1"))
+        XCTAssertTrue(priority.phrase.contains("Claude"), "The place counts only this provider's logins")
+        XCTAssertTrue(priority.explanation.contains("Claude"))
         XCTAssertTrue(priority.explanation.contains("CLIProxyAPI"))
     }
 
@@ -103,7 +110,7 @@ final class ProxyPriorityTests: XCTestCase {
 
         let store = try await makeStore(settings: settings, providers: [local, unmatched])
 
-        XCTAssertEqual(store.proxyPriority(for: local), ProxyPriority(priority: 2, place: 2, loginCount: 3))
+        XCTAssertEqual(store.proxyPriority(for: local), ProxyPriority(kind: .claude, priority: 2, place: 2, loginCount: 3))
         XCTAssertEqual(store.proxyPriority(for: proxy)?.place, 3)
         XCTAssertNil(store.proxyPriority(for: unmatched), "No proxy login has this email")
         store.proxyAccounts = []
@@ -120,7 +127,7 @@ final class ProxyPriorityTests: XCTestCase {
 
         XCTAssertTrue(settings.nanoShowsProxyPriority, "On by default")
         XCTAssertEqual(store.nanoEntries.map(\.text), ["Cl 30% #1"])
-        XCTAssertTrue(store.nanoAccessibilityDescription.contains(ProxyPriority(priority: 3, place: 1, loginCount: 3).phrase))
+        XCTAssertTrue(store.nanoAccessibilityDescription.contains(ProxyPriority(kind: .claude, priority: 3, place: 1, loginCount: 3).phrase))
         XCTAssertEqual(store.menuBarEntries.map(\.text), ["Cl 30%"], "The menu bar title stays short")
 
         settings.nanoShowsProxyPriority = false
@@ -151,7 +158,7 @@ final class ProxyPriorityTests: XCTestCase {
             id: "claude",
             displayName: "Claude",
             state: .loading,
-            proxyPriority: ProxyPriority(priority: 3, place: 1, loginCount: 3)
+            proxyPriority: ProxyPriority(kind: .claude, priority: 3, place: 1, loginCount: 3)
         ))
 
         XCTAssertEqual(status.proxyPriority, ProxyPriorityStatus(priority: 3, place: 1, loginCount: 3))

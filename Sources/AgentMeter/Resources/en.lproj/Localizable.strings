@@ -300,8 +300,8 @@
 	<string>Other</string>
 	<key>Output tokens</key>
 	<string>Output tokens</string>
-	<key>Place %lld of %lld in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</key>
-	<string>Place %lld of %lld in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</string>
+	<key>Place %lld of %lld among %@ logins in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</key>
+	<string>Place %lld of %lld among %@ logins in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</string>
 	<key>Prepaid credits</key>
 	<string>Prepaid credits</string>
 	<key>Provider endpoint research credits CodexBar by Peter Steinberger.</key>
@@ -352,8 +352,8 @@
 	<string>Show CLIProxyAPI priority in the nano window</string>
 	<key>Show on All Desktops</key>
 	<string>Show on All Desktops</string>
-	<key>Shows each account's place in CLIProxyAPI's order of use, e.g. “Proxy #1”, from its login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</key>
-	<string>Shows each account's place in CLIProxyAPI's order of use, e.g. “Proxy #1”, from its login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</string>
+	<key>Shows each account's place among its provider's logins in CLIProxyAPI's order of use, e.g. “Proxy #1”, from the login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</key>
+	<string>Shows each account's place among its provider's logins in CLIProxyAPI's order of use, e.g. “Proxy #1”, from the login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</string>
 	<key>Shows your 5-hour and token quotas.</key>
 	<string>Shows your 5-hour and token quotas.</string>
 	<key>Shrink into a tiny panel with only the menu bar text.</key>
@@ -458,8 +458,8 @@
 	<string>low balance</string>
 	<key>nearly used up</key>
 	<string>nearly used up</string>
-	<key>place %lld of %lld in CLIProxyAPI order, priority %lld</key>
-	<string>place %lld of %lld in CLIProxyAPI order, priority %lld</string>
+	<key>place %lld of %lld among %@ logins in CLIProxyAPI order, priority %lld</key>
+	<string>place %lld of %lld among %@ logins in CLIProxyAPI order, priority %lld</string>
 	<key>soon</key>
 	<string>soon</string>
 </dict>

@@ -8,8 +8,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 ## [Unreleased]
 
 ### Added
-- Each account shows its place in CLIProxyAPI's order of use, read from the
-  proxy's login priorities: "Proxy #1" next to the plan in the dropdown and
+- Each account shows its place among its provider's logins in CLIProxyAPI's
+  order of use, read from the proxy's login priorities: "Proxy #1" next to the plan in the dropdown and
   the Usage Details window, "#1" in the compact and nano panels. The proxy
   sends new requests to the highest priority first, and equal priorities
   share a place. Accounts on this Mac show the place of the proxy login with
