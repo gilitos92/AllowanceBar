@@ -217,7 +217,8 @@ swift test                  # live-network tests are opt-in via env
 scripts/bundle.sh [--install]   # builds "Allowance Bar.app" (ad-hoc signed by default)
 ```
 
-- There is no GitHub Actions CI: run `swift test` locally before merging.
+- There is no GitHub Actions CI. Before merging, run `swift build` and
+  `swift test` locally; nothing else checks that a pushed branch builds.
 - There is no release workflow: releases are cut LOCALLY (see runbook below).
 - Every build is signed with the hardened runtime (blocks `DYLD_*` code
   injection that would inherit the app's Keychain access). Builds without a
