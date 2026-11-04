@@ -7,6 +7,16 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Changed
+- Several accounts of one provider now share one section in the dropdown and
+  the Usage Details window, the way one account's several limits do. The
+  provider's badge, name, plan and "Data as of" line show once; each account
+  adds only its name (label or email) and its limits, marked by a thin line.
+  A plan shows next to each account only when the accounts' plans differ.
+  When the same login shows both from this Mac and from CLIProxyAPI, each
+  says where it comes from. An account with stale data keeps its own "Data
+  as of" line. This applies to every provider, including CLIProxyAPI logins.
+
 ## [2.8.0] — 2026-11-03
 
 ### Added

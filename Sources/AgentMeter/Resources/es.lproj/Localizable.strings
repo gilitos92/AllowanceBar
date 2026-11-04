@@ -292,6 +292,8 @@
 	<string>DeepSeek devolvió HTTP %lld</string>
 	<key>Default (%@)</key>
 	<string>Predeterminada (%@)</string>
+	<key>Default account</key>
+	<string>Cuenta predeterminada</string>
 	<key>Detected</key>
 	<string>Detectado</string>
 	<key>Diagnostics copied</key>
@@ -608,6 +610,8 @@
 	<string>Esta clave API permite que las apps usen tus créditos de OpenRouter. Allowance Bar solo lee el uso; no puede gastar dinero ni cambiar tu cuenta. Si usaste Conectar, OpenRouter creó una clave dedicada solo para Allowance Bar que puedes revocar en cualquier momento.</string>
 	<key>This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.</key>
 	<string>Este inicio de sesión de CLIProxyAPI está cerrado. Vuelve a iniciar sesión en CLIProxyAPI.</string>
+	<key>This Mac</key>
+	<string>Esta Mac</string>
 	<key>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</key>
 	<string>Esta cuenta viene de CLIProxyAPI. Desactívala o elimínala ahí para ocultarla aquí.</string>
 	<key>This folder is already added</key>
