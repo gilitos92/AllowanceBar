@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.8.0] — 2026-11-03
+
 ### Added
 - Each account shows its place among its provider's logins in CLIProxyAPI's
   order of use, read from the proxy's login priorities: "Proxy #1" next to the plan in the dropdown and
