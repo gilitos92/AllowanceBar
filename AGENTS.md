@@ -48,7 +48,9 @@ announcement drafts, environment specifics) and complements this file.
 - UI: `MenuContent` (dropdown with a display-bounded scrolling provider list
   and a fixed footer; short lists shrink to their content; provider sections live in
   `ProviderUsageSections.swift` and are shared with `UsageDetailsView`, the
-  ⌘D / `allowancebar://details` window), `SettingsWindow` (native tabbed
+  ⌘D / `allowancebar://details` window; `ProviderGroup` puts a provider's
+  accounts under one header via `ProviderGroupSection`, single accounts keep
+  `ProviderSection`), `SettingsWindow` (native tabbed
   Settings: General / Providers / Display / Alerts; includes
   `CodexAccountsSection` with auto-discovery of `~/.codex-*` homes and
   `CodexSubscriptionSettings`), `AboutWindow`. Menu bar title is a rendered

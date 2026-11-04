@@ -191,7 +191,9 @@ refreshes on wake.
   states show symbols, not just color.
 - **Several accounts per provider** — personal, work, and legacy
   subscriptions or keys each get their own meter, label, and menu bar code,
-  for every provider. Logins on a [CLIProxyAPI](#cliproxyapi) server show
+  for every provider. In the dropdown and the Usage Details window, a
+  provider's accounts share one header, plan and "Data as of" line, and each
+  account adds only its name and limits. Logins on a [CLIProxyAPI](#cliproxyapi) server show
   up on their own, with no setup per account, each with its place in the
   proxy's order of use. Codex accounts can add billing-renewal reminders kept
   strictly separate from usage windows. See

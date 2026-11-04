@@ -4,15 +4,26 @@ import SwiftUI
 /// in a fixed accent color. Pure shapes: no bundled artwork, no trademarked
 /// logos, adapts to both color schemes for free.
 struct ProviderBadge: View {
-    let provider: any UsageProvider
+    let providerID: String
+    let shortCode: String
     var size: CGFloat = 20
+
+    init(provider: any UsageProvider, size: CGFloat = 20) {
+        self.init(providerID: provider.id, shortCode: provider.shortCode, size: size)
+    }
+
+    init(providerID: String, shortCode: String, size: CGFloat = 20) {
+        self.providerID = providerID
+        self.shortCode = shortCode
+        self.size = size
+    }
 
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.24, style: .continuous)
-            .fill(Self.color(for: provider.id).gradient)
+            .fill(Self.color(for: providerID).gradient)
             .frame(width: size, height: size)
             .overlay {
-                Text(provider.shortCode)
+                Text(shortCode)
                     .font(.system(size: size * 0.45, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
             }

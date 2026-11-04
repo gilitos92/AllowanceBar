@@ -11,16 +11,33 @@ struct ProviderUsageSections: View {
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.secondary)
         } else {
-            ForEach(Array(visible.enumerated()), id: \.element.id) { index, provider in
+            // Several accounts of one provider share one header, like one
+            // account's several limits do.
+            ForEach(Array(ProviderGroup.groups(visible).enumerated()), id: \.element.id) { index, group in
                 if index > 0 { Divider() }
-                ProviderSection(
-                    provider: provider,
-                    state: store.state(for: provider.id),
-                    settings: settings,
-                    priority: settings.showsProxyPriority ? store.proxyPriority(for: provider) : nil
-                )
+                if group.members.count == 1, let provider = group.members.first {
+                    ProviderSection(
+                        provider: provider,
+                        state: store.state(for: provider.id),
+                        settings: settings,
+                        priority: priority(for: provider)
+                    )
+                } else {
+                    ProviderGroupSection(
+                        group: group,
+                        states: Dictionary(uniqueKeysWithValues: group.members.map { ($0.id, store.state(for: $0.id)) }),
+                        priorities: group.members.reduce(into: [:]) { result, provider in
+                            result[provider.id] = priority(for: provider)
+                        },
+                        settings: settings
+                    )
+                }
             }
         }
+    }
+
+    private func priority(for provider: any UsageProvider) -> ProxyPriority? {
+        settings.showsProxyPriority ? store.proxyPriority(for: provider) : nil
     }
 }
 
@@ -75,44 +92,200 @@ struct ProviderSection: View {
                     ProxyPriorityCapsule(priority: priority)
                 }
                 if let usage = state.usage, let plan = usage.planName {
-                    Text(plan)
-                        .font(.callout.weight(.medium))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.quaternary, in: Capsule())
+                    PlanCapsule(plan: plan)
                 }
             }
 
-            switch state {
-            case .loading:
-                Text(L("Loading…")).font(.callout.weight(.medium)).foregroundStyle(.secondary)
-            case .error(let message):
-                Label(message, systemImage: "exclamationmark.triangle")
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.orange)
-            case .ready(let usage):
-                UsageMetersView(
-                    providerName: provider.displayName,
-                    usage: usage,
+            ProviderStateContent(provider: provider, state: state, settings: settings)
+        }
+    }
+
+    private var sectionAccessibilityValue: String? {
+        state.sectionAccessibilityValue
+    }
+}
+
+/// Several accounts of one provider under one header, e.g. three Claude
+/// logins: the badge, name, shared plan and "Data as of" line appear once,
+/// and each account adds only its name and its limits.
+struct ProviderGroupSection: View {
+    let group: ProviderGroup
+    let states: [String: ProviderState]
+    let priorities: [String: ProxyPriority]
+    @ObservedObject var settings: SettingsStore
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        let usages = group.members.map { state(for: $0).usage }
+        let sharedPlan = ProviderGroup.sharedPlan(of: usages)
+        let labels = group.accountLabels(emails: emails)
+        VStack(alignment: .leading, spacing: 10) {
+            header(plan: sharedPlan)
+            ForEach(group.members, id: \.id) { provider in
+                let state = state(for: provider)
+                let label = labels[provider.id]
+                GroupedAccountView(
+                    provider: provider,
+                    name: label?.name ?? provider.displayName,
+                    detail: label?.detail,
+                    state: state,
+                    plan: sharedPlan == nil ? state.usage?.planName : nil,
+                    priority: priorities[provider.id],
                     settings: settings
                 )
-                subscriptionRenewalRow
-            case .stale(let usage, let error, let since):
-                UsageMetersView(
-                    providerName: provider.displayName,
-                    usage: usage,
-                    settings: settings
-                )
-                .opacity(0.55)
-                subscriptionRenewalRow
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Stale since \(since.formatted(date: .omitted, time: .shortened))"))
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.orange)
-                    Text(error)
+            }
+            if let asOf = sharedAsOf {
+                Text(L("Data as of \(asOf.formatted(date: .omitted, time: .shortened))"))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(group.baseName)
+    }
+
+    private func state(for provider: any UsageProvider) -> ProviderState {
+        states[provider.id] ?? .loading
+    }
+
+    /// Each account's signed-in email. Codex remembers its last one, so an
+    /// account keeps its email while it loads or fails.
+    private var emails: [String: String] {
+        group.members.reduce(into: [:]) { result, provider in
+            if let email = state(for: provider).usage?.accountEmail ?? (provider as? CodexProvider)?.accountEmail {
+                result[provider.id] = email
+            }
+        }
+    }
+
+    /// The oldest data among accounts that show limits or balances, shown
+    /// once for the group. Stale accounts and API reports keep their own line.
+    private var sharedAsOf: Date? {
+        group.members.compactMap { provider -> Date? in
+            guard case .ready(let usage) = state(for: provider), usage.apiUsage == nil else { return nil }
+            return usage.asOf
+        }.min()
+    }
+
+    private func header(plan: String?) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            HStack(spacing: 6) {
+                ProviderBadge(providerID: group.baseID, shortCode: group.baseShortCode, size: 18)
+                if let url = group.members.lazy.compactMap(\.dashboardURL).first {
+                    Button {
+                        openURL(url)
+                    } label: {
+                        Text(group.baseName)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(.isLink)
+                } else {
+                    Text(group.baseName).font(.headline)
+                }
+            }
+            Spacer()
+            if let plan {
+                PlanCapsule(plan: plan)
+            }
+        }
+    }
+}
+
+/// One account inside a `ProviderGroupSection`: its name, then its limits.
+private struct GroupedAccountView: View {
+    let provider: any UsageProvider
+    let name: String
+    let detail: String?
+    let state: ProviderState
+    /// Shown only when the group's accounts have different plans.
+    let plan: String?
+    let priority: ProxyPriority?
+    @ObservedObject var settings: SettingsStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(name)
+                    .font(.callout.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let detail {
+                    Text(detail)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
+                Spacer(minLength: 4)
+                if let priority {
+                    ProxyPriorityCapsule(priority: priority)
+                }
+                if let plan {
+                    PlanCapsule(plan: plan)
+                }
+            }
+            // A thin rule ties an account's limits to its name.
+            VStack(alignment: .leading, spacing: 8) {
+                ProviderStateContent(provider: provider, state: state, settings: settings, inGroup: true)
+            }
+            .padding(.leading, 10)
+            .overlay(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(.quaternary)
+                    .frame(width: 2)
+                    .accessibilityHidden(true)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(provider.displayName)
+        .modifier(ProviderSectionAccessibilityValue(value: state.sectionAccessibilityValue))
+    }
+}
+
+/// A provider's limits, balance or status below its name.
+private struct ProviderStateContent: View {
+    let provider: any UsageProvider
+    let state: ProviderState
+    @ObservedObject var settings: SettingsStore
+    /// Inside a group, the group shows one "Data as of" line for all accounts.
+    var inGroup = false
+
+    var body: some View {
+        switch state {
+        case .loading:
+            Text(L("Loading…")).font(.callout.weight(.medium)).foregroundStyle(.secondary)
+        case .error(let message):
+            Label(message, systemImage: "exclamationmark.triangle")
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.orange)
+        case .ready(let usage):
+            UsageMetersView(
+                providerName: provider.displayName,
+                usage: usage,
+                settings: settings,
+                showsAsOf: !inGroup || usage.apiUsage != nil
+            )
+            subscriptionRenewalRow
+        case .stale(let usage, let error, let since):
+            // "Stale since" is when fetching started to fail, not how old
+            // the numbers are, so a stale account keeps its own data time
+            // even inside a group.
+            UsageMetersView(
+                providerName: provider.displayName,
+                usage: usage,
+                settings: settings
+            )
+            .opacity(0.55)
+            subscriptionRenewalRow
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L("Stale since \(since.formatted(date: .omitted, time: .shortened))"))
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.orange)
+                Text(error)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -124,9 +297,23 @@ struct ProviderSection: View {
             SubscriptionRenewalRow(renewal: renewal)
         }
     }
+}
 
-    private var sectionAccessibilityValue: String? {
-        switch state {
+struct PlanCapsule: View {
+    let plan: String
+
+    var body: some View {
+        Text(plan)
+            .font(.callout.weight(.medium))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(.quaternary, in: Capsule())
+    }
+}
+
+private extension ProviderState {
+    var sectionAccessibilityValue: String? {
+        switch self {
         case .stale:
             return L("data is stale")
         case .error:
@@ -201,6 +388,7 @@ struct UsageMetersView: View {
     let providerName: String
     let usage: ProviderUsage
     @ObservedObject var settings: SettingsStore
+    var showsAsOf = true
 
     var body: some View {
         Group {
@@ -223,7 +411,7 @@ struct UsageMetersView: View {
                     settings: settings
                 )
             }
-            if let asOf = usage.asOf {
+            if showsAsOf, let asOf = usage.asOf {
                 Text(usage.apiUsage == nil
                      ? L("Data as of \(asOf.formatted(date: .omitted, time: .shortened))")
                      : L("Last checked \(asOf.formatted(date: .omitted, time: .shortened))"))

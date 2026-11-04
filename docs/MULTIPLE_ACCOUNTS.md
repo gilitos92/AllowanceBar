@@ -53,6 +53,12 @@ It does not revoke the key at the provider.
 
 | Where | Default account | Extra account labeled `work` |
 |-------|-----------------|------------------------------|
-| Dropdown section | "Claude" | "Claude — work" |
+| Dropdown and Usage Details, alone | "Claude" | "Claude — work" |
+| Dropdown and Usage Details, with other accounts | Signed-in email, or "Default account", under one "Claude" header | "work" (plus its email), under the same header |
 | Menu bar | `Cl 12%` | `ClW 40%` (first letter of the label) |
 | Snapshot / CLI id | `claude` | `claude:<uuid>` |
+
+When a provider has more than one account shown, its accounts share one
+section: the badge, name, plan and "Data as of" line appear once, and each
+account shows its name and its limits. A plan shows next to each account
+only when the accounts' plans differ.
