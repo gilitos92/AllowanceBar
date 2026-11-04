@@ -127,8 +127,9 @@ its own row. Nothing else to set up per account:
    Logins you add or remove on the proxy appear or disappear on the next
    refresh. Each ChatGPT workspace of one email gets its own row. Proxy rows
    stay out of the menu bar title until you turn them on there, unless no
-   other row is in it. Claude and Gemini rows show their plan, read from the
-   login's profile every few hours; Codex rows read it from the login list.
+   other row is in it. Each row shows its plan: Claude's from the login's
+   profile, Gemini's and Antigravity's from Google's tier name (asked every
+   few hours), Codex's from the login list.
 3. A login with the same email as an account on this Mac shows only once,
    through the local account (for Codex, the plan must match too). If the local account has no data or keeps
    failing for 10 minutes, the proxy row shows instead. Set a proxy row to **On** to always show both.

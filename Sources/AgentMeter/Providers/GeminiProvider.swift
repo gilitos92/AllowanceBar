@@ -168,15 +168,30 @@ struct GeminiProvider: AccountConfigurableProvider {
             projectId = project["id"] as? String ?? project["projectId"] as? String
         }
 
-        let tierId = (json["currentTier"] as? [String: Any])?["id"] as? String
-        let planName: String?
-        switch tierId {
-        case "standard-tier": planName = "Paid"
-        case "free-tier": planName = "Free"
-        case "legacy-tier": planName = "Legacy"
-        default: planName = nil
+        // Like the Gemini CLI: a Google AI Pro or Ultra subscription is the
+        // paid tier, while the current tier can still say "free".
+        let paid = (json["paidTier"] ?? json["paid_tier"]) as? [String: Any]
+        let current = (json["currentTier"] ?? json["current_tier"]) as? [String: Any]
+        return TierInfo(projectId: projectId, planName: tierName(paid) ?? tierName(current))
+    }
+
+    /// The tier's own name from Google (e.g. "Google AI Pro"), so new plans
+    /// show without an app update. Without a name, a known id gets a short
+    /// label and any other id shows as it is.
+    static func tierName(_ tier: [String: Any]?) -> String? {
+        guard let tier else { return nil }
+        if let name = (tier["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            return name
         }
-        return TierInfo(projectId: projectId, planName: planName)
+        guard let id = (tier["id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty else {
+            return nil
+        }
+        switch id {
+        case "standard-tier": return "Paid"
+        case "free-tier": return "Free"
+        case "legacy-tier": return "Legacy"
+        default: return id
+        }
     }
 
     static func fetchQuota(accessToken: String, projectId: String?) async throws -> QuotaResponse {

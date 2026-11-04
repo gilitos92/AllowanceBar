@@ -158,8 +158,9 @@ struct CLIProxyAccountProvider: UsageProvider {
             let data = try await client.codexUsage(account)
             usage = try codexUsage(from: data, fallbackPlan: account.planType, now: now)
         case .antigravity:
+            async let plan = client.plan(for: account, cache: planCache)
             let data = try await client.antigravityUsage(account)
-            usage = try antigravityUsage(from: data, now: now)
+            usage = try antigravityUsage(from: data, plan: await plan, now: now)
         case .gemini:
             async let plan = client.plan(for: account, cache: planCache)
             let data = try await client.geminiUsage(account)
@@ -215,7 +216,7 @@ struct CLIProxyAccountProvider: UsageProvider {
 
     /// Parses `retrieveUserQuotaSummary`: groups of models (e.g. "Gemini
     /// Models"), each with a 5-hour and a weekly bucket.
-    static func antigravityUsage(from data: Data, now: Date) throws -> ProviderUsage {
+    static func antigravityUsage(from data: Data, plan: String? = nil, now: Date) throws -> ProviderUsage {
         guard var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw CLIProxyError.badResponse
         }
@@ -251,7 +252,7 @@ struct CLIProxyAccountProvider: UsageProvider {
                 .sorted { $0.order < $1.order }
             windows += buckets.map(\.window)
         }
-        return ProviderUsage(planName: nil, windows: windows, asOf: now)
+        return ProviderUsage(planName: plan, windows: windows, asOf: now)
     }
 
     /// "Gemini Models" → "Gemini"; "Claude and GPT models" → "Claude and GPT".

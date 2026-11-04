@@ -82,6 +82,10 @@ private final class MockCLIProxyServer {
             if url.contains("/api/oauth/profile") {
                 status = planStatus ?? status
                 upstream = #"{"account":{"has_claude_pro":true,"has_claude_max":false},"organization":{"organization_type":"claude_pro"}}"#
+            } else if url.contains("daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist") {
+                // Antigravity: the subscription is the paid tier; the current tier still says free.
+                status = planStatus ?? status
+                upstream = #"{"currentTier":{"id":"free-tier","name":"Free"},"paidTier":{"id":"g1-pro-tier","name":"Google AI Pro"}}"#
             } else if url.contains("loadCodeAssist") {
                 status = planStatus ?? status
                 upstream = #"{"currentTier":{"id":"standard-tier"},"cloudaicompanionProject":"proj-gem"}"#
@@ -532,7 +536,13 @@ final class CLIProxyTests: XCTestCase {
         ])
         XCTAssertEqual(usage.windows.map(\.usedPercent).map { $0.rounded() }, [10, 50, 75])
         XCTAssertEqual(usage.windows.first?.duration, 5 * 3600)
-        let calls = MockCLIProxyURLProtocol.server.apiCalls()
+        XCTAssertEqual(usage.planName, "Google AI Pro", "The paid tier's own name")
+        let tier = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: CLIProxyClient.antigravityCodeAssistURL))
+        XCTAssertEqual(tier["data"] as? String, CLIProxyClient.antigravityCodeAssistBody)
+        XCTAssertEqual((tier["header"] as? [String: String])?["User-Agent"], CLIProxyClient.antigravityUserAgent)
+        let calls = MockCLIProxyURLProtocol.server.apiCalls().filter {
+            ($0["url"] as? String)?.contains("retrieveUserQuotaSummary") == true
+        }
         XCTAssertEqual(calls.count, 2, "The second host answers")
         XCTAssertEqual(calls.last?["auth_index"] as? String, "7")
         let data = try XCTUnwrap(calls.last?["data"] as? String)
@@ -600,6 +610,7 @@ final class CLIProxyTests: XCTestCase {
         for login in [
             CLIProxyLoginKey(kind: .claude, email: "main@example.com"),
             CLIProxyLoginKey(kind: .gemini, email: "gem@example.com", projectID: "proj-gem"),
+            CLIProxyLoginKey(kind: .antigravity, email: "ag@example.com"),
         ] {
             let usage = try await proxyRow(login).fetch()
             XCTAssertFalse(usage.windows.isEmpty, "\(login.kind) usage must not depend on the plan")
@@ -629,14 +640,41 @@ final class CLIProxyTests: XCTestCase {
 
     func testClaudeProfilePlans() {
         func plan(_ json: String) -> String? { ClaudeProvider.plan(fromProfile: Data(json.utf8)) }
-        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_pro"}}"#), "pro")
-        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_max"}}"#), "max")
-        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_team"}}"#), "team")
+        // The real Pro profile seen through CLIProxyAPI, minus personal fields.
+        XCTAssertEqual(plan(#"""
+        {"account":{"has_claude_max":false,"has_claude_pro":true},
+         "organization":{"organization_type":"claude_pro","rate_limit_tier":"default_claude_ai","subscription_status":"active"}}
+        """#), "pro")
+        XCTAssertEqual(plan(#"{"account":{"has_claude_max":true,"has_claude_pro":false},"organization":{"organization_type":"claude_max"}}"#), "max")
+        XCTAssertEqual(
+            plan(#"{"account":{"has_claude_max":true},"organization":{"organization_type":"claude_team","subscription_status":"active"}}"#),
+            "team",
+            "An active Team organization wins over a personal plan"
+        )
+        XCTAssertEqual(
+            plan(#"{"account":{"has_claude_pro":true},"organization":{"organization_type":"claude_team","subscription_status":"canceled"}}"#),
+            "pro"
+        )
         XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_enterprise"}}"#), "enterprise")
         XCTAssertEqual(plan(#"{"organization":{"organization_type":"something_new"},"account":{"has_claude_max":true}}"#), "max")
-        XCTAssertEqual(plan(#"{"account":{"has_claude_pro":true,"has_claude_max":false}}"#), "pro")
-        XCTAssertNil(plan(#"{"organization":{"organization_type":"api"},"account":{"has_claude_pro":false}}"#))
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"api"},"account":{"has_claude_pro":false,"has_claude_max":false}}"#), "free")
+        XCTAssertNil(plan(#"{"organization":{"organization_type":"api"}}"#))
         XCTAssertNil(plan("not json"))
+    }
+
+    func testGoogleTierNamesComeFromGoogle() {
+        func plan(_ json: String) -> String? { GeminiProvider.tierInfo(from: Data(json.utf8)).planName }
+        XCTAssertEqual(
+            plan(#"{"currentTier":{"id":"free-tier","name":"Free"},"paidTier":{"id":"g1-pro-tier","name":"Google AI Pro"}}"#),
+            "Google AI Pro",
+            "A subscription is the paid tier, even when the current tier says free"
+        )
+        XCTAssertEqual(plan(#"{"current_tier":{"id":"free-tier"},"paid_tier":{"name":"Google AI Ultra"}}"#), "Google AI Ultra")
+        XCTAssertEqual(plan(#"{"currentTier":{"id":"standard-tier","name":"Gemini Code Assist Standard"}}"#), "Gemini Code Assist Standard")
+        XCTAssertEqual(plan(#"{"currentTier":{"id":"standard-tier"}}"#), "Paid", "Known ids without a name keep their label")
+        XCTAssertEqual(plan(#"{"paidTier":{"id":"g1-new-tier"},"currentTier":{"id":"free-tier"}}"#), "g1-new-tier")
+        XCTAssertEqual(plan(#"{"paidTier":{"name":"  "},"currentTier":{"id":"free-tier"}}"#), "Free")
+        XCTAssertNil(plan(#"{"cloudaicompanionProject":"p"}"#))
     }
 
     func testPlanCacheKeepsAPlanForHoursAndRetriesFailuresSooner() async {

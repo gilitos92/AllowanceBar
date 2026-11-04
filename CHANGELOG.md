@@ -8,13 +8,18 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 ## [Unreleased]
 
 ### Fixed
-- Claude and Gemini logins from CLIProxyAPI now show their plan, so a
-  provider's accounts can share one plan in their header. Claude's plan
-  comes from the login's account profile and Gemini's from its tier, both
-  asked through the proxy, so no token reaches Allowance Bar. Each login is
-  asked at most every 6 hours; a failed request keeps the last known plan
-  and tries again after 15 minutes. An account on this Mac that reads
-  through the proxy uses its proxy login's plan when the emails differ.
+- Claude, Gemini and Antigravity logins from CLIProxyAPI now show their
+  plan, so a provider's accounts can share one plan in their header.
+  Claude's plan comes from the login's account profile; Gemini's and
+  Antigravity's from their Google tier. Each is asked through the proxy, so
+  no token reaches Allowance Bar, next to the usage request, so it never
+  holds up the limits. Each login is asked at most every 6 hours; a failed
+  request keeps the last known plan and tries again after 15 minutes. An
+  account on this Mac that reads through the proxy uses its proxy login's
+  plan when the emails differ.
+- Gemini plans now show Google's own tier name, as the Gemini CLI does, and
+  prefer the paid tier: a Google AI Pro or Ultra subscription can report a
+  free current tier. New tier names show without an app update.
 
 ## [2.9.0] — 2026-11-04
 

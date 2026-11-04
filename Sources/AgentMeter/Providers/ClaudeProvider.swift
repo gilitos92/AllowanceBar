@@ -89,18 +89,26 @@ struct ClaudeProvider: AccountConfigurableProvider {
     }
 
     /// The plan in an account profile, in the words Claude Code saves for a
-    /// local login ("pro", "max", "team", "enterprise"), so both read alike.
-    /// Nil for anything else.
+    /// local login ("pro", "max", "team", …), so both read alike. The profile
+    /// has no display name, so this follows CLIProxyAPI's dashboard: an active
+    /// Team organization, then the account's own Max or Pro, then the
+    /// organization type ("claude_enterprise" → "enterprise"), then Free.
     static func plan(fromProfile data: Data) -> String? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        let known = ["pro", "max", "team", "enterprise"]
-        if let type = (json["organization"] as? [String: Any])?["organization_type"] as? String {
-            let plan = type.lowercased().replacingOccurrences(of: "claude_", with: "")
-            if known.contains(plan) { return plan }
-        }
+        let organization = json["organization"] as? [String: Any]
         let account = json["account"] as? [String: Any]
-        if account?["has_claude_max"] as? Bool == true { return "max" }
-        if account?["has_claude_pro"] as? Bool == true { return "pro" }
+        let type = (organization?["organization_type"] as? String)?.lowercased()
+        let status = (organization?["subscription_status"] as? String)?.lowercased()
+        if type == "claude_team", status == "active" { return "team" }
+        let hasMax = account?["has_claude_max"] as? Bool
+        let hasPro = account?["has_claude_pro"] as? Bool
+        if hasMax == true { return "max" }
+        if hasPro == true { return "pro" }
+        if let type, type.hasPrefix("claude_") {
+            let plan = String(type.dropFirst("claude_".count))
+            if !plan.isEmpty, plan != "team" { return plan }
+        }
+        if hasMax == false, hasPro == false { return "free" }
         return nil
     }
 
