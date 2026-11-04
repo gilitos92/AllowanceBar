@@ -103,5 +103,6 @@ final class StatusJSONTests: XCTestCase {
         XCTAssertEqual(decoded.schemaVersion, 1)
         XCTAssertEqual(decoded.providers.first?.id, "codex")
         XCTAssertNil(decoded.providers.first?.apiUsage)
+        XCTAssertNil(decoded.providers.first?.proxyPriority, "Snapshots from before 2.8.0 still decode")
     }
 }

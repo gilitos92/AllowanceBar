@@ -61,6 +61,17 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(nanoShowsPace, forKey: Keys.nanoShowsPace) }
     }
 
+    /// Each account's place in CLIProxyAPI's order of use, in the dropdown
+    /// and the Usage Details window.
+    @Published var showsProxyPriority: Bool {
+        didSet { defaults.set(showsProxyPriority, forKey: Keys.showsProxyPriority) }
+    }
+
+    /// The proxy place after each entry in the nano Usage Details panel, e.g. "#1".
+    @Published var nanoShowsProxyPriority: Bool {
+        didSet { defaults.set(nanoShowsProxyPriority, forKey: Keys.nanoShowsProxyPriority) }
+    }
+
     /// Alert once per window when usage runs well ahead of pace.
     @Published var paceNotificationsEnabled: Bool {
         didSet { defaults.set(paceNotificationsEnabled, forKey: Keys.paceNotificationsEnabled) }
@@ -208,6 +219,8 @@ final class SettingsStore: ObservableObject {
         static let showsPace = "showsPace"
         static let paceNotificationsEnabled = "paceNotificationsEnabled"
         static let nanoShowsPace = "nanoShowsPace"
+        static let showsProxyPriority = "showsProxyPriority"
+        static let nanoShowsProxyPriority = "nanoShowsProxyPriority"
         static let menuBarStyle = "menuBarStyle"
         static let menuBarShowsAllLimits = "menuBarShowsAllLimits"
         static let nanoShowsAllLimits = "nanoShowsAllLimits"
@@ -253,6 +266,8 @@ final class SettingsStore: ObservableObject {
             self.nanoShowsPace = showsPace
             defaults.set(showsPace, forKey: Keys.nanoShowsPace)
         }
+        self.showsProxyPriority = defaults.object(forKey: Keys.showsProxyPriority) as? Bool ?? true
+        self.nanoShowsProxyPriority = defaults.object(forKey: Keys.nanoShowsProxyPriority) as? Bool ?? true
         let storedBalanceThreshold = defaults.double(forKey: Keys.balanceNotificationThreshold)
         self.balanceNotificationThreshold = Self.balanceThresholdOptions.contains(storedBalanceThreshold)
             ? storedBalanceThreshold

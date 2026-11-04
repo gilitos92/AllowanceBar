@@ -38,6 +38,8 @@ public struct ProviderStatus: Codable, Equatable, Sendable {
     public var renewal: RenewalStatus?
     /// Organization API usage report (Claude; optional additive schema v1 field).
     public var apiUsage: APIUsageStatus?
+    /// Place in CLIProxyAPI's order of use (added in 2.8.0).
+    public var proxyPriority: ProxyPriorityStatus?
 
     public init(
         id: String,
@@ -51,7 +53,8 @@ public struct ProviderStatus: Codable, Equatable, Sendable {
         accountEmail: String? = nil,
         planType: String? = nil,
         renewal: RenewalStatus? = nil,
-        apiUsage: APIUsageStatus? = nil
+        apiUsage: APIUsageStatus? = nil,
+        proxyPriority: ProxyPriorityStatus? = nil
     ) {
         self.id = id
         self.displayName = displayName
@@ -65,6 +68,23 @@ public struct ProviderStatus: Codable, Equatable, Sendable {
         self.planType = planType
         self.renewal = renewal
         self.apiUsage = apiUsage
+        self.proxyPriority = proxyPriority
+    }
+}
+
+/// Where an account stands in CLIProxyAPI's order of use. The proxy sends new
+/// requests to the highest priority first; equal priorities share a place.
+public struct ProxyPriorityStatus: Codable, Equatable, Sendable {
+    public var priority: Int
+    /// 1 = used first.
+    public var place: Int
+    /// Enabled proxy logins of the same provider.
+    public var loginCount: Int
+
+    public init(priority: Int, place: Int, loginCount: Int) {
+        self.priority = priority
+        self.place = place
+        self.loginCount = loginCount
     }
 }
 

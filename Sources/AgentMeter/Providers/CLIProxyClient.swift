@@ -151,6 +151,9 @@ struct CLIProxyClient: Sendable {
         let projectID: String?
         /// Codex: the plan from the login's ID token claims.
         let planType: String?
+        /// The proxy sends new requests to the highest priority first.
+        /// Logins without one count as 0, as in CLIProxyAPI.
+        let priority: Int
 
         init(
             kind: CLIProxyLoginKind = .claude,
@@ -159,7 +162,8 @@ struct CLIProxyClient: Sendable {
             disabled: Bool,
             chatgptAccountID: String? = nil,
             projectID: String? = nil,
-            planType: String? = nil
+            planType: String? = nil,
+            priority: Int = 0
         ) {
             self.kind = kind
             self.authIndex = authIndex
@@ -168,6 +172,7 @@ struct CLIProxyClient: Sendable {
             self.chatgptAccountID = chatgptAccountID
             self.projectID = projectID
             self.planType = planType
+            self.priority = priority
         }
     }
 
@@ -204,7 +209,8 @@ struct CLIProxyClient: Sendable {
                 disabled: file.disabled ?? false,
                 chatgptAccountID: (file.idToken?.chatgptAccountID).nonEmpty,
                 projectID: file.projectID.nonEmpty,
-                planType: (file.idToken?.planType).nonEmpty
+                planType: (file.idToken?.planType).nonEmpty,
+                priority: file.priority?.value ?? 0
             )
         }
     }
@@ -378,12 +384,13 @@ struct CLIProxyClient: Sendable {
         /// Codex only: claims the proxy decoded from the ID token. Holds no
         /// token. Ignored when it isn't an object.
         let idToken: IDTokenClaims?
+        let priority: FlexibleInt?
 
         enum CodingKeys: String, CodingKey {
             case authIndex = "auth_index"
             case projectID = "project_id"
             case idToken = "id_token"
-            case type, provider, email, disabled
+            case type, provider, email, disabled, priority
         }
 
         init(from decoder: Decoder) throws {
@@ -395,6 +402,7 @@ struct CLIProxyClient: Sendable {
             disabled = try? container.decodeIfPresent(Bool.self, forKey: .disabled)
             projectID = try? container.decodeIfPresent(String.self, forKey: .projectID)
             idToken = try? container.decodeIfPresent(IDTokenClaims.self, forKey: .idToken)
+            priority = try? container.decodeIfPresent(FlexibleInt.self, forKey: .priority)
         }
     }
 
@@ -417,6 +425,30 @@ struct CLIProxyClient: Sendable {
                 value = string
             } else {
                 value = String(try container.decode(Int.self))
+            }
+        }
+    }
+
+    /// `priority` is a number in the login list; CLIProxyAPI also accepts a
+    /// numeric string in auth files.
+    private struct FlexibleInt: Decodable {
+        let value: Int
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let number = try? container.decode(Int.self) {
+                value = number
+            } else if let number = try? container.decode(Double.self) {
+                // Int(_:) would crash on a value out of Int's range.
+                guard let exact = Int(exactly: number) else {
+                    throw DecodingError.dataCorruptedError(in: container, debugDescription: "not an integer")
+                }
+                value = exact
+            } else {
+                let string = try container.decode(String.self).trimmingCharacters(in: .whitespaces)
+                guard let number = Int(string) else {
+                    throw DecodingError.dataCorruptedError(in: container, debugDescription: "not an integer")
+                }
+                value = number
             }
         }
     }

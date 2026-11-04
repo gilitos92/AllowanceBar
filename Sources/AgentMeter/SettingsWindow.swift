@@ -1118,6 +1118,13 @@ private struct DisplaySettingsTab: View {
             } footer: {
                 Text(L("A line on each bar marks even pace: where usage would be if spread evenly until the reset. An arrow shows if you are ahead of pace (↗, may run out early), on pace (→) or under pace (↘, room to spare). The nano window shows only the arrow, after each percent."))
             }
+
+            Section {
+                Toggle(L("Show CLIProxyAPI priority"), isOn: $settings.showsProxyPriority)
+                Toggle(L("Show CLIProxyAPI priority in the nano window"), isOn: $settings.nanoShowsProxyPriority)
+            } footer: {
+                Text(L("Shows each account's place among its provider's logins in CLIProxyAPI's order of use, e.g. “Proxy #1”, from the login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry."))
+            }
         }
         .formStyle(.grouped)
     }
