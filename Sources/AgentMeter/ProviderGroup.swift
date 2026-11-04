@@ -30,16 +30,41 @@ struct ProviderGroup: Identifiable {
         }
     }
 
-    /// The name of one account inside its group: an extra account's label,
-    /// a proxy login's email, or for the default account the signed-in email
-    /// when the provider knows it.
-    func accountName(of provider: any UsageProvider, usage: ProviderUsage?) -> String {
+    /// How one account is named inside its group.
+    struct AccountLabel: Equatable {
+        /// An extra account's label, a proxy login's email, or for the
+        /// default account its signed-in email ("Default account" when unknown).
+        let name: String
+        /// The signed-in email when it adds something, or where the account
+        /// comes from when two accounts would otherwise look the same.
+        let detail: String?
+    }
+
+    /// Labels for every member, keyed by provider id. `emails` holds each
+    /// account's signed-in email, when known.
+    func accountLabels(emails: [String: String]) -> [String: AccountLabel] {
+        var labels: [String: AccountLabel] = [:]
+        for provider in members {
+            let email = emails[provider.id]?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let knownEmail = (email?.isEmpty ?? true) ? nil : email
+            let name = accountName(of: provider, email: knownEmail)
+            let detail = knownEmail.flatMap { $0.caseInsensitiveCompare(name) == .orderedSame ? nil : $0 }
+            labels[provider.id] = AccountLabel(name: name, detail: detail)
+        }
+        // The local login and a CLIProxyAPI login of the same email can both
+        // show; say where each comes from so they don't look identical.
+        let counts = Dictionary(grouping: labels.values.map { $0.name.lowercased() }, by: { $0 }).mapValues(\.count)
+        for provider in members {
+            guard let label = labels[provider.id], (counts[label.name.lowercased()] ?? 0) > 1 else { continue }
+            let source = provider is CLIProxyAccountProvider ? "CLIProxyAPI" : L("This Mac")
+            labels[provider.id] = AccountLabel(name: label.name, detail: source)
+        }
+        return labels
+    }
+
+    private func accountName(of provider: any UsageProvider, email: String?) -> String {
         if provider.id == baseID {
-            if let email = usage?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !email.isEmpty {
-                return email
-            }
-            return L("Default account")
+            return email ?? L("Default account")
         }
         let prefix = "\(baseName) — "
         if provider.displayName.hasPrefix(prefix) {
@@ -47,17 +72,6 @@ struct ProviderGroup: Identifiable {
             if !name.isEmpty { return name }
         }
         return provider.displayName
-    }
-
-    /// The signed-in email to show next to an account's name, when it adds
-    /// something (an extra account named "Work", not a proxy row named by
-    /// its email).
-    func accountDetail(of provider: any UsageProvider, usage: ProviderUsage?) -> String? {
-        guard let email = usage?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !email.isEmpty,
-              email.caseInsensitiveCompare(accountName(of: provider, usage: usage)) != .orderedSame
-        else { return nil }
-        return email
     }
 
     /// The plan shared by every account with a known plan, shown once in the

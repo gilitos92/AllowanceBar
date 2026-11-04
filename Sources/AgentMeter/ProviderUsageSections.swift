@@ -118,14 +118,16 @@ struct ProviderGroupSection: View {
     var body: some View {
         let usages = group.members.map { state(for: $0).usage }
         let sharedPlan = ProviderGroup.sharedPlan(of: usages)
+        let labels = group.accountLabels(emails: emails)
         VStack(alignment: .leading, spacing: 10) {
             header(plan: sharedPlan)
             ForEach(group.members, id: \.id) { provider in
                 let state = state(for: provider)
+                let label = labels[provider.id]
                 GroupedAccountView(
                     provider: provider,
-                    name: group.accountName(of: provider, usage: state.usage),
-                    detail: group.accountDetail(of: provider, usage: state.usage),
+                    name: label?.name ?? provider.displayName,
+                    detail: label?.detail,
                     state: state,
                     plan: sharedPlan == nil ? state.usage?.planName : nil,
                     priority: priorities[provider.id],
@@ -144,6 +146,16 @@ struct ProviderGroupSection: View {
 
     private func state(for provider: any UsageProvider) -> ProviderState {
         states[provider.id] ?? .loading
+    }
+
+    /// Each account's signed-in email. Codex remembers its last one, so an
+    /// account keeps its email while it loads or fails.
+    private var emails: [String: String] {
+        group.members.reduce(into: [:]) { result, provider in
+            if let email = state(for: provider).usage?.accountEmail ?? (provider as? CodexProvider)?.accountEmail {
+                result[provider.id] = email
+            }
+        }
     }
 
     /// The oldest data among accounts that show limits or balances, shown
@@ -257,11 +269,13 @@ private struct ProviderStateContent: View {
             )
             subscriptionRenewalRow
         case .stale(let usage, let error, let since):
+            // "Stale since" is when fetching started to fail, not how old
+            // the numbers are, so a stale account keeps its own data time
+            // even inside a group.
             UsageMetersView(
                 providerName: provider.displayName,
                 usage: usage,
-                settings: settings,
-                showsAsOf: !inGroup || usage.apiUsage != nil
+                settings: settings
             )
             .opacity(0.55)
             subscriptionRenewalRow

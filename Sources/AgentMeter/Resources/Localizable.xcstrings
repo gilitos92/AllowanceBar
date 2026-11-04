@@ -1577,6 +1577,16 @@
         }
       }
     },
+    "This Mac": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta Mac"
+          }
+        }
+      }
+    },
     "Default account": {
       "localizations": {
         "es": {

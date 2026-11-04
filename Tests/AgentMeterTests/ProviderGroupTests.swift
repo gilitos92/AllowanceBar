@@ -34,7 +34,7 @@ final class ProviderGroupTests: XCTestCase {
         XCTAssertEqual(groups[0].members.count, 1)
     }
 
-    func testAccountNames() {
+    func testAccountLabels() {
         let base = Stub(id: "claude", displayName: "Claude", shortCode: "Cl")
         let extra = Stub(id: "claude:A", displayName: "Claude — Work", shortCode: "ClW")
         let proxy = Stub(id: "claude:proxy-1", displayName: "Claude — a@example.com", shortCode: "ClA")
@@ -42,16 +42,30 @@ final class ProviderGroupTests: XCTestCase {
 
         XCTAssertEqual(group.baseName, "Claude")
         XCTAssertEqual(group.baseShortCode, "Cl")
-        XCTAssertEqual(group.accountName(of: base, usage: usage(plan: "Pro", email: "me@example.com")), "me@example.com")
-        XCTAssertEqual(group.accountName(of: base, usage: nil), L("Default account"))
-        XCTAssertEqual(group.accountName(of: extra, usage: nil), "Work")
-        XCTAssertEqual(group.accountName(of: proxy, usage: nil), "a@example.com")
 
+        let labels = group.accountLabels(emails: [
+            "claude": "me@example.com",
+            "claude:A": "w@example.com",
+            "claude:proxy-1": "A@example.com",
+        ])
+        XCTAssertEqual(labels["claude"], .init(name: "me@example.com", detail: nil))
         // The email is extra detail for a labeled account, not for one
         // already named by its email.
-        XCTAssertEqual(group.accountDetail(of: extra, usage: usage(plan: nil, email: "w@example.com")), "w@example.com")
-        XCTAssertNil(group.accountDetail(of: proxy, usage: usage(plan: nil, email: "A@example.com")))
-        XCTAssertNil(group.accountDetail(of: base, usage: usage(plan: nil, email: "me@example.com")))
+        XCTAssertEqual(labels["claude:A"], .init(name: "Work", detail: "w@example.com"))
+        XCTAssertEqual(labels["claude:proxy-1"], .init(name: "a@example.com", detail: nil))
+
+        let unknown = group.accountLabels(emails: [:])
+        XCTAssertEqual(unknown["claude"], .init(name: L("Default account"), detail: nil))
+        XCTAssertEqual(unknown["claude:A"], .init(name: "Work", detail: nil))
+    }
+
+    func testSameLoginOnThisMacAndProxyIsTold() {
+        let base = Stub(id: "claude", displayName: "Claude", shortCode: "Cl")
+        let proxy = CLIProxyAccountProvider(login: CLIProxyLoginKey(kind: .claude, email: "me@example.com"))
+        let group = ProviderGroup.groups([base, proxy])[0]
+        let labels = group.accountLabels(emails: ["claude": "Me@example.com", proxy.id: "me@example.com"])
+        XCTAssertEqual(labels["claude"], .init(name: "Me@example.com", detail: L("This Mac")))
+        XCTAssertEqual(labels[proxy.id], .init(name: "me@example.com", detail: "CLIProxyAPI"))
     }
 
     func testHiddenDefaultAccountStillNamesTheGroup() {
@@ -61,7 +75,7 @@ final class ProviderGroupTests: XCTestCase {
         ])[0]
         XCTAssertEqual(claudeOnlyExtras.baseName, "Claude")
         XCTAssertEqual(claudeOnlyExtras.baseShortCode, "Cl")
-        XCTAssertEqual(claudeOnlyExtras.accountName(of: claudeOnlyExtras.members[1], usage: nil), "Home")
+        XCTAssertEqual(claudeOnlyExtras.accountLabels(emails: [:])["claude:B"]?.name, "Home")
 
         let antigravity = ProviderGroup.groups([
             Stub(id: "antigravity:proxy-1", displayName: "Antigravity — a@example.com"),
