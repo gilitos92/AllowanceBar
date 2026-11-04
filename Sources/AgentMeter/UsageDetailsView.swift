@@ -203,11 +203,14 @@ private struct CompactUsageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Rows line up, so all of them get the place column when one has it.
+            let showsPriority = entries.contains { $0.priority != nil }
             ForEach(entries) { entry in
                 CompactProviderRow(
                     entry: entry,
                     countDirection: settings.countDirection,
                     showsPace: settings.showsPace,
+                    showsPriority: showsPriority,
                     labelWidth: labelWidth
                 )
             }
@@ -394,11 +397,15 @@ private struct CompactProviderRow: View {
     let entry: CompactUsageEntry
     let countDirection: CountDirection
     let showsPace: Bool
+    let showsPriority: Bool
     let labelWidth: CGFloat?
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             ProviderBadge(provider: entry.provider, size: 18)
+            if showsPriority {
+                priorityColumn
+            }
             if entry.windows.isEmpty {
                 summary
             } else {
@@ -415,6 +422,22 @@ private struct CompactProviderRow: View {
                 }
             }
         }
+    }
+
+    /// The place in CLIProxyAPI's order, e.g. "#1"; blank for rows without one.
+    private var priorityColumn: some View {
+        ZStack(alignment: .leading) {
+            Color.clear
+            if let priority = entry.priority {
+                Text(verbatim: priority.shortLabel)
+                    .font(.callout.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .help(priority.explanation)
+                    .accessibilityLabel(String(format: L("%@, %@"), entry.provider.displayName, L("CLIProxyAPI order")))
+                    .accessibilityValue(priority.phrase)
+            }
+        }
+        .frame(width: 24, height: 20)
     }
 
     private var summary: some View {

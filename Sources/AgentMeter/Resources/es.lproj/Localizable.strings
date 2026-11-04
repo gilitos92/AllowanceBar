@@ -174,6 +174,8 @@
 	<string>CLIProxyAPI ya no tiene este inicio de sesión, o está desactivado ahí.</string>
 	<key>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</key>
 	<string>CLIProxyAPI solo acepta solicitudes de administración desde su propia Mac. Pon allow-remote en true en su configuración.</string>
+	<key>CLIProxyAPI order</key>
+	<string>Orden de CLIProxyAPI</string>
 	<key>CLIProxyAPI paused requests after failed attempts. Try again later.</key>
 	<string>CLIProxyAPI pausó las solicitudes después de varios intentos fallidos. Inténtalo más tarde.</string>
 	<key>CLIProxyAPI rejected the management key. Check it in Settings.</key>
@@ -480,6 +482,8 @@
 	<string>Tokens de salida</string>
 	<key>Personal cap</key>
 	<string>Límite personal</string>
+	<key>Place %lld of %lld in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</key>
+	<string>Puesto %1$lld de %2$lld en el orden de uso de CLIProxyAPI (prioridad %3$lld). El proxy envía las solicitudes nuevas primero a la prioridad más alta.</string>
 	<key>Prepaid credits</key>
 	<string>Créditos prepagados</string>
 	<key>Pro (24h)</key>
@@ -488,6 +492,8 @@
 	<string>La investigación de endpoints se basa en CodexBar de Peter Steinberger.</string>
 	<key>Providers</key>
 	<string>Proveedores</string>
+	<key>Proxy #%lld</key>
+	<string>Proxy #%lld</string>
 	<key>Quit</key>
 	<string>Salir</string>
 	<key>Reads prepaid balance only.</key>
@@ -544,6 +550,10 @@
 	<string>Dirección del servidor</string>
 	<key>Settings…</key>
 	<string>Ajustes…</string>
+	<key>Show CLIProxyAPI priority</key>
+	<string>Mostrar la prioridad de CLIProxyAPI</string>
+	<key>Show CLIProxyAPI priority in the nano window</key>
+	<string>Mostrar la prioridad de CLIProxyAPI en la ventana nano</string>
 	<key>Show all limits in the menu bar</key>
 	<string>Mostrar todos los límites en la barra de menús</string>
 	<key>Show all limits in the nano window</key>
@@ -556,6 +566,8 @@
 	<string>Mostrar ritmo</string>
 	<key>Show pace in the nano window</key>
 	<string>Mostrar ritmo en la ventana nano</string>
+	<key>Shows each account's place in CLIProxyAPI's order of use, e.g. “Proxy #1”, from its login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</key>
+	<string>Muestra el puesto de cada cuenta en el orden de uso de CLIProxyAPI, p. ej. “Proxy #1”, según las prioridades de sus inicios de sesión. El proxy envía las solicitudes nuevas primero a la prioridad más alta. Aparece cuando el proxy tiene más de un inicio de sesión de un proveedor con prioridades distintas. La ventana nano muestra solo “#1”, después de cada entrada.</string>
 	<key>Shows every limit in dropdown order, e.g. “Cx 8% (35%)” for the Codex 5-hour and weekly limits.</key>
 	<string>Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex.</string>
 	<key>Shows your 5-hour and token quotas.</key>
@@ -732,6 +744,8 @@
 	<string>casi agotado</string>
 	<key>on pace</key>
 	<string>al ritmo</string>
+	<key>place %lld of %lld in CLIProxyAPI order, priority %lld</key>
+	<string>puesto %1$lld de %2$lld en el orden de CLIProxyAPI, prioridad %3$lld</string>
 	<key>resets %@</key>
 	<string>se restablece %@</string>
 	<key>resets %@ (%@)</key>

@@ -9,6 +9,7 @@ enum StatusSnapshotWriter {
         let accountEmail: String?
         let planType: String?
         let renewal: SubscriptionRenewal?
+        let proxyPriority: ProxyPriority?
 
         init(
             id: String,
@@ -16,7 +17,8 @@ enum StatusSnapshotWriter {
             state: ProviderState,
             accountEmail: String? = nil,
             planType: String? = nil,
-            renewal: SubscriptionRenewal? = nil
+            renewal: SubscriptionRenewal? = nil,
+            proxyPriority: ProxyPriority? = nil
         ) {
             self.id = id
             self.displayName = displayName
@@ -24,6 +26,7 @@ enum StatusSnapshotWriter {
             self.accountEmail = accountEmail
             self.planType = planType
             self.renewal = renewal
+            self.proxyPriority = proxyPriority
         }
     }
 
@@ -40,6 +43,14 @@ enum StatusSnapshotWriter {
     }
 
     nonisolated static func mapProvider(_ input: ProviderInput, now: Date = Date()) -> ProviderStatus {
+        var status = mapState(input, now: now)
+        status.proxyPriority = input.proxyPriority.map {
+            ProxyPriorityStatus(priority: $0.priority, place: $0.place, loginCount: $0.loginCount)
+        }
+        return status
+    }
+
+    nonisolated private static func mapState(_ input: ProviderInput, now: Date) -> ProviderStatus {
         switch input.state {
         case .loading:
             return ProviderStatus(
@@ -165,7 +176,8 @@ enum StatusSnapshotWriter {
                 state: state,
                 accountEmail: codexMeta.accountEmail ?? proxyEmail,
                 planType: codexMeta.planType,
-                renewal: settings.renewal(for: provider.id)
+                renewal: settings.renewal(for: provider.id),
+                proxyPriority: store.proxyPriority(for: provider)
             )
         }
         let snapshot = makeSnapshot(

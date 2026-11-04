@@ -47,6 +47,7 @@ Top-level object:
 | `planType` | `String?` | Plan / tier label as shown in the app's plan capsule (e.g. `Pro`, `Pro Lite`, `Ultra`, `Credits`, `Inference key`); present for any provider that reports one (added in 1.11.0) |
 | `renewal` | `RenewalStatus?` | User-entered subscription renewal — billing information, NOT a usage window; do not use it for quota decisions (Codex accounts; added in 1.11.0) |
 | `apiUsage` | `APIUsageStatus?` | Claude organization API usage report, when available; does not represent prepaid credits |
+| `proxyPriority` | `ProxyPriorityStatus?` | Place in CLIProxyAPI's order of use, for proxy logins and for accounts on this Mac that match exactly one proxy login by email (added in 2.8.0) |
 
 `APIUsageStatus` (Claude organization API report):
 
@@ -71,6 +72,18 @@ are separate: `inputTokens` excludes
 cache-read and cache-creation tokens. API reporting may lag; `prepaidCreditsStatus`
 does not imply a balance or remaining credit amount. The `claude-api`
 `balance` field remains a spend-style compatibility value (`kind: "spent"`).
+
+`ProxyPriorityStatus` (added in 2.8.0):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `priority` | `Int` | The login's priority on the proxy; a missing priority counts as 0 |
+| `place` | `Int` | 1 = gets new requests first. One more than the number of logins with a higher priority, so equal priorities share a place |
+| `loginCount` | `Int` | Enabled proxy logins of the same provider |
+
+CLIProxyAPI sends new requests to the enabled logins with the highest priority
+first. The field is left out when the order says nothing: the proxy has only
+one login of that provider, or all of them share one priority.
 
 `RenewalStatus` (added in 1.11.0):
 
@@ -171,6 +184,7 @@ Within `schemaVersion` 1, changes are **additive only** (new optional fields). B
 | 1.12.0 | Added optional Claude API `apiUsage` report on `ProviderStatus` |
 | 2.4.0 | No new fields; extra accounts of any provider appear as `<id>:<uuid>` providers |
 | 2.7.0 | No new fields; CLIProxyAPI logins appear as `<id>:proxy-<hash>` providers (including `antigravity:proxy-<hash>`) with `accountEmail` set |
+| 2.8.0 | Added optional `proxyPriority` on `ProviderStatus` |
 
 ## URL schemes
 

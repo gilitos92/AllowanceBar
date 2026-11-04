@@ -5068,6 +5068,118 @@
           }
         }
       }
+    },
+    "Proxy #%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proxy #%lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proxy #%lld"
+          }
+        }
+      }
+    },
+    "Place %lld of %lld in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Place %lld of %lld in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Puesto %1$lld de %2$lld en el orden de uso de CLIProxyAPI (prioridad %3$lld). El proxy envía las solicitudes nuevas primero a la prioridad más alta."
+          }
+        }
+      }
+    },
+    "place %lld of %lld in CLIProxyAPI order, priority %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "place %lld of %lld in CLIProxyAPI order, priority %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "puesto %1$lld de %2$lld en el orden de CLIProxyAPI, prioridad %3$lld"
+          }
+        }
+      }
+    },
+    "CLIProxyAPI order": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CLIProxyAPI order"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orden de CLIProxyAPI"
+          }
+        }
+      }
+    },
+    "Show CLIProxyAPI priority": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show CLIProxyAPI priority"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar la prioridad de CLIProxyAPI"
+          }
+        }
+      }
+    },
+    "Show CLIProxyAPI priority in the nano window": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show CLIProxyAPI priority in the nano window"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar la prioridad de CLIProxyAPI en la ventana nano"
+          }
+        }
+      }
+    },
+    "Shows each account's place in CLIProxyAPI's order of use, e.g. “Proxy #1”, from its login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows each account's place in CLIProxyAPI's order of use, e.g. “Proxy #1”, from its login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muestra el puesto de cada cuenta en el orden de uso de CLIProxyAPI, p. ej. “Proxy #1”, según las prioridades de sus inicios de sesión. El proxy envía las solicitudes nuevas primero a la prioridad más alta. Aparece cuando el proxy tiene más de un inicio de sesión de un proveedor con prioridades distintas. La ventana nano muestra solo “#1”, después de cada entrada."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -11,6 +11,9 @@ final class UsageStore: ObservableObject {
     @Published var lastRefreshed: Date?
 
     @Published private(set) var providers: [any UsageProvider]
+    /// The proxy's latest login list, for each row's place in its order of
+    /// use. Kept when the proxy can't be reached; empty without a proxy.
+    @Published var proxyAccounts: [CLIProxyClient.Account] = []
     let settings: SettingsStore
     lazy var notificationManager = NotificationManager()
 
@@ -234,16 +237,43 @@ final class UsageStore: ObservableObject {
         in local: [LocalAccount],
         logins: [CLIProxyLoginKey]
     ) -> String? {
-        func fits(_ login: CLIProxyLoginKey, _ entry: LocalAccount) -> Bool {
-            guard ProviderAccountConfig.baseProviderID(of: entry.providerID) == login.kind.baseProviderID,
-                  entry.email.caseInsensitiveCompare(login.email) == .orderedSame else { return false }
-            guard let localPlan = entry.planName,
-                  let proxyPlan = CodexPlan.displayName(login.planType) else { return true }
-            return localPlan.caseInsensitiveCompare(proxyPlan) == .orderedSame
-        }
-        return local.first { entry in
+        local.first { entry in
             fits(login, entry) && logins.filter { fits($0, entry) }.count <= 1
         }?.name
+    }
+
+    /// Whether `login` may be the same account as the local `entry`.
+    nonisolated private static func fits(_ login: CLIProxyLoginKey, _ entry: LocalAccount) -> Bool {
+        guard ProviderAccountConfig.baseProviderID(of: entry.providerID) == login.kind.baseProviderID,
+              entry.email.caseInsensitiveCompare(login.email) == .orderedSame else { return false }
+        guard let localPlan = entry.planName,
+              let proxyPlan = CodexPlan.displayName(login.planType) else { return true }
+        return localPlan.caseInsensitiveCompare(proxyPlan) == .orderedSame
+    }
+
+    /// The proxy login a local account shows, when exactly one fits it.
+    nonisolated static func proxyLogin(
+        for entry: LocalAccount,
+        among logins: [CLIProxyLoginKey]
+    ) -> CLIProxyLoginKey? {
+        let fitting = logins.filter { fits($0, entry) }
+        return fitting.count == 1 ? fitting[0] : nil
+    }
+
+    /// A row's place in CLIProxyAPI's order of use. Proxy rows use their own
+    /// login; an account on this Mac uses the proxy login with its email, so
+    /// the place shows even while the proxy row hides behind it.
+    func proxyPriority(for provider: any UsageProvider) -> ProxyPriority? {
+        let accounts = proxyAccounts
+        guard !accounts.isEmpty else { return nil }
+        if let proxy = provider as? CLIProxyAccountProvider {
+            return ProxyPriority.of(proxy.login, in: accounts)
+        }
+        guard let local = localAccountEmails(among: [provider]).first,
+              let login = Self.proxyLogin(for: local, among: CLIProxyLoginKey.keys(from: accounts)) else {
+            return nil
+        }
+        return ProxyPriority.of(login, in: accounts)
     }
 
     func state(for providerID: String) -> ProviderState {
@@ -308,12 +338,17 @@ final class UsageStore: ObservableObject {
     private func syncProxyLogins() async -> Bool {
         guard let proxyConfig else { return false }
         let logins: [CLIProxyLoginKey]
+        let accounts: [CLIProxyClient.Account]
         if let config = proxyConfig() {
-            guard let accounts = try? await CLIProxyClient(config: config).logins() else { return false }
+            guard let list = try? await CLIProxyClient(config: config).logins() else { return false }
+            accounts = list
             logins = CLIProxyLoginKey.keys(from: accounts)
         } else {
+            accounts = []
             logins = []
         }
+        // Priorities change without changing the rows.
+        if accounts != proxyAccounts { proxyAccounts = accounts }
         guard logins != settings.cliProxyLogins else { return false }
         settings.cliProxyLogins = logins
         rebuildProviders(proxyLogins: logins, refreshing: false)
@@ -364,19 +399,23 @@ final class UsageStore: ObservableObject {
 
     private func menuBarEntries(
         allWindows: Bool,
-        showsPace: Bool = false
+        showsPace: Bool = false,
+        showsPriority: Bool = false
     ) -> [(text: String, severity: MenuBarSeverity)] {
         let providers = titleProviders
         guard !providers.isEmpty else { return [("Allowance Bar", .normal)] }
+        func entry(_ provider: any UsageProvider) -> (text: String, severity: MenuBarSeverity) {
+            providerMenuBarEntry(for: provider, allWindows: allWindows, showsPace: showsPace, showsPriority: showsPriority)
+        }
 
         switch settings.menuBarStyle {
         case .full:
-            return providers.map { providerMenuBarEntry(for: $0, allWindows: allWindows, showsPace: showsPace) }
+            return providers.map(entry)
         case .compact:
-            if let entry = mostConstrainedMenuBarEntry(from: providers, allWindows: allWindows, showsPace: showsPace) {
-                return [entry]
+            if let provider = mostConstrainedMenuBarProvider(from: providers) {
+                return [entry(provider)]
             }
-            return providers.map { providerMenuBarEntry(for: $0, allWindows: allWindows, showsPace: showsPace) }
+            return providers.map(entry)
         case .icon:
             return []
         }
@@ -388,22 +427,27 @@ final class UsageStore: ObservableObject {
     var nanoEntries: [(text: String, severity: MenuBarSeverity)] {
         let allWindows = settings.nanoShowsAllLimits
         let showsPace = settings.nanoShowsPace
+        let showsPriority = settings.nanoShowsProxyPriority
         guard settings.menuBarStyle == .icon else {
-            return menuBarEntries(allWindows: allWindows, showsPace: showsPace)
+            return menuBarEntries(allWindows: allWindows, showsPace: showsPace, showsPriority: showsPriority)
         }
         let providers = titleProviders
         guard !providers.isEmpty else { return [("Allowance Bar", .normal)] }
-        return providers.map { providerMenuBarEntry(for: $0, allWindows: allWindows, showsPace: showsPace) }
+        return providers.map {
+            providerMenuBarEntry(for: $0, allWindows: allWindows, showsPace: showsPace, showsPriority: showsPriority)
+        }
     }
 
     /// One menu-bar-style entry per visible provider for the compact Usage
     /// Details window. Unlike `menuBarEntries`, it ignores the menu bar style
     /// and per-provider menu bar visibility.
     var compactEntries: [CompactUsageEntry] {
-        visibleProviders.map { provider in
+        let showsPriority = settings.showsProxyPriority
+        return visibleProviders.map { provider in
             let providerState = state(for: provider.id)
             return CompactUsageEntry(
                 provider: provider,
+                priority: showsPriority ? proxyPriority(for: provider) : nil,
                 windows: providerState.usage?.windows ?? [],
                 summary: providerSummaryText(for: providerState),
                 severity: MenuBarTitleRenderer.severity(
@@ -447,15 +491,24 @@ final class UsageStore: ObservableObject {
 
     /// Spoken summary for the nano panel, matching `nanoEntries`.
     var nanoAccessibilityDescription: String {
-        accessibilityDescription(allWindows: settings.nanoShowsAllLimits, includesPace: settings.nanoShowsPace)
+        accessibilityDescription(
+            allWindows: settings.nanoShowsAllLimits,
+            includesPace: settings.nanoShowsPace,
+            includesPriority: settings.nanoShowsProxyPriority
+        )
     }
 
-    private func accessibilityDescription(allWindows: Bool, includesPace: Bool = false) -> String {
+    private func accessibilityDescription(
+        allWindows: Bool,
+        includesPace: Bool = false,
+        includesPriority: Bool = false
+    ) -> String {
         MenuBarAccessibilitySummary.build(
             providers: menuBarSummaryProviders.map {
                 MenuBarAccessibilitySummary.ProviderInput(
                     displayName: $0.displayName,
-                    state: state(for: $0.id)
+                    state: state(for: $0.id),
+                    priority: includesPriority ? proxyPriority(for: $0) : nil
                 )
             },
             countDirection: settings.countDirection,
@@ -484,12 +537,16 @@ final class UsageStore: ObservableObject {
     private func providerMenuBarEntry(
         for provider: any UsageProvider,
         allWindows: Bool,
-        showsPace: Bool = false
+        showsPace: Bool = false,
+        showsPriority: Bool = false
     ) -> (text: String, severity: MenuBarSeverity) {
         let providerState = state(for: provider.id)
-        let summary = providerSummaryText(for: providerState, allWindows: allWindows, showsPace: showsPace)
+        var text = "\(provider.shortCode) \(providerSummaryText(for: providerState, allWindows: allWindows, showsPace: showsPace))"
+        if showsPriority, let priority = proxyPriority(for: provider) {
+            text += " \(priority.shortLabel)"
+        }
         return (
-            "\(provider.shortCode) \(summary)",
+            text,
             MenuBarTitleRenderer.severity(
                 for: providerState,
                 balanceThreshold: settings.balanceNotificationThreshold
@@ -540,15 +597,6 @@ final class UsageStore: ObservableObject {
             return balance.provider
         }
         return nil
-    }
-
-    private func mostConstrainedMenuBarEntry(
-        from providers: [any UsageProvider],
-        allWindows: Bool,
-        showsPace: Bool = false
-    ) -> (text: String, severity: MenuBarSeverity)? {
-        guard let provider = mostConstrainedMenuBarProvider(from: providers) else { return nil }
-        return providerMenuBarEntry(for: provider, allWindows: allWindows, showsPace: showsPace)
     }
 
     nonisolated private static func worstSeverity(_ severities: [MenuBarSeverity]) -> MenuBarSeverity {
@@ -606,6 +654,8 @@ final class UsageStore: ObservableObject {
 /// without limit windows (balances, loading, errors).
 struct CompactUsageEntry: Identifiable {
     let provider: any UsageProvider
+    /// Place in CLIProxyAPI's order of use; nil when hidden or unknown.
+    var priority: ProxyPriority? = nil
     let windows: [UsageWindow]
     let summary: String
     let severity: MenuBarSeverity

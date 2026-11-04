@@ -5,6 +5,8 @@ enum MenuBarAccessibilitySummary {
     struct ProviderInput: Equatable {
         let displayName: String
         let state: ProviderState
+        /// Spoken after the usage when set (the nano panel's proxy order).
+        var priority: ProxyPriority? = nil
     }
 
     nonisolated static func build(
@@ -17,16 +19,17 @@ enum MenuBarAccessibilitySummary {
     ) -> String {
         guard !providers.isEmpty else { return L("Allowance Bar") }
 
-        let segments = providers.map {
-            providerSegment(
-                displayName: $0.displayName,
-                state: $0.state,
+        let segments = providers.map { input in
+            let segment = providerSegment(
+                displayName: input.displayName,
+                state: input.state,
                 countDirection: countDirection,
                 balanceThreshold: balanceThreshold,
                 allWindows: allWindows,
                 includesPace: includesPace,
                 now: now
             )
+            return input.priority.map { appendQualifier(segment, $0.phrase) } ?? segment
         }
         return ([L("Allowance Bar")] + segments).joined(separator: ". ")
     }
