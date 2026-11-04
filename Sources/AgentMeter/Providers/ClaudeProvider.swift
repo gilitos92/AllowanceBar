@@ -25,8 +25,11 @@ struct ClaudeProvider: AccountConfigurableProvider {
     }
     var proxyConfig: @Sendable () -> CLIProxyConfig? = { CLIProxyConfig.current() }
     var proxyAccountCache: CLIProxyAccountCache = .shared
+    var proxyPlanCache: CLIProxyPlanCache = .shared
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
+    /// The account profile Claude Code reads; it names the login's plan.
+    static let profileURL = URL(string: "https://api.anthropic.com/api/oauth/profile")!
     static let betaHeader = "oauth-2025-04-20"
     static let userAgent = "claude-code/2.1.0"
 
@@ -55,27 +58,61 @@ struct ClaudeProvider: AccountConfigurableProvider {
             localError = error
         }
         guard let config = proxyConfig() else { throw localError }
-        let (response, proxyEmail) = try await fetchThroughProxy(config)
-        // The local plan describes the proxy login only if it is the same account.
+        let client = CLIProxyClient(config: config, session: session)
+        let account = try await proxyLogin(client)
+        // The local plan describes the proxy login only if it is the same
+        // account. Otherwise ask the proxy login's own profile, next to its usage.
         let localEmail = Self.accountEmail(atPath: accountInfoPath)
-        let samePlan = localEmail.map { $0.caseInsensitiveCompare(proxyEmail) == .orderedSame } ?? false
-        var usage = Self.usage(from: response, plan: samePlan ? plan : nil, now: Date())
-        usage.accountEmail = proxyEmail
+        let samePlan = localEmail.map { $0.caseInsensitiveCompare(account.email) == .orderedSame } ?? false
+        let localPlan = samePlan ? plan : nil
+        let planCache = proxyPlanCache
+        async let lookedUp: String? = localPlan == nil ? client.plan(for: account, cache: planCache) : nil
+        let response = try await client.claudeUsage(authIndex: account.authIndex)
+        let proxyPlan = await lookedUp
+        var usage = Self.usage(from: response, plan: localPlan ?? proxyPlan, now: Date())
+        usage.accountEmail = account.email
         return usage
     }
 
     // MARK: - CLIProxyAPI
 
-    /// Usage of the matching proxy login, and that login's email.
-    func fetchThroughProxy(_ config: CLIProxyConfig) async throws -> (UsageResponse, String) {
-        let client = CLIProxyClient(config: config, session: session)
+    /// The proxy login that matches this account.
+    func proxyLogin(_ client: CLIProxyClient) async throws -> CLIProxyClient.Account {
+        let config = client.config
         let accounts = try await client.claudeAccounts(cache: proxyAccountCache)
         let email = config.claudeEmails[id] ?? Self.accountEmail(atPath: accountInfoPath)
         guard let account = Self.proxyAccount(in: accounts, email: email, isDefaultAccount: id == "claude") else {
             throw CLIProxyError.loginNotFound
         }
         guard !account.disabled else { throw CLIProxyError.loginDisabled }
-        return (try await client.claudeUsage(authIndex: account.authIndex), account.email)
+        return account
+    }
+
+    /// The plan in an account profile, in the words Claude Code saves for a
+    /// local login ("pro", "max", "team", …), so both read alike. The profile
+    /// has no display name, so this follows CLIProxyAPI's dashboard: an active
+    /// Team organization, then the account's own Max or Pro, then Free when
+    /// both flags say no. The organization type counts only for Enterprise,
+    /// which the flags don't cover, and when the flags are missing: a
+    /// canceled Pro can keep "claude_pro" with both flags false.
+    static func plan(fromProfile data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let organization = json["organization"] as? [String: Any]
+        let account = json["account"] as? [String: Any]
+        let type = (organization?["organization_type"] as? String)?.lowercased()
+        let status = (organization?["subscription_status"] as? String)?.lowercased()
+        if type == "claude_team", status == "active" { return "team" }
+        let hasMax = account?["has_claude_max"] as? Bool
+        let hasPro = account?["has_claude_pro"] as? Bool
+        if hasMax == true { return "max" }
+        if hasPro == true { return "pro" }
+        if type == "claude_enterprise" { return "enterprise" }
+        if hasMax == false, hasPro == false { return "free" }
+        if hasMax == nil, hasPro == nil, let type, type.hasPrefix("claude_") {
+            let plan = String(type.dropFirst("claude_".count))
+            if !plan.isEmpty, plan != "team" { return plan }
+        }
+        return nil
     }
 
     /// Matches by email, ignoring case. Without an email, only the default

@@ -123,6 +123,20 @@ struct GeminiProvider: AccountConfigurableProvider {
         var planName: String?
     }
 
+    /// The `loadCodeAssist` body the Gemini CLI sends. With a project, the
+    /// tier is that project's, as the Gemini CLI asks for a chosen project.
+    static func loadCodeAssistBody(project: String?) -> String {
+        guard let project, !project.isEmpty else {
+            return #"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#
+        }
+        let body: [String: Any] = [
+            "cloudaicompanionProject": project,
+            "metadata": ["ideType": "GEMINI_CLI", "pluginType": "GEMINI", "duetProject": project],
+        ]
+        let data = (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])) ?? Data()
+        return String(decoding: data, as: UTF8.self)
+    }
+
     /// Best-effort tier + project lookup. Never throws; quota fetch can proceed
     /// without a project id for managed free-tier accounts.
     static func loadTier(accessToken: String) async -> TierInfo {
@@ -131,11 +145,19 @@ struct GeminiProvider: AccountConfigurableProvider {
         request.timeoutInterval = 15
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data(#"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#.utf8)
+        request.httpBody = Data(loadCodeAssistBody(project: nil).utf8)
 
         guard let (data, response) = try? await HTTP.session.data(for: request),
-              let http = response as? HTTPURLResponse, http.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+              let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            return TierInfo()
+        }
+        return tierInfo(from: data)
+    }
+
+    /// Project and plan from a `loadCodeAssist` answer. Also used for
+    /// CLIProxyAPI's Gemini logins.
+    static func tierInfo(from data: Data) -> TierInfo {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return TierInfo()
         }
 
@@ -146,15 +168,30 @@ struct GeminiProvider: AccountConfigurableProvider {
             projectId = project["id"] as? String ?? project["projectId"] as? String
         }
 
-        let tierId = (json["currentTier"] as? [String: Any])?["id"] as? String
-        let planName: String?
-        switch tierId {
-        case "standard-tier": planName = "Paid"
-        case "free-tier": planName = "Free"
-        case "legacy-tier": planName = "Legacy"
-        default: planName = nil
+        // Like the Gemini CLI: a Google AI Pro or Ultra subscription is the
+        // paid tier, while the current tier can still say "free".
+        let paid = (json["paidTier"] ?? json["paid_tier"]) as? [String: Any]
+        let current = (json["currentTier"] ?? json["current_tier"]) as? [String: Any]
+        return TierInfo(projectId: projectId, planName: tierName(paid) ?? tierName(current))
+    }
+
+    /// The tier's own name from Google (e.g. "Google AI Pro"), so new plans
+    /// show without an app update. Without a name, a known id gets a short
+    /// label and any other id shows as it is.
+    static func tierName(_ tier: [String: Any]?) -> String? {
+        guard let tier else { return nil }
+        if let name = (tier["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            return name
         }
-        return TierInfo(projectId: projectId, planName: planName)
+        guard let id = (tier["id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty else {
+            return nil
+        }
+        switch id {
+        case "standard-tier": return "Paid"
+        case "free-tier": return "Free"
+        case "legacy-tier": return "Legacy"
+        default: return id
+        }
     }
 
     static func fetchQuota(accessToken: String, projectId: String?) async throws -> QuotaResponse {

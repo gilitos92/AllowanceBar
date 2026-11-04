@@ -266,6 +266,9 @@ struct CLIProxyClient: Sendable {
         "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
     ]
     static let antigravityUserAgent = "antigravity/hub/2.23.0 darwin/arm64"
+    /// Where CLIProxyAPI's dashboard asks for an Antigravity login's plan.
+    static let antigravityCodeAssistURL = "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
+    static let antigravityCodeAssistBody = #"{"metadata":{"ideType":"ANTIGRAVITY"}}"#
 
     func antigravityUsage(_ account: Account) async throws -> Data {
         guard let project = account.projectID else { throw CLIProxyError.missingProject }
@@ -304,6 +307,65 @@ struct CLIProxyClient: Sendable {
         return try Self.upstreamBody(result)
     }
 
+    /// A Claude, Gemini or Antigravity login's plan, best effort: nil when
+    /// the lookup fails or the login has no plan to show. Codex plans come
+    /// with the login list. Each login is asked at most
+    /// every few hours (`CLIProxyPlanCache`). Callers run it next to the
+    /// usage request, so a slow answer never holds up the limits for long.
+    func plan(for account: Account, cache: CLIProxyPlanCache = .shared) async -> String? {
+        guard account.kind != .codex else { return nil }
+        let key = [config.identity, account.kind.rawValue, account.email.lowercased(), account.projectID ?? ""]
+            .joined(separator: "|")
+        return await cache.plan(for: key) { await lookUpPlan(account) }
+    }
+
+    /// Shorter than usage requests: a plan is nice to have.
+    static let planTimeout: TimeInterval = 8
+
+    private func lookUpPlan(_ account: Account) async -> String? {
+        do {
+            switch account.kind {
+            case .claude:
+                let result = try await apiCall(
+                    authIndex: account.authIndex,
+                    method: "GET",
+                    url: ClaudeProvider.profileURL.absoluteString,
+                    header: [
+                        "Accept": "application/json",
+                        "anthropic-beta": ClaudeProvider.betaHeader,
+                        "User-Agent": ClaudeProvider.userAgent,
+                    ],
+                    timeout: Self.planTimeout
+                )
+                return ClaudeProvider.plan(fromProfile: try Self.upstreamBody(result))
+            case .gemini:
+                let result = try await apiCall(
+                    authIndex: account.authIndex,
+                    method: "POST",
+                    url: GeminiProvider.loadCodeAssistURL.absoluteString,
+                    header: ["Content-Type": "application/json"],
+                    body: GeminiProvider.loadCodeAssistBody(project: account.projectID),
+                    timeout: Self.planTimeout
+                )
+                return GeminiProvider.tierInfo(from: try Self.upstreamBody(result)).planName
+            case .antigravity:
+                let result = try await apiCall(
+                    authIndex: account.authIndex,
+                    method: "POST",
+                    url: Self.antigravityCodeAssistURL,
+                    header: ["Content-Type": "application/json", "User-Agent": Self.antigravityUserAgent],
+                    body: Self.antigravityCodeAssistBody,
+                    timeout: Self.planTimeout
+                )
+                return GeminiProvider.tierInfo(from: try Self.upstreamBody(result)).planName
+            case .codex:
+                return nil
+            }
+        } catch {
+            return nil
+        }
+    }
+
     /// The provider's answer body for a 200, or the matching error.
     static func upstreamBody(_ result: APICallResponse) throws -> Data {
         switch result.statusCode {
@@ -322,7 +384,8 @@ struct CLIProxyClient: Sendable {
         method: String,
         url: String,
         header: [String: String],
-        body: String? = nil
+        body: String? = nil,
+        timeout: TimeInterval = 20
     ) async throws -> APICallResponse {
         var header = header
         header["Authorization"] = "Bearer $TOKEN$"
@@ -330,6 +393,7 @@ struct CLIProxyClient: Sendable {
         let data = try await managementRequest(
             path: "api-call",
             method: "POST",
+            timeout: timeout,
             body: try JSONEncoder().encode(call)
         )
         guard let result = try? JSONDecoder().decode(APICallResponse.self, from: data) else {
@@ -338,10 +402,15 @@ struct CLIProxyClient: Sendable {
         return result
     }
 
-    private func managementRequest(path: String, method: String, body: Data?) async throws -> Data {
+    private func managementRequest(
+        path: String,
+        method: String,
+        timeout: TimeInterval = 20,
+        body: Data?
+    ) async throws -> Data {
         var request = URLRequest(url: config.baseURL.appendingPathComponent("v0/management/\(path)"))
         request.httpMethod = method
-        request.timeoutInterval = 20
+        request.timeoutInterval = timeout
         request.setValue("Bearer \(config.managementKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {

@@ -303,8 +303,13 @@ struct PlanCapsule: View {
     let plan: String
 
     var body: some View {
+        // Plan names come from the providers (e.g. Google's "Google AI Pro"),
+        // so a long one stays on one line and shows in full on hover.
         Text(plan)
             .font(.callout.weight(.medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .help(plan)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(.quaternary, in: Capsule())
