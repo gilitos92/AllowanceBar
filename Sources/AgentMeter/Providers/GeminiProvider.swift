@@ -123,6 +123,9 @@ struct GeminiProvider: AccountConfigurableProvider {
         var planName: String?
     }
 
+    /// The `loadCodeAssist` body the Gemini CLI sends.
+    static let loadCodeAssistBody = #"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#
+
     /// Best-effort tier + project lookup. Never throws; quota fetch can proceed
     /// without a project id for managed free-tier accounts.
     static func loadTier(accessToken: String) async -> TierInfo {
@@ -131,11 +134,19 @@ struct GeminiProvider: AccountConfigurableProvider {
         request.timeoutInterval = 15
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data(#"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#.utf8)
+        request.httpBody = Data(loadCodeAssistBody.utf8)
 
         guard let (data, response) = try? await HTTP.session.data(for: request),
-              let http = response as? HTTPURLResponse, http.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+              let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            return TierInfo()
+        }
+        return tierInfo(from: data)
+    }
+
+    /// Project and plan from a `loadCodeAssist` answer. Also used for
+    /// CLIProxyAPI's Gemini logins.
+    static func tierInfo(from data: Data) -> TierInfo {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return TierInfo()
         }
 

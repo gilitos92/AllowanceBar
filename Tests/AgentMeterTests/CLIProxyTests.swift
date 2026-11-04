@@ -70,7 +70,11 @@ private final class MockCLIProxyServer {
             let url = call["url"] as? String ?? ""
             var status = upstreamStatus
             let upstream: String
-            if url.contains("api.anthropic.com") {
+            if url.contains("/api/oauth/profile") {
+                upstream = #"{"account":{"has_claude_pro":true,"has_claude_max":false},"organization":{"organization_type":"claude_pro"}}"#
+            } else if url.contains("loadCodeAssist") {
+                upstream = #"{"currentTier":{"id":"standard-tier"},"cloudaicompanionProject":"proj-gem"}"#
+            } else if url.contains("api.anthropic.com") {
                 upstream = #"{"five_hour":{"utilization":42.0}}"#
             } else if url.contains("wham/usage") {
                 upstream = """
@@ -190,7 +194,8 @@ final class CLIProxyTests: XCTestCase {
             session: session,
             keychainReader: { _ in nil },
             proxyConfig: { config },
-            proxyAccountCache: cache
+            proxyAccountCache: cache,
+            proxyPlanCache: CLIProxyPlanCache()
         )
     }
 
@@ -375,14 +380,17 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(lists.count, 1)
     }
 
-    func testPlanIsDroppedWhenTheProxyLoginIsAnotherAccount() async throws {
+    func testPlanComesFromTheProxyLoginWhenItIsAnotherAccount() async throws {
         var chosen = config
         chosen.claudeEmails = ["claude": "main@example.com"]
         let provider = try makeProvider(expiresAt: 1, email: "other@example.com", config: chosen)
 
         let usage = try await provider.fetch()
 
-        XCTAssertNil(usage.planName)
+        XCTAssertEqual(usage.planName, "Pro", "Not the local login's Max plan")
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
+        XCTAssertEqual(call["url"] as? String, ClaudeProvider.profileURL.absoluteString)
+        XCTAssertEqual(call["auth_index"] as? String, "idx-main")
     }
 
     func testConfigNeedsAManagementKey() {
@@ -402,6 +410,7 @@ final class CLIProxyTests: XCTestCase {
         provider.proxyConfig = { config }
         provider.accountCache = cache
         provider.usageCache = CLIProxyUsageCache()
+        provider.planCache = CLIProxyPlanCache()
         return provider
     }
 
@@ -526,9 +535,14 @@ final class CLIProxyTests: XCTestCase {
         let usage = try await provider.fetch()
 
         XCTAssertEqual(usage.windows.map(\.usedPercent), [25])
-        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
-        XCTAssertEqual(call["url"] as? String, GeminiProvider.quotaURL.absoluteString)
-        XCTAssertEqual(call["data"] as? String, #"{"project":"proj-gem"}"#)
+        XCTAssertEqual(usage.planName, "Paid")
+        let calls = MockCLIProxyURLProtocol.server.apiCalls()
+        XCTAssertEqual(calls.map { $0["url"] as? String }, [
+            GeminiProvider.quotaURL.absoluteString,
+            GeminiProvider.loadCodeAssistURL.absoluteString,
+        ])
+        XCTAssertEqual(calls.first?["data"] as? String, #"{"project":"proj-gem"}"#)
+        XCTAssertEqual(calls.last?["data"] as? String, GeminiProvider.loadCodeAssistBody)
     }
 
     func testRemovedOrTurnedOffLoginIsReported() async throws {
@@ -550,10 +564,71 @@ final class CLIProxyTests: XCTestCase {
 
         _ = try await provider.fetch()
         _ = try await provider.fetch()
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 1)
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2, "Usage and plan")
 
-        _ = try await provider.fetch(forceRefresh: true)
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2)
+        let usage = try await provider.fetch(forceRefresh: true)
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 3, "The plan is reused")
+        XCTAssertEqual(usage.planName, "Pro")
+    }
+
+    func testClaudeLoginReadsItsPlanFromItsProfile() async throws {
+        let usage = try await proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com")).fetch()
+
+        XCTAssertEqual(usage.planName, "Pro")
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
+        XCTAssertEqual(call["url"] as? String, ClaudeProvider.profileURL.absoluteString)
+        XCTAssertEqual(call["method"] as? String, "GET")
+        let header = try XCTUnwrap(call["header"] as? [String: String])
+        XCTAssertEqual(header["Authorization"], "Bearer $TOKEN$", "The token must stay on the proxy")
+        XCTAssertEqual(header["anthropic-beta"], ClaudeProvider.betaHeader)
+    }
+
+    func testFailedPlanLookupGivesNoPlan() async throws {
+        let cache = CLIProxyPlanCache()
+        let account = CLIProxyClient.Account(kind: .claude, authIndex: "idx-main", email: "main@example.com", disabled: false)
+        let client = CLIProxyClient(config: config, session: session)
+        MockCLIProxyURLProtocol.server.upstreamStatus = 500
+
+        let plan = await client.plan(for: account, cache: cache)
+
+        XCTAssertNil(plan)
+    }
+
+    func testClaudeProfilePlans() {
+        func plan(_ json: String) -> String? { ClaudeProvider.plan(fromProfile: Data(json.utf8)) }
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_pro"}}"#), "pro")
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_max"}}"#), "max")
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_team"}}"#), "team")
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_enterprise"}}"#), "enterprise")
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"something_new"},"account":{"has_claude_max":true}}"#), "max")
+        XCTAssertEqual(plan(#"{"account":{"has_claude_pro":true,"has_claude_max":false}}"#), "pro")
+        XCTAssertNil(plan(#"{"organization":{"organization_type":"api"},"account":{"has_claude_pro":false}}"#))
+        XCTAssertNil(plan("not json"))
+    }
+
+    func testPlanCacheKeepsAPlanForHoursAndRetriesFailuresSooner() async {
+        let cache = CLIProxyPlanCache()
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let calls = LookupCounter()
+
+        let first = await cache.plan(for: "k", now: start) { await calls.answer("pro") }
+        let reused = await cache.plan(for: "k", now: start.addingTimeInterval(3600)) { await calls.answer("max") }
+        XCTAssertEqual(first, "pro")
+        XCTAssertEqual(reused, "pro")
+        let lookups = await calls.count
+        XCTAssertEqual(lookups, 1)
+
+        let afterAge = start.addingTimeInterval(CLIProxyPlanCache.maxAge + 1)
+        let failed = await cache.plan(for: "k", now: afterAge) { await calls.answer(nil) }
+        XCTAssertEqual(failed, "pro", "A failed lookup keeps the last known plan")
+        let soon = await cache.plan(for: "k", now: afterAge.addingTimeInterval(60)) { await calls.answer("max") }
+        XCTAssertEqual(soon, "pro", "No new lookup before the retry time")
+        let retried = await cache.plan(for: "k", now: afterAge.addingTimeInterval(CLIProxyPlanCache.retryAfter + 1)) {
+            await calls.answer("max")
+        }
+        XCTAssertEqual(retried, "max")
+        let total = await calls.count
+        XCTAssertEqual(total, 3)
     }
 
     func testSignedOutCodexLoginIsReported() async throws {
@@ -714,5 +789,14 @@ private struct LocalAccountStub: UsageProvider {
     func fetch() async throws -> ProviderUsage {
         if delay > 0 { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
         return ProviderUsage(planName: nil, windows: [], asOf: Date(), accountEmail: email)
+    }
+}
+
+private actor LookupCounter {
+    private(set) var count = 0
+
+    func answer(_ plan: String?) -> String? {
+        count += 1
+        return plan
     }
 }

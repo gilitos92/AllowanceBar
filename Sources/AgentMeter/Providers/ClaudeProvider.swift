@@ -25,8 +25,11 @@ struct ClaudeProvider: AccountConfigurableProvider {
     }
     var proxyConfig: @Sendable () -> CLIProxyConfig? = { CLIProxyConfig.current() }
     var proxyAccountCache: CLIProxyAccountCache = .shared
+    var proxyPlanCache: CLIProxyPlanCache = .shared
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
+    /// The account profile Claude Code reads; it names the login's plan.
+    static let profileURL = URL(string: "https://api.anthropic.com/api/oauth/profile")!
     static let betaHeader = "oauth-2025-04-20"
     static let userAgent = "claude-code/2.1.0"
 
@@ -55,27 +58,49 @@ struct ClaudeProvider: AccountConfigurableProvider {
             localError = error
         }
         guard let config = proxyConfig() else { throw localError }
-        let (response, proxyEmail) = try await fetchThroughProxy(config)
-        // The local plan describes the proxy login only if it is the same account.
+        let client = CLIProxyClient(config: config, session: session)
+        let (response, account) = try await fetchThroughProxy(client)
+        // The local plan describes the proxy login only if it is the same
+        // account. Otherwise ask the proxy login's own profile.
         let localEmail = Self.accountEmail(atPath: accountInfoPath)
-        let samePlan = localEmail.map { $0.caseInsensitiveCompare(proxyEmail) == .orderedSame } ?? false
-        var usage = Self.usage(from: response, plan: samePlan ? plan : nil, now: Date())
-        usage.accountEmail = proxyEmail
+        let samePlan = localEmail.map { $0.caseInsensitiveCompare(account.email) == .orderedSame } ?? false
+        var proxyPlan = samePlan ? plan : nil
+        if proxyPlan == nil {
+            proxyPlan = await client.plan(for: account, cache: proxyPlanCache)
+        }
+        var usage = Self.usage(from: response, plan: proxyPlan, now: Date())
+        usage.accountEmail = account.email
         return usage
     }
 
     // MARK: - CLIProxyAPI
 
-    /// Usage of the matching proxy login, and that login's email.
-    func fetchThroughProxy(_ config: CLIProxyConfig) async throws -> (UsageResponse, String) {
-        let client = CLIProxyClient(config: config, session: session)
+    /// Usage of the matching proxy login, and that login.
+    func fetchThroughProxy(_ client: CLIProxyClient) async throws -> (UsageResponse, CLIProxyClient.Account) {
+        let config = client.config
         let accounts = try await client.claudeAccounts(cache: proxyAccountCache)
         let email = config.claudeEmails[id] ?? Self.accountEmail(atPath: accountInfoPath)
         guard let account = Self.proxyAccount(in: accounts, email: email, isDefaultAccount: id == "claude") else {
             throw CLIProxyError.loginNotFound
         }
         guard !account.disabled else { throw CLIProxyError.loginDisabled }
-        return (try await client.claudeUsage(authIndex: account.authIndex), account.email)
+        return (try await client.claudeUsage(authIndex: account.authIndex), account)
+    }
+
+    /// The plan in an account profile, in the words Claude Code saves for a
+    /// local login ("pro", "max", "team", "enterprise"), so both read alike.
+    /// Nil for anything else.
+    static func plan(fromProfile data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        let known = ["pro", "max", "team", "enterprise"]
+        if let type = (json["organization"] as? [String: Any])?["organization_type"] as? String {
+            let plan = type.lowercased().replacingOccurrences(of: "claude_", with: "")
+            if known.contains(plan) { return plan }
+        }
+        let account = json["account"] as? [String: Any]
+        if account?["has_claude_max"] as? Bool == true { return "max" }
+        if account?["has_claude_pro"] as? Bool == true { return "pro" }
+        return nil
     }
 
     /// Matches by email, ignoring case. Without an email, only the default

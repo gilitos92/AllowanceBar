@@ -155,7 +155,13 @@ announcement drafts, environment specifics) and complements this file.
   secondary_window{used_percent, limit_window_seconds, reset_at s}`);
   Antigravity `POST .../v1internal:retrieveUserQuotaSummary` `{"project"}`
   on three hosts in turn (`groups[].buckets[]{window 5h/weekly,
-  remainingFraction, resetTime}`); Gemini `retrieveUserQuota`. Formats copied
+  remainingFraction, resetTime}`); Gemini `retrieveUserQuota`. Plans
+  (v2.9.1, `CLIProxyClient.plan(for:)`, best effort, `CLIProxyPlanCache`:
+  6 h, failures retried after 15 min, last plan kept): Claude `GET
+  api.anthropic.com/api/oauth/profile` (`organization.organization_type`
+  `claude_pro`/`claude_max`/…, else `account.has_claude_max/pro`; mapped to
+  Claude Code's `subscriptionType` words), Gemini `loadCodeAssist`
+  (`currentTier.id`); Codex from the login list; Antigravity none. Formats copied
   from CLIProxyAPI's Management Center (`src/features/quota/providers`).
   Never download auth files (they hold tokens). `CLIProxyUsageCache` reuses
   a row's answer for 2 min unless forced. Dedupe: a proxy row on Auto hides

@@ -7,6 +7,15 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Fixed
+- Claude and Gemini logins from CLIProxyAPI now show their plan, so a
+  provider's accounts can share one plan in their header. Claude's plan
+  comes from the login's account profile and Gemini's from its tier, both
+  asked through the proxy, so no token reaches Allowance Bar. Each login is
+  asked at most every 6 hours; a failed request keeps the last known plan
+  and tries again after 15 minutes. An account on this Mac that reads
+  through the proxy uses its proxy login's plan when the emails differ.
+
 ## [2.9.0] — 2026-11-04
 
 ### Changed

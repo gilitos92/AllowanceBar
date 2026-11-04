@@ -90,6 +90,7 @@ struct CLIProxyAccountProvider: UsageProvider {
     var proxyConfig: @Sendable () -> CLIProxyConfig? = { CLIProxyConfig.current() }
     var accountCache: CLIProxyAccountCache = .shared
     var usageCache: CLIProxyUsageCache = .shared
+    var planCache: CLIProxyPlanCache = .shared
 
     init(login: CLIProxyLoginKey) {
         self.login = login
@@ -136,17 +137,23 @@ struct CLIProxyAccountProvider: UsageProvider {
         guard let account = matches.first(where: { !$0.disabled }) else {
             throw CLIProxyError.loginRemoved
         }
-        let usage = try await Self.usage(for: account, client: client, now: Date())
+        let usage = try await Self.usage(for: account, client: client, planCache: planCache, now: Date())
         await usageCache.store(usage, for: cacheKey)
         return usage
     }
 
-    static func usage(for account: CLIProxyClient.Account, client: CLIProxyClient, now: Date) async throws -> ProviderUsage {
+    static func usage(
+        for account: CLIProxyClient.Account,
+        client: CLIProxyClient,
+        planCache: CLIProxyPlanCache = .shared,
+        now: Date
+    ) async throws -> ProviderUsage {
         var usage: ProviderUsage
         switch account.kind {
         case .claude:
             let response = try await client.claudeUsage(authIndex: account.authIndex)
-            usage = ClaudeProvider.usage(from: response, plan: nil, now: now)
+            let plan = await client.plan(for: account, cache: planCache)
+            usage = ClaudeProvider.usage(from: response, plan: plan, now: now)
         case .codex:
             let data = try await client.codexUsage(account)
             usage = try codexUsage(from: data, fallbackPlan: account.planType, now: now)
@@ -158,7 +165,8 @@ struct CLIProxyAccountProvider: UsageProvider {
             guard let response = try? JSONDecoder().decode(GeminiProvider.QuotaResponse.self, from: data) else {
                 throw CLIProxyError.badResponse
             }
-            usage = GeminiProvider.usage(from: response, plan: nil, now: now)
+            let plan = await client.plan(for: account, cache: planCache)
+            usage = GeminiProvider.usage(from: response, plan: plan, now: now)
         }
         usage.accountEmail = account.email
         return usage
@@ -304,6 +312,33 @@ struct CLIProxyAccountProvider: UsageProvider {
 /// Keeps each proxy row's last answer for a short while, so a 30-second
 /// refresh interval doesn't send every login's usage request to its provider
 /// twice a minute. An explicit refresh skips it.
+/// Remembers each proxy login's plan for hours: plans rarely change, and
+/// each lookup is one more request through the proxy. A failed lookup keeps
+/// the last known plan and is tried again sooner.
+actor CLIProxyPlanCache {
+    static let shared = CLIProxyPlanCache()
+    static let maxAge: TimeInterval = 6 * 3600
+    static let retryAfter: TimeInterval = 15 * 60
+
+    private struct Entry {
+        let plan: String?
+        let nextCheck: Date
+    }
+
+    private var entries: [String: Entry] = [:]
+
+    func plan(for key: String, now: Date = Date(), lookup: @Sendable () async -> String?) async -> String? {
+        if let entry = entries[key], now < entry.nextCheck { return entry.plan }
+        let fresh = await lookup()
+        let plan = fresh ?? entries[key]?.plan
+        // A cancelled refresh says nothing about the login.
+        guard !Task.isCancelled else { return plan }
+        let wait = fresh == nil ? Self.retryAfter : Self.maxAge
+        entries[key] = Entry(plan: plan, nextCheck: now.addingTimeInterval(wait))
+        return plan
+    }
+}
+
 actor CLIProxyUsageCache {
     static let shared = CLIProxyUsageCache()
     static let maxAge: TimeInterval = 120

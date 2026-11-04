@@ -304,6 +304,49 @@ struct CLIProxyClient: Sendable {
         return try Self.upstreamBody(result)
     }
 
+    /// A Claude or Gemini login's plan, best effort: nil when the lookup
+    /// fails or the login has no plan to show. Codex plans come with the
+    /// login list and Antigravity reports none. Each login is asked at most
+    /// every few hours (`CLIProxyPlanCache`).
+    func plan(for account: Account, cache: CLIProxyPlanCache = .shared) async -> String? {
+        guard account.kind == .claude || account.kind == .gemini else { return nil }
+        let key = [config.identity, account.kind.rawValue, account.email.lowercased(), account.projectID ?? ""]
+            .joined(separator: "|")
+        return await cache.plan(for: key) { await lookUpPlan(account) }
+    }
+
+    private func lookUpPlan(_ account: Account) async -> String? {
+        do {
+            switch account.kind {
+            case .claude:
+                let result = try await apiCall(
+                    authIndex: account.authIndex,
+                    method: "GET",
+                    url: ClaudeProvider.profileURL.absoluteString,
+                    header: [
+                        "Accept": "application/json",
+                        "anthropic-beta": ClaudeProvider.betaHeader,
+                        "User-Agent": ClaudeProvider.userAgent,
+                    ]
+                )
+                return ClaudeProvider.plan(fromProfile: try Self.upstreamBody(result))
+            case .gemini:
+                let result = try await apiCall(
+                    authIndex: account.authIndex,
+                    method: "POST",
+                    url: GeminiProvider.loadCodeAssistURL.absoluteString,
+                    header: ["Content-Type": "application/json"],
+                    body: GeminiProvider.loadCodeAssistBody
+                )
+                return GeminiProvider.tierInfo(from: try Self.upstreamBody(result)).planName
+            case .codex, .antigravity:
+                return nil
+            }
+        } catch {
+            return nil
+        }
+    }
+
     /// The provider's answer body for a 200, or the matching error.
     static func upstreamBody(_ result: APICallResponse) throws -> Data {
         switch result.statusCode {
