@@ -656,6 +656,17 @@ final class CLIProxyTests: XCTestCase {
             "pro"
         )
         XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_enterprise"}}"#), "enterprise")
+        XCTAssertEqual(
+            plan(#"{"account":{"has_claude_max":false,"has_claude_pro":false},"organization":{"organization_type":"claude_enterprise"}}"#),
+            "enterprise",
+            "The flags don't cover Enterprise"
+        )
+        XCTAssertEqual(
+            plan(#"{"account":{"has_claude_max":false,"has_claude_pro":false},"organization":{"organization_type":"claude_pro","subscription_status":"canceled"}}"#),
+            "free",
+            "A canceled Pro is Free"
+        )
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_max"}}"#), "max", "Without flags the type decides")
         XCTAssertEqual(plan(#"{"organization":{"organization_type":"something_new"},"account":{"has_claude_max":true}}"#), "max")
         XCTAssertEqual(plan(#"{"organization":{"organization_type":"api"},"account":{"has_claude_pro":false,"has_claude_max":false}}"#), "free")
         XCTAssertNil(plan(#"{"organization":{"organization_type":"api"}}"#))
