@@ -9,6 +9,8 @@ private final class MockCLIProxyServer {
     var authFilesStatus = 200
     var authFilesBody = #"{"error":"remote management disabled"}"#
     var upstreamStatus = 200
+    /// Overrides `upstreamStatus` for plan lookups only.
+    var planStatus: Int?
 
     func reset() {
         lock.lock()
@@ -17,6 +19,7 @@ private final class MockCLIProxyServer {
         apiCallBodies = []
         authFilesStatus = 200
         upstreamStatus = 200
+        planStatus = nil
     }
 
     func requestLog() -> [String] {
@@ -35,6 +38,12 @@ private final class MockCLIProxyServer {
         lock.lock()
         defer { lock.unlock() }
         return apiCallBodies
+    }
+
+    /// The api-call to an address containing `url`. Plan and usage
+    /// requests run side by side, so their order is not fixed.
+    func apiCall(to url: String) -> [String: Any]? {
+        apiCalls().first { ($0["url"] as? String)?.contains(url) == true }
     }
 
     func respond(to request: URLRequest) -> (Int, Data) {
@@ -71,8 +80,10 @@ private final class MockCLIProxyServer {
             var status = upstreamStatus
             let upstream: String
             if url.contains("/api/oauth/profile") {
+                status = planStatus ?? status
                 upstream = #"{"account":{"has_claude_pro":true,"has_claude_max":false},"organization":{"organization_type":"claude_pro"}}"#
             } else if url.contains("loadCodeAssist") {
+                status = planStatus ?? status
                 upstream = #"{"currentTier":{"id":"standard-tier"},"cloudaicompanionProject":"proj-gem"}"#
             } else if url.contains("api.anthropic.com") {
                 upstream = #"{"five_hour":{"utilization":42.0}}"#
@@ -388,8 +399,7 @@ final class CLIProxyTests: XCTestCase {
         let usage = try await provider.fetch()
 
         XCTAssertEqual(usage.planName, "Pro", "Not the local login's Max plan")
-        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
-        XCTAssertEqual(call["url"] as? String, ClaudeProvider.profileURL.absoluteString)
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: ClaudeProvider.profileURL.absoluteString))
         XCTAssertEqual(call["auth_index"] as? String, "idx-main")
     }
 
@@ -536,13 +546,15 @@ final class CLIProxyTests: XCTestCase {
 
         XCTAssertEqual(usage.windows.map(\.usedPercent), [25])
         XCTAssertEqual(usage.planName, "Paid")
-        let calls = MockCLIProxyURLProtocol.server.apiCalls()
-        XCTAssertEqual(calls.map { $0["url"] as? String }, [
-            GeminiProvider.quotaURL.absoluteString,
-            GeminiProvider.loadCodeAssistURL.absoluteString,
-        ])
-        XCTAssertEqual(calls.first?["data"] as? String, #"{"project":"proj-gem"}"#)
-        XCTAssertEqual(calls.last?["data"] as? String, GeminiProvider.loadCodeAssistBody)
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2)
+        let quota = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: GeminiProvider.quotaURL.absoluteString))
+        XCTAssertEqual(quota["data"] as? String, #"{"project":"proj-gem"}"#)
+        let tier = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: GeminiProvider.loadCodeAssistURL.absoluteString))
+        let body = try XCTUnwrap((tier["data"] as? String).flatMap {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]
+        })
+        XCTAssertEqual(body["cloudaicompanionProject"] as? String, "proj-gem", "The tier of this login's project")
+        XCTAssertEqual((body["metadata"] as? [String: String])?["duetProject"], "proj-gem")
     }
 
     func testRemovedOrTurnedOffLoginIsReported() async throws {
@@ -575,23 +587,44 @@ final class CLIProxyTests: XCTestCase {
         let usage = try await proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com")).fetch()
 
         XCTAssertEqual(usage.planName, "Pro")
-        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
-        XCTAssertEqual(call["url"] as? String, ClaudeProvider.profileURL.absoluteString)
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: ClaudeProvider.profileURL.absoluteString))
         XCTAssertEqual(call["method"] as? String, "GET")
         let header = try XCTUnwrap(call["header"] as? [String: String])
         XCTAssertEqual(header["Authorization"], "Bearer $TOKEN$", "The token must stay on the proxy")
         XCTAssertEqual(header["anthropic-beta"], ClaudeProvider.betaHeader)
     }
 
-    func testFailedPlanLookupGivesNoPlan() async throws {
-        let cache = CLIProxyPlanCache()
-        let account = CLIProxyClient.Account(kind: .claude, authIndex: "idx-main", email: "main@example.com", disabled: false)
-        let client = CLIProxyClient(config: config, session: session)
-        MockCLIProxyURLProtocol.server.upstreamStatus = 500
+    func testFailedPlanLookupStillShowsUsage() async throws {
+        MockCLIProxyURLProtocol.server.planStatus = 500
 
-        let plan = await client.plan(for: account, cache: cache)
+        for login in [
+            CLIProxyLoginKey(kind: .claude, email: "main@example.com"),
+            CLIProxyLoginKey(kind: .gemini, email: "gem@example.com", projectID: "proj-gem"),
+        ] {
+            let usage = try await proxyRow(login).fetch()
+            XCTAssertFalse(usage.windows.isEmpty, "\(login.kind) usage must not depend on the plan")
+            XCTAssertNil(usage.planName)
+        }
 
-        XCTAssertNil(plan)
+        var chosen = config
+        chosen.claudeEmails = ["claude": "main@example.com"]
+        let local = try makeProvider(expiresAt: 1, email: "other@example.com", config: chosen)
+        let usage = try await local.fetch()
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [42])
+        XCTAssertNil(usage.planName)
+    }
+
+    func testGeminiTierBodyNamesTheProjectOnlyWhenThereIsOne() throws {
+        XCTAssertEqual(
+            GeminiProvider.loadCodeAssistBody(project: nil),
+            #"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#,
+            "Local accounts keep the Gemini CLI's body"
+        )
+        let body = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(GeminiProvider.loadCodeAssistBody(project: "p").utf8)) as? [String: Any]
+        )
+        XCTAssertEqual(body["cloudaicompanionProject"] as? String, "p")
+        XCTAssertEqual(body["metadata"] as? [String: String], ["ideType": "GEMINI_CLI", "pluginType": "GEMINI", "duetProject": "p"])
     }
 
     func testClaudeProfilePlans() {

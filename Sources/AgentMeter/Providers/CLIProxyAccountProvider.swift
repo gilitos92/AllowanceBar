@@ -151,9 +151,9 @@ struct CLIProxyAccountProvider: UsageProvider {
         var usage: ProviderUsage
         switch account.kind {
         case .claude:
+            async let plan = client.plan(for: account, cache: planCache)
             let response = try await client.claudeUsage(authIndex: account.authIndex)
-            let plan = await client.plan(for: account, cache: planCache)
-            usage = ClaudeProvider.usage(from: response, plan: plan, now: now)
+            usage = ClaudeProvider.usage(from: response, plan: await plan, now: now)
         case .codex:
             let data = try await client.codexUsage(account)
             usage = try codexUsage(from: data, fallbackPlan: account.planType, now: now)
@@ -161,12 +161,12 @@ struct CLIProxyAccountProvider: UsageProvider {
             let data = try await client.antigravityUsage(account)
             usage = try antigravityUsage(from: data, now: now)
         case .gemini:
+            async let plan = client.plan(for: account, cache: planCache)
             let data = try await client.geminiUsage(account)
             guard let response = try? JSONDecoder().decode(GeminiProvider.QuotaResponse.self, from: data) else {
                 throw CLIProxyError.badResponse
             }
-            let plan = await client.plan(for: account, cache: planCache)
-            usage = GeminiProvider.usage(from: response, plan: plan, now: now)
+            usage = GeminiProvider.usage(from: response, plan: await plan, now: now)
         }
         usage.accountEmail = account.email
         return usage

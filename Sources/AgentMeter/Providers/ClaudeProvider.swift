@@ -59,24 +59,25 @@ struct ClaudeProvider: AccountConfigurableProvider {
         }
         guard let config = proxyConfig() else { throw localError }
         let client = CLIProxyClient(config: config, session: session)
-        let (response, account) = try await fetchThroughProxy(client)
+        let account = try await proxyLogin(client)
         // The local plan describes the proxy login only if it is the same
-        // account. Otherwise ask the proxy login's own profile.
+        // account. Otherwise ask the proxy login's own profile, next to its usage.
         let localEmail = Self.accountEmail(atPath: accountInfoPath)
         let samePlan = localEmail.map { $0.caseInsensitiveCompare(account.email) == .orderedSame } ?? false
-        var proxyPlan = samePlan ? plan : nil
-        if proxyPlan == nil {
-            proxyPlan = await client.plan(for: account, cache: proxyPlanCache)
-        }
-        var usage = Self.usage(from: response, plan: proxyPlan, now: Date())
+        let localPlan = samePlan ? plan : nil
+        let planCache = proxyPlanCache
+        async let lookedUp: String? = localPlan == nil ? client.plan(for: account, cache: planCache) : nil
+        let response = try await client.claudeUsage(authIndex: account.authIndex)
+        let proxyPlan = await lookedUp
+        var usage = Self.usage(from: response, plan: localPlan ?? proxyPlan, now: Date())
         usage.accountEmail = account.email
         return usage
     }
 
     // MARK: - CLIProxyAPI
 
-    /// Usage of the matching proxy login, and that login.
-    func fetchThroughProxy(_ client: CLIProxyClient) async throws -> (UsageResponse, CLIProxyClient.Account) {
+    /// The proxy login that matches this account.
+    func proxyLogin(_ client: CLIProxyClient) async throws -> CLIProxyClient.Account {
         let config = client.config
         let accounts = try await client.claudeAccounts(cache: proxyAccountCache)
         let email = config.claudeEmails[id] ?? Self.accountEmail(atPath: accountInfoPath)
@@ -84,7 +85,7 @@ struct ClaudeProvider: AccountConfigurableProvider {
             throw CLIProxyError.loginNotFound
         }
         guard !account.disabled else { throw CLIProxyError.loginDisabled }
-        return (try await client.claudeUsage(authIndex: account.authIndex), account)
+        return account
     }
 
     /// The plan in an account profile, in the words Claude Code saves for a

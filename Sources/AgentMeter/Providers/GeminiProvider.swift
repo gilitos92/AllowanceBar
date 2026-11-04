@@ -123,8 +123,19 @@ struct GeminiProvider: AccountConfigurableProvider {
         var planName: String?
     }
 
-    /// The `loadCodeAssist` body the Gemini CLI sends.
-    static let loadCodeAssistBody = #"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#
+    /// The `loadCodeAssist` body the Gemini CLI sends. With a project, the
+    /// tier is that project's, as the Gemini CLI asks for a chosen project.
+    static func loadCodeAssistBody(project: String?) -> String {
+        guard let project, !project.isEmpty else {
+            return #"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#
+        }
+        let body: [String: Any] = [
+            "cloudaicompanionProject": project,
+            "metadata": ["ideType": "GEMINI_CLI", "pluginType": "GEMINI", "duetProject": project],
+        ]
+        let data = (try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])) ?? Data()
+        return String(decoding: data, as: UTF8.self)
+    }
 
     /// Best-effort tier + project lookup. Never throws; quota fetch can proceed
     /// without a project id for managed free-tier accounts.
@@ -134,7 +145,7 @@ struct GeminiProvider: AccountConfigurableProvider {
         request.timeoutInterval = 15
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Data(loadCodeAssistBody.utf8)
+        request.httpBody = Data(loadCodeAssistBody(project: nil).utf8)
 
         guard let (data, response) = try? await HTTP.session.data(for: request),
               let http = response as? HTTPURLResponse, http.statusCode == 200 else {
