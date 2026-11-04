@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.9.1] — 2026-11-04
+
 ### Fixed
 - Claude, Gemini and Antigravity logins from CLIProxyAPI now show their
   plan, so a provider's accounts can share one plan in their header.
