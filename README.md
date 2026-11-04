@@ -340,7 +340,6 @@ Full schema, skill, and security model in
 - `Sources/AgentMeter/Updater.swift` — Sparkle auto-updates.
 - `docs/` — [agent interface](docs/AGENT_INTERFACE.md), [Codex accounts guide](docs/CODEX_ACCOUNTS.md), [agent skill](docs/agent-skill/SKILL.md), [releasing](docs/RELEASING.md).
 - `scripts/bundle.sh` / `scripts/release.sh` — bundling and signed release with a Sparkle appcast.
-- `.github/workflows/` — CI (build + tests); releases are built locally.
 
 Source folders and Swift modules keep the original `AgentMeter` names so
 upstream changes stay easy to merge.
