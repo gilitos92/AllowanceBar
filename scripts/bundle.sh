@@ -5,7 +5,7 @@
 #   scripts/bundle.sh [--install]
 #     --install   also copy the app to /Applications
 #
-# Optional environment for signing (used by scripts/release.sh and CI):
+# Optional environment for signing (used by scripts/release.sh):
 #   SIGN_IDENTITY   code-signing identity; defaults to ad-hoc "-". Every build
 #                   gets the hardened runtime. A Developer ID identity also gets
 #                   the timestamp needed for notarization; any other identity
