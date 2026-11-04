@@ -5,7 +5,7 @@
 #   scripts/bundle.sh [--install]
 #     --install   also copy the app to /Applications
 #
-# Optional environment for signing (used by scripts/release.sh and CI):
+# Optional environment for signing (used by scripts/release.sh):
 #   SIGN_IDENTITY   code-signing identity; defaults to ad-hoc "-". Every build
 #                   gets the hardened runtime. A Developer ID identity also gets
 #                   the timestamp needed for notarization; any other identity
@@ -20,7 +20,7 @@ APP_NAME="Allowance Bar"
 EXECUTABLE="AllowanceBar"
 BUNDLE_ID="com.ggv.AllowanceBar"
 CLI_NAME="allowancebar"
-VERSION="${ALLOWANCEBAR_VERSION:-2.9.0}"
+VERSION="${ALLOWANCEBAR_VERSION:-2.9.1}"
 SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 
 # Compile Spanish strings from the catalog; en.lproj is checked in separately.

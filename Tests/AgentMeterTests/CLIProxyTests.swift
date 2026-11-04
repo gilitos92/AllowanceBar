@@ -9,6 +9,8 @@ private final class MockCLIProxyServer {
     var authFilesStatus = 200
     var authFilesBody = #"{"error":"remote management disabled"}"#
     var upstreamStatus = 200
+    /// Overrides `upstreamStatus` for plan lookups only.
+    var planStatus: Int?
 
     func reset() {
         lock.lock()
@@ -17,6 +19,7 @@ private final class MockCLIProxyServer {
         apiCallBodies = []
         authFilesStatus = 200
         upstreamStatus = 200
+        planStatus = nil
     }
 
     func requestLog() -> [String] {
@@ -35,6 +38,12 @@ private final class MockCLIProxyServer {
         lock.lock()
         defer { lock.unlock() }
         return apiCallBodies
+    }
+
+    /// The api-call to an address containing `url`. Plan and usage
+    /// requests run side by side, so their order is not fixed.
+    func apiCall(to url: String) -> [String: Any]? {
+        apiCalls().first { ($0["url"] as? String)?.contains(url) == true }
     }
 
     func respond(to request: URLRequest) -> (Int, Data) {
@@ -70,7 +79,17 @@ private final class MockCLIProxyServer {
             let url = call["url"] as? String ?? ""
             var status = upstreamStatus
             let upstream: String
-            if url.contains("api.anthropic.com") {
+            if url.contains("/api/oauth/profile") {
+                status = planStatus ?? status
+                upstream = #"{"account":{"has_claude_pro":true,"has_claude_max":false},"organization":{"organization_type":"claude_pro"}}"#
+            } else if url.contains("daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist") {
+                // Antigravity: the subscription is the paid tier; the current tier still says free.
+                status = planStatus ?? status
+                upstream = #"{"currentTier":{"id":"free-tier","name":"Free"},"paidTier":{"id":"g1-pro-tier","name":"Google AI Pro"}}"#
+            } else if url.contains("loadCodeAssist") {
+                status = planStatus ?? status
+                upstream = #"{"currentTier":{"id":"standard-tier"},"cloudaicompanionProject":"proj-gem"}"#
+            } else if url.contains("api.anthropic.com") {
                 upstream = #"{"five_hour":{"utilization":42.0}}"#
             } else if url.contains("wham/usage") {
                 upstream = """
@@ -190,7 +209,8 @@ final class CLIProxyTests: XCTestCase {
             session: session,
             keychainReader: { _ in nil },
             proxyConfig: { config },
-            proxyAccountCache: cache
+            proxyAccountCache: cache,
+            proxyPlanCache: CLIProxyPlanCache()
         )
     }
 
@@ -375,14 +395,16 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(lists.count, 1)
     }
 
-    func testPlanIsDroppedWhenTheProxyLoginIsAnotherAccount() async throws {
+    func testPlanComesFromTheProxyLoginWhenItIsAnotherAccount() async throws {
         var chosen = config
         chosen.claudeEmails = ["claude": "main@example.com"]
         let provider = try makeProvider(expiresAt: 1, email: "other@example.com", config: chosen)
 
         let usage = try await provider.fetch()
 
-        XCTAssertNil(usage.planName)
+        XCTAssertEqual(usage.planName, "Pro", "Not the local login's Max plan")
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: ClaudeProvider.profileURL.absoluteString))
+        XCTAssertEqual(call["auth_index"] as? String, "idx-main")
     }
 
     func testConfigNeedsAManagementKey() {
@@ -402,6 +424,7 @@ final class CLIProxyTests: XCTestCase {
         provider.proxyConfig = { config }
         provider.accountCache = cache
         provider.usageCache = CLIProxyUsageCache()
+        provider.planCache = CLIProxyPlanCache()
         return provider
     }
 
@@ -513,7 +536,13 @@ final class CLIProxyTests: XCTestCase {
         ])
         XCTAssertEqual(usage.windows.map(\.usedPercent).map { $0.rounded() }, [10, 50, 75])
         XCTAssertEqual(usage.windows.first?.duration, 5 * 3600)
-        let calls = MockCLIProxyURLProtocol.server.apiCalls()
+        XCTAssertEqual(usage.planName, "Google AI Pro", "The paid tier's own name")
+        let tier = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: CLIProxyClient.antigravityCodeAssistURL))
+        XCTAssertEqual(tier["data"] as? String, CLIProxyClient.antigravityCodeAssistBody)
+        XCTAssertEqual((tier["header"] as? [String: String])?["User-Agent"], CLIProxyClient.antigravityUserAgent)
+        let calls = MockCLIProxyURLProtocol.server.apiCalls().filter {
+            ($0["url"] as? String)?.contains("retrieveUserQuotaSummary") == true
+        }
         XCTAssertEqual(calls.count, 2, "The second host answers")
         XCTAssertEqual(calls.last?["auth_index"] as? String, "7")
         let data = try XCTUnwrap(calls.last?["data"] as? String)
@@ -526,9 +555,16 @@ final class CLIProxyTests: XCTestCase {
         let usage = try await provider.fetch()
 
         XCTAssertEqual(usage.windows.map(\.usedPercent), [25])
-        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
-        XCTAssertEqual(call["url"] as? String, GeminiProvider.quotaURL.absoluteString)
-        XCTAssertEqual(call["data"] as? String, #"{"project":"proj-gem"}"#)
+        XCTAssertEqual(usage.planName, "Paid")
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2)
+        let quota = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: GeminiProvider.quotaURL.absoluteString))
+        XCTAssertEqual(quota["data"] as? String, #"{"project":"proj-gem"}"#)
+        let tier = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: GeminiProvider.loadCodeAssistURL.absoluteString))
+        let body = try XCTUnwrap((tier["data"] as? String).flatMap {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]
+        })
+        XCTAssertEqual(body["cloudaicompanionProject"] as? String, "proj-gem", "The tier of this login's project")
+        XCTAssertEqual((body["metadata"] as? [String: String])?["duetProject"], "proj-gem")
     }
 
     func testRemovedOrTurnedOffLoginIsReported() async throws {
@@ -550,10 +586,149 @@ final class CLIProxyTests: XCTestCase {
 
         _ = try await provider.fetch()
         _ = try await provider.fetch()
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 1)
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2, "Usage and plan")
 
-        _ = try await provider.fetch(forceRefresh: true)
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2)
+        let usage = try await provider.fetch(forceRefresh: true)
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 3, "The plan is reused")
+        XCTAssertEqual(usage.planName, "Pro")
+    }
+
+    func testClaudeLoginReadsItsPlanFromItsProfile() async throws {
+        let usage = try await proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com")).fetch()
+
+        XCTAssertEqual(usage.planName, "Pro")
+        let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.apiCall(to: ClaudeProvider.profileURL.absoluteString))
+        XCTAssertEqual(call["method"] as? String, "GET")
+        let header = try XCTUnwrap(call["header"] as? [String: String])
+        XCTAssertEqual(header["Authorization"], "Bearer $TOKEN$", "The token must stay on the proxy")
+        XCTAssertEqual(header["anthropic-beta"], ClaudeProvider.betaHeader)
+    }
+
+    func testFailedPlanLookupStillShowsUsage() async throws {
+        MockCLIProxyURLProtocol.server.planStatus = 500
+
+        for login in [
+            CLIProxyLoginKey(kind: .claude, email: "main@example.com"),
+            CLIProxyLoginKey(kind: .gemini, email: "gem@example.com", projectID: "proj-gem"),
+            CLIProxyLoginKey(kind: .antigravity, email: "ag@example.com"),
+        ] {
+            let usage = try await proxyRow(login).fetch()
+            XCTAssertFalse(usage.windows.isEmpty, "\(login.kind) usage must not depend on the plan")
+            XCTAssertNil(usage.planName)
+        }
+
+        var chosen = config
+        chosen.claudeEmails = ["claude": "main@example.com"]
+        let local = try makeProvider(expiresAt: 1, email: "other@example.com", config: chosen)
+        let usage = try await local.fetch()
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [42])
+        XCTAssertNil(usage.planName)
+    }
+
+    func testGeminiTierBodyNamesTheProjectOnlyWhenThereIsOne() throws {
+        XCTAssertEqual(
+            GeminiProvider.loadCodeAssistBody(project: nil),
+            #"{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"#,
+            "Local accounts keep the Gemini CLI's body"
+        )
+        let body = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(GeminiProvider.loadCodeAssistBody(project: "p").utf8)) as? [String: Any]
+        )
+        XCTAssertEqual(body["cloudaicompanionProject"] as? String, "p")
+        XCTAssertEqual(body["metadata"] as? [String: String], ["ideType": "GEMINI_CLI", "pluginType": "GEMINI", "duetProject": "p"])
+    }
+
+    func testClaudeProfilePlans() {
+        func plan(_ json: String) -> String? { ClaudeProvider.plan(fromProfile: Data(json.utf8)) }
+        // The real Pro profile seen through CLIProxyAPI, minus personal fields.
+        XCTAssertEqual(plan(#"""
+        {"account":{"has_claude_max":false,"has_claude_pro":true},
+         "organization":{"organization_type":"claude_pro","rate_limit_tier":"default_claude_ai","subscription_status":"active"}}
+        """#), "pro")
+        XCTAssertEqual(plan(#"{"account":{"has_claude_max":true,"has_claude_pro":false},"organization":{"organization_type":"claude_max"}}"#), "max")
+        XCTAssertEqual(
+            plan(#"{"account":{"has_claude_max":true},"organization":{"organization_type":"claude_team","subscription_status":"active"}}"#),
+            "team",
+            "An active Team organization wins over a personal plan"
+        )
+        XCTAssertEqual(
+            plan(#"{"account":{"has_claude_pro":true},"organization":{"organization_type":"claude_team","subscription_status":"canceled"}}"#),
+            "pro"
+        )
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_enterprise"}}"#), "enterprise")
+        XCTAssertEqual(
+            plan(#"{"account":{"has_claude_max":false,"has_claude_pro":false},"organization":{"organization_type":"claude_enterprise"}}"#),
+            "enterprise",
+            "The flags don't cover Enterprise"
+        )
+        XCTAssertEqual(
+            plan(#"{"account":{"has_claude_max":false,"has_claude_pro":false},"organization":{"organization_type":"claude_pro","subscription_status":"canceled"}}"#),
+            "free",
+            "A canceled Pro is Free"
+        )
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"claude_max"}}"#), "max", "Without flags the type decides")
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"something_new"},"account":{"has_claude_max":true}}"#), "max")
+        XCTAssertEqual(plan(#"{"organization":{"organization_type":"api"},"account":{"has_claude_pro":false,"has_claude_max":false}}"#), "free")
+        XCTAssertNil(plan(#"{"organization":{"organization_type":"api"}}"#))
+        XCTAssertNil(plan("not json"))
+    }
+
+    func testGoogleTierNamesComeFromGoogle() {
+        func plan(_ json: String) -> String? { GeminiProvider.tierInfo(from: Data(json.utf8)).planName }
+        XCTAssertEqual(
+            plan(#"{"currentTier":{"id":"free-tier","name":"Free"},"paidTier":{"id":"g1-pro-tier","name":"Google AI Pro"}}"#),
+            "Google AI Pro",
+            "A subscription is the paid tier, even when the current tier says free"
+        )
+        XCTAssertEqual(plan(#"{"current_tier":{"id":"free-tier"},"paid_tier":{"name":"Google AI Ultra"}}"#), "Google AI Ultra")
+        XCTAssertEqual(plan(#"{"currentTier":{"id":"standard-tier","name":"Gemini Code Assist Standard"}}"#), "Gemini Code Assist Standard")
+        XCTAssertEqual(plan(#"{"currentTier":{"id":"standard-tier"}}"#), "Paid", "Known ids without a name keep their label")
+        XCTAssertEqual(plan(#"{"paidTier":{"id":"g1-new-tier"},"currentTier":{"id":"free-tier"}}"#), "g1-new-tier")
+        XCTAssertEqual(plan(#"{"paidTier":{"name":"  "},"currentTier":{"id":"free-tier"}}"#), "Free")
+        XCTAssertNil(plan(#"{"cloudaicompanionProject":"p"}"#))
+    }
+
+    func testPlanCacheKeepsAPlanForHoursAndRetriesFailuresSooner() async {
+        let cache = CLIProxyPlanCache()
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let calls = LookupCounter()
+
+        let first = await cache.plan(for: "k", now: start) { await calls.answer("pro") }
+        let reused = await cache.plan(for: "k", now: start.addingTimeInterval(3600)) { await calls.answer("max") }
+        XCTAssertEqual(first, "pro")
+        XCTAssertEqual(reused, "pro")
+        let lookups = await calls.count
+        XCTAssertEqual(lookups, 1)
+
+        let afterAge = start.addingTimeInterval(CLIProxyPlanCache.maxAge + 1)
+        let failed = await cache.plan(for: "k", now: afterAge) { await calls.answer(nil) }
+        XCTAssertEqual(failed, "pro", "A failed lookup keeps the last known plan")
+        let soon = await cache.plan(for: "k", now: afterAge.addingTimeInterval(60)) { await calls.answer("max") }
+        XCTAssertEqual(soon, "pro", "No new lookup before the retry time")
+        let retried = await cache.plan(for: "k", now: afterAge.addingTimeInterval(CLIProxyPlanCache.retryAfter + 1)) {
+            await calls.answer("max")
+        }
+        XCTAssertEqual(retried, "max")
+        let total = await calls.count
+        XCTAssertEqual(total, 3)
+    }
+
+    func testPlanAnswerIsKeptWhenTheCallerIsCancelled() async {
+        let cache = CLIProxyPlanCache()
+        let calls = LookupCounter()
+        let caller = Task {
+            await cache.plan(for: "k") {
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                return await calls.answer("pro")
+            }
+        }
+        caller.cancel()
+        _ = await caller.value
+
+        let plan = await cache.plan(for: "k") { await calls.answer("max") }
+        XCTAssertEqual(plan, "pro", "A failed usage request must not throw away the plan")
+        let lookups = await calls.count
+        XCTAssertEqual(lookups, 1)
     }
 
     func testSignedOutCodexLoginIsReported() async throws {
@@ -714,5 +889,14 @@ private struct LocalAccountStub: UsageProvider {
     func fetch() async throws -> ProviderUsage {
         if delay > 0 { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
         return ProviderUsage(planName: nil, windows: [], asOf: Date(), accountEmail: email)
+    }
+}
+
+private actor LookupCounter {
+    private(set) var count = 0
+
+    func answer(_ plan: String?) -> String? {
+        count += 1
+        return plan
     }
 }

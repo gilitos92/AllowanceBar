@@ -127,7 +127,9 @@ its own row. Nothing else to set up per account:
    Logins you add or remove on the proxy appear or disappear on the next
    refresh. Each ChatGPT workspace of one email gets its own row. Proxy rows
    stay out of the menu bar title until you turn them on there, unless no
-   other row is in it.
+   other row is in it. Each row shows its plan: Claude's from the login's
+   profile, Gemini's and Antigravity's from Google's tier name (asked every
+   few hours), Codex's from the login list.
 3. A login with the same email as an account on this Mac shows only once,
    through the local account (for Codex, the plan must match too). If the local account has no data or keeps
    failing for 10 minutes, the proxy row shows instead. Set a proxy row to **On** to always show both.
@@ -338,7 +340,6 @@ Full schema, skill, and security model in
 - `Sources/AgentMeter/Updater.swift` — Sparkle auto-updates.
 - `docs/` — [agent interface](docs/AGENT_INTERFACE.md), [Codex accounts guide](docs/CODEX_ACCOUNTS.md), [agent skill](docs/agent-skill/SKILL.md), [releasing](docs/RELEASING.md).
 - `scripts/bundle.sh` / `scripts/release.sh` — bundling and signed release with a Sparkle appcast.
-- `.github/workflows/` — CI (build + tests); releases are built locally.
 
 Source folders and Swift modules keep the original `AgentMeter` names so
 upstream changes stay easy to merge.

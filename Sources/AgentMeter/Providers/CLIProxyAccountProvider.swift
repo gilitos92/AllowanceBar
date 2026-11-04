@@ -90,6 +90,7 @@ struct CLIProxyAccountProvider: UsageProvider {
     var proxyConfig: @Sendable () -> CLIProxyConfig? = { CLIProxyConfig.current() }
     var accountCache: CLIProxyAccountCache = .shared
     var usageCache: CLIProxyUsageCache = .shared
+    var planCache: CLIProxyPlanCache = .shared
 
     init(login: CLIProxyLoginKey) {
         self.login = login
@@ -136,29 +137,37 @@ struct CLIProxyAccountProvider: UsageProvider {
         guard let account = matches.first(where: { !$0.disabled }) else {
             throw CLIProxyError.loginRemoved
         }
-        let usage = try await Self.usage(for: account, client: client, now: Date())
+        let usage = try await Self.usage(for: account, client: client, planCache: planCache, now: Date())
         await usageCache.store(usage, for: cacheKey)
         return usage
     }
 
-    static func usage(for account: CLIProxyClient.Account, client: CLIProxyClient, now: Date) async throws -> ProviderUsage {
+    static func usage(
+        for account: CLIProxyClient.Account,
+        client: CLIProxyClient,
+        planCache: CLIProxyPlanCache = .shared,
+        now: Date
+    ) async throws -> ProviderUsage {
         var usage: ProviderUsage
         switch account.kind {
         case .claude:
+            async let plan = client.plan(for: account, cache: planCache)
             let response = try await client.claudeUsage(authIndex: account.authIndex)
-            usage = ClaudeProvider.usage(from: response, plan: nil, now: now)
+            usage = ClaudeProvider.usage(from: response, plan: await plan, now: now)
         case .codex:
             let data = try await client.codexUsage(account)
             usage = try codexUsage(from: data, fallbackPlan: account.planType, now: now)
         case .antigravity:
+            async let plan = client.plan(for: account, cache: planCache)
             let data = try await client.antigravityUsage(account)
-            usage = try antigravityUsage(from: data, now: now)
+            usage = try antigravityUsage(from: data, plan: await plan, now: now)
         case .gemini:
+            async let plan = client.plan(for: account, cache: planCache)
             let data = try await client.geminiUsage(account)
             guard let response = try? JSONDecoder().decode(GeminiProvider.QuotaResponse.self, from: data) else {
                 throw CLIProxyError.badResponse
             }
-            usage = GeminiProvider.usage(from: response, plan: nil, now: now)
+            usage = GeminiProvider.usage(from: response, plan: await plan, now: now)
         }
         usage.accountEmail = account.email
         return usage
@@ -207,7 +216,7 @@ struct CLIProxyAccountProvider: UsageProvider {
 
     /// Parses `retrieveUserQuotaSummary`: groups of models (e.g. "Gemini
     /// Models"), each with a 5-hour and a weekly bucket.
-    static func antigravityUsage(from data: Data, now: Date) throws -> ProviderUsage {
+    static func antigravityUsage(from data: Data, plan: String? = nil, now: Date) throws -> ProviderUsage {
         guard var json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw CLIProxyError.badResponse
         }
@@ -243,7 +252,7 @@ struct CLIProxyAccountProvider: UsageProvider {
                 .sorted { $0.order < $1.order }
             windows += buckets.map(\.window)
         }
-        return ProviderUsage(planName: nil, windows: windows, asOf: now)
+        return ProviderUsage(planName: plan, windows: windows, asOf: now)
     }
 
     /// "Gemini Models" → "Gemini"; "Claude and GPT models" → "Claude and GPT".
@@ -304,6 +313,46 @@ struct CLIProxyAccountProvider: UsageProvider {
 /// Keeps each proxy row's last answer for a short while, so a 30-second
 /// refresh interval doesn't send every login's usage request to its provider
 /// twice a minute. An explicit refresh skips it.
+/// Remembers each proxy login's plan for hours: plans rarely change, and
+/// each lookup is one more request through the proxy. A failed lookup keeps
+/// the last known plan and is tried again sooner.
+actor CLIProxyPlanCache {
+    static let shared = CLIProxyPlanCache()
+    static let maxAge: TimeInterval = 6 * 3600
+    static let retryAfter: TimeInterval = 15 * 60
+
+    private struct Entry {
+        let plan: String?
+        let nextCheck: Date
+    }
+
+    private var entries: [String: Entry] = [:]
+    private var running: [String: Task<String?, Never>] = [:]
+
+    func plan(
+        for key: String,
+        now: Date = Date(),
+        lookup: @escaping @Sendable () async -> String?
+    ) async -> String? {
+        if let entry = entries[key], now < entry.nextCheck { return entry.plan }
+        if let task = running[key] {
+            let fresh = await task.value
+            return fresh ?? entries[key]?.plan
+        }
+        // Not tied to the caller: when a failed usage request ends the
+        // caller, the answer already on its way is still kept, so the next
+        // refresh doesn't ask again. Callers asking meanwhile share it.
+        let task = Task { await lookup() }
+        running[key] = task
+        let fresh = await task.value
+        running[key] = nil
+        let plan = fresh ?? entries[key]?.plan
+        let wait = fresh == nil ? Self.retryAfter : Self.maxAge
+        entries[key] = Entry(plan: plan, nextCheck: now.addingTimeInterval(wait))
+        return plan
+    }
+}
+
 actor CLIProxyUsageCache {
     static let shared = CLIProxyUsageCache()
     static let maxAge: TimeInterval = 120
