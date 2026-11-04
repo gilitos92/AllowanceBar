@@ -327,13 +327,26 @@ actor CLIProxyPlanCache {
     }
 
     private var entries: [String: Entry] = [:]
+    private var running: [String: Task<String?, Never>] = [:]
 
-    func plan(for key: String, now: Date = Date(), lookup: @Sendable () async -> String?) async -> String? {
+    func plan(
+        for key: String,
+        now: Date = Date(),
+        lookup: @escaping @Sendable () async -> String?
+    ) async -> String? {
         if let entry = entries[key], now < entry.nextCheck { return entry.plan }
-        let fresh = await lookup()
+        if let task = running[key] {
+            let fresh = await task.value
+            return fresh ?? entries[key]?.plan
+        }
+        // Not tied to the caller: when a failed usage request ends the
+        // caller, the answer already on its way is still kept, so the next
+        // refresh doesn't ask again. Callers asking meanwhile share it.
+        let task = Task { await lookup() }
+        running[key] = task
+        let fresh = await task.value
+        running[key] = nil
         let plan = fresh ?? entries[key]?.plan
-        // A cancelled refresh says nothing about the login.
-        guard !Task.isCancelled else { return plan }
         let wait = fresh == nil ? Self.retryAfter : Self.maxAge
         entries[key] = Entry(plan: plan, nextCheck: now.addingTimeInterval(wait))
         return plan

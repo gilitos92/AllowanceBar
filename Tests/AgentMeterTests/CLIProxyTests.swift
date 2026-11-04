@@ -713,6 +713,24 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(total, 3)
     }
 
+    func testPlanAnswerIsKeptWhenTheCallerIsCancelled() async {
+        let cache = CLIProxyPlanCache()
+        let calls = LookupCounter()
+        let caller = Task {
+            await cache.plan(for: "k") {
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                return await calls.answer("pro")
+            }
+        }
+        caller.cancel()
+        _ = await caller.value
+
+        let plan = await cache.plan(for: "k") { await calls.answer("max") }
+        XCTAssertEqual(plan, "pro", "A failed usage request must not throw away the plan")
+        let lookups = await calls.count
+        XCTAssertEqual(lookups, 1)
+    }
+
     func testSignedOutCodexLoginIsReported() async throws {
         MockCLIProxyURLProtocol.server.upstreamStatus = 401
 
