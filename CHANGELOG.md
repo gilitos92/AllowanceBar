@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.9.0] — 2026-11-04
+
 ### Changed
 - Several accounts of one provider now share one section in the dropdown and
   the Usage Details window, the way one account's several limits do. The
