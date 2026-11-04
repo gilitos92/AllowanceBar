@@ -7,6 +7,10 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Removed
+- The GitHub Actions CI workflow. Its macOS 26 jobs often waited 15 minutes
+  for a runner and were cancelled. Run `swift test` locally instead.
+
 ## [2.9.0] — 2026-11-04
 
 ### Changed

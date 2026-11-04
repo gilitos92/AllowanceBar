@@ -3,8 +3,7 @@
 Allowance Bar ships as a signed `.app` (with the `allowancebar` CLI inside at
 `Contents/Helpers/allowancebar`), zipped and attached to a GitHub Release
 together with a Sparkle `appcast.xml`. Releases are cut **locally** with
-`scripts/release.sh`; there is no GitHub Actions release workflow (CI only
-builds and tests).
+`scripts/release.sh`; there is no GitHub Actions workflow.
 
 Builds are signed with the self-signed **GGV** certificate and are **not
 notarized** (no paid Apple Developer Program membership). Users approve the
