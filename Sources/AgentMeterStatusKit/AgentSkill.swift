@@ -77,6 +77,10 @@ Each provider:
 - `accountEmail` and `planType` (Codex): which signed-in account and plan the
   entry belongs to. CLIProxyAPI logins also have `accountEmail`; their ids
   look like `codex:proxy-<hash>` or `antigravity:proxy-<hash>`.
+- `proxyPriority` (optional): where the account stands in CLIProxyAPI's order
+  of use — `place` (1 = gets new requests first), `loginCount`, and the raw
+  `priority`. Only present when the proxy has several logins of that provider
+  with different priorities.
 - `renewal` (optional): the user's subscription *billing* renewal date. This is
   not a usage window — never treat it as quota, and do not mention it unless
   the user asks about billing.

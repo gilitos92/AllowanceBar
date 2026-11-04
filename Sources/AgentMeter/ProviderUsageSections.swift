@@ -16,7 +16,8 @@ struct ProviderUsageSections: View {
                 ProviderSection(
                     provider: provider,
                     state: store.state(for: provider.id),
-                    settings: settings
+                    settings: settings,
+                    priority: settings.showsProxyPriority ? store.proxyPriority(for: provider) : nil
                 )
             }
         }
@@ -27,6 +28,8 @@ struct ProviderSection: View {
     let provider: any UsageProvider
     let state: ProviderState
     @ObservedObject var settings: SettingsStore
+    /// Place in CLIProxyAPI's order of use; nil when hidden or unknown.
+    var priority: ProxyPriority? = nil
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -68,6 +71,9 @@ struct ProviderSection: View {
                     }
                 }
                 Spacer()
+                if let priority {
+                    ProxyPriorityCapsule(priority: priority)
+                }
                 if let usage = state.usage, let plan = usage.planName {
                     Text(plan)
                         .font(.callout.weight(.medium))
@@ -128,6 +134,26 @@ struct ProviderSection: View {
         case .loading, .ready:
             return nil
         }
+    }
+}
+
+/// The account's place in CLIProxyAPI's order of use, e.g. "Proxy #1".
+struct ProxyPriorityCapsule: View {
+    let priority: ProxyPriority
+
+    var body: some View {
+        Label(priority.label, systemImage: "arrow.triangle.branch")
+            .labelStyle(.titleAndIcon)
+            .font(.callout.weight(.medium))
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .overlay(Capsule().strokeBorder(.quaternary))
+            .help(priority.explanation)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L("CLIProxyAPI order"))
+            .accessibilityValue(priority.phrase)
     }
 }
 

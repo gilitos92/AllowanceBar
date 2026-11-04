@@ -104,6 +104,8 @@
 	<string>CLIProxyAPI no longer has this login, or it is turned off there.</string>
 	<key>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</key>
 	<string>CLIProxyAPI only accepts management requests from its own Mac. Set allow-remote to true in its config.</string>
+	<key>CLIProxyAPI order</key>
+	<string>CLIProxyAPI order</string>
 	<key>CLIProxyAPI paused requests after failed attempts. Try again later.</key>
 	<string>CLIProxyAPI paused requests after failed attempts. Try again later.</string>
 	<key>CLIProxyAPI rejected the management key. Check it in Settings.</key>
@@ -298,10 +300,14 @@
 	<string>Other</string>
 	<key>Output tokens</key>
 	<string>Output tokens</string>
+	<key>Place %lld of %lld among %@ logins in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</key>
+	<string>Place %lld of %lld among %@ logins in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</string>
 	<key>Prepaid credits</key>
 	<string>Prepaid credits</string>
 	<key>Provider endpoint research credits CodexBar by Peter Steinberger.</key>
 	<string>Provider endpoint research credits CodexBar by Peter Steinberger.</string>
+	<key>Proxy #%lld</key>
+	<string>Proxy #%lld</string>
 	<key>Reads prepaid balance only.</key>
 	<string>Reads prepaid balance only.</string>
 	<key>Regular</key>
@@ -340,8 +346,14 @@
 	<string>Same email as Claude Code</string>
 	<key>Server address</key>
 	<string>Server address</string>
+	<key>Show CLIProxyAPI priority</key>
+	<string>Show CLIProxyAPI priority</string>
+	<key>Show CLIProxyAPI priority in the nano window</key>
+	<string>Show CLIProxyAPI priority in the nano window</string>
 	<key>Show on All Desktops</key>
 	<string>Show on All Desktops</string>
+	<key>Shows each account's place among its provider's logins in CLIProxyAPI's order of use, e.g. “Proxy #1”, from the login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</key>
+	<string>Shows each account's place among its provider's logins in CLIProxyAPI's order of use, e.g. “Proxy #1”, from the login priorities. The proxy sends new requests to the highest priority first. It shows when the proxy has more than one login of a provider with different priorities. The nano window shows only “#1”, after each entry.</string>
 	<key>Shows your 5-hour and token quotas.</key>
 	<string>Shows your 5-hour and token quotas.</string>
 	<key>Shrink into a tiny panel with only the menu bar text.</key>
@@ -446,6 +458,8 @@
 	<string>low balance</string>
 	<key>nearly used up</key>
 	<string>nearly used up</string>
+	<key>place %lld of %lld among %@ logins in CLIProxyAPI order, priority %lld</key>
+	<string>place %lld of %lld among %@ logins in CLIProxyAPI order, priority %lld</string>
 	<key>soon</key>
 	<string>soon</string>
 </dict>

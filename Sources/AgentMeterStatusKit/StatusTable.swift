@@ -31,6 +31,10 @@ public enum StatusTable {
                 lines.append(line)
             }
 
+            if let proxy = provider.proxyPriority {
+                lines.append("  proxy order: \(proxy.place) of \(proxy.loginCount) (priority \(proxy.priority))")
+            }
+
             if let apiUsage = provider.apiUsage {
                 lines.append("  API spending (month to date, UTC): USD \(formatAmount(apiUsage.costUSD))")
                 lines.append("  tokens: input \(apiUsage.inputTokens), output \(apiUsage.outputTokens), cache read \(apiUsage.cacheReadTokens), cache creation \(apiUsage.cacheCreationTokens)")
