@@ -11,8 +11,9 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ### Fixed
 - Claude accounts no longer stay stuck on "Anthropic rate-limited the usage
-  request". After Anthropic answers "too many requests", that login sends
-  nothing to Anthropic for a while instead of asking again every minute:
+  request". After Anthropic answers "too many requests", that account sends
+  nothing to Anthropic for a while, from this Mac or through CLIProxyAPI,
+  instead of asking again every minute:
   the time Anthropic asks for, otherwise 5 minutes, doubling while the limit
   lasts, up to 30 minutes. Refresh waits too. The account keeps its last
   numbers and says when it tries again.
