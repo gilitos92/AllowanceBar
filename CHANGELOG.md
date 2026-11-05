@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.9.2] — 2026-11-05
+
 ### Fixed
 - Claude accounts no longer stay stuck on "Anthropic rate-limited the usage
   request". After Anthropic answers "too many requests", that login sends
