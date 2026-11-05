@@ -91,6 +91,7 @@ struct CLIProxyAccountProvider: UsageProvider {
     var accountCache: CLIProxyAccountCache = .shared
     var usageCache: CLIProxyUsageCache = .shared
     var planCache: CLIProxyPlanCache = .shared
+    var claudeRateLimits: ClaudeRateLimitGate = .shared
 
     init(login: CLIProxyLoginKey) {
         self.login = login
@@ -131,7 +132,7 @@ struct CLIProxyAccountProvider: UsageProvider {
         if !forceRefresh, let cached = await usageCache.usage(for: cacheKey) {
             return cached
         }
-        let client = CLIProxyClient(config: config, session: session)
+        let client = CLIProxyClient(config: config, session: session, claudeRateLimits: claudeRateLimits)
         let accounts = try await client.logins(force: false, cache: accountCache)
         let matches = accounts.filter(login.matches)
         guard let account = matches.first(where: { !$0.disabled }) else {
@@ -151,9 +152,11 @@ struct CLIProxyAccountProvider: UsageProvider {
         var usage: ProviderUsage
         switch account.kind {
         case .claude:
-            async let plan = client.plan(for: account, cache: planCache)
-            let response = try await client.claudeUsage(authIndex: account.authIndex)
-            usage = ClaudeProvider.usage(from: response, plan: await plan, now: now)
+            // The plan waits for the usage answer: two requests at once from
+            // one login can trip Anthropic's rate limit.
+            let response = try await client.claudeUsage(account)
+            let plan = await client.plan(for: account, cache: planCache)
+            usage = ClaudeProvider.usage(from: response, plan: plan, now: now)
         case .codex:
             let data = try await client.codexUsage(account)
             usage = try codexUsage(from: data, fallbackPlan: account.planType, now: now)
