@@ -479,6 +479,37 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), ["GET api.anthropic.com/api/oauth/usage"])
     }
 
+    func testLocalRateLimitAlsoHoldsTheSameAccountsProxyRow() async throws {
+        MockCLIProxyURLProtocol.server.claudeUsageStatus = 429
+        let gate = ClaudeRateLimitGate()
+        let local = try makeProvider(
+            expiresAt: Date().timeIntervalSince1970 * 1000 + 3_600_000,
+            config: config,
+            rateLimits: gate
+        )
+        do {
+            _ = try await local.fetch()
+            XCTFail("A rate-limited login has no usage")
+        } catch ClaudeError.rateLimited {}
+
+        var row = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+        row.claudeRateLimits = gate
+        do {
+            _ = try await row.fetch(forceRefresh: true)
+            XCTFail("The same account waits through the proxy too")
+        } catch ClaudeError.rateLimited {}
+        XCTAssertTrue(MockCLIProxyURLProtocol.server.apiCalls().isEmpty, "Anthropic is not asked through the proxy")
+    }
+
+    func testProxyAnswerHeadersNeverBreakTheAnswer() throws {
+        for header in [#""#, #","header":null"#, #","header":{"Retry-After":"120"}"#, #","header":{"Retry-After":["120"]}"#, #","header":7"#] {
+            let json = #"{"status_code":429,"body":"{}"\#(header)}"#
+            let answer = try JSONDecoder().decode(CLIProxyClient.APICallResponse.self, from: Data(json.utf8))
+            XCTAssertEqual(answer.statusCode, 429)
+            if header.contains("120") { XCTAssertEqual(answer.retryAfter, 120) } else { XCTAssertNil(answer.retryAfter) }
+        }
+    }
+
     func testRateLimitWaitDoublesAndEndsWithAGoodAnswer() async throws {
         let gate = ClaudeRateLimitGate()
         let now = Date(timeIntervalSince1970: 1_000_000)

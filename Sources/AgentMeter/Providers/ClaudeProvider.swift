@@ -55,7 +55,10 @@ struct ClaudeProvider: AccountConfigurableProvider {
                 accessToken: creds.accessToken,
                 session: session,
                 rateLimits: rateLimits,
-                key: "local|" + id
+                key: ClaudeRateLimitGate.key(
+                    email: Self.accountEmail(atPath: accountInfoPath),
+                    fallback: "local|" + id
+                )
             )
             var usage = Self.usage(from: response, plan: creds.subscriptionType, now: Date())
             usage.accountEmail = Self.accountEmail(atPath: accountInfoPath)
@@ -73,7 +76,7 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let localPlan = samePlan ? plan : nil
         // The plan waits for the usage answer: two requests at once from one
         // login can trip Anthropic's rate limit.
-        let response = try await client.claudeUsage(authIndex: account.authIndex)
+        let response = try await client.claudeUsage(account)
         let proxyPlan = localPlan == nil ? await client.plan(for: account, cache: proxyPlanCache) : nil
         var usage = Self.usage(from: response, plan: localPlan ?? proxyPlan, now: Date())
         usage.accountEmail = account.email

@@ -218,8 +218,9 @@ struct CLIProxyClient: Sendable {
 
     /// Asks the proxy to call Anthropic's usage endpoint with one login's token.
     /// After a 429 the login waits before asking again (`ClaudeRateLimitGate`).
-    func claudeUsage(authIndex: String) async throws -> ClaudeProvider.UsageResponse {
-        let key = claudeRateLimitKey(authIndex)
+    func claudeUsage(_ account: Account) async throws -> ClaudeProvider.UsageResponse {
+        let authIndex = account.authIndex
+        let key = claudeRateLimitKey(account)
         try await claudeRateLimits.check(key)
         let result = try await apiCall(
             authIndex: authIndex,
@@ -333,7 +334,7 @@ struct CLIProxyClient: Sendable {
             case .claude:
                 // A login that Anthropic rate-limited waits; a 429 here
                 // counts toward that wait too.
-                let key = claudeRateLimitKey(account.authIndex)
+                let key = claudeRateLimitKey(account)
                 try await claudeRateLimits.check(key)
                 let result = try await apiCall(
                     authIndex: account.authIndex,
@@ -561,6 +562,27 @@ struct CLIProxyClient: Sendable {
             case body
         }
 
+        init(statusCode: Int, header: [String: [String]]? = nil, body: String) {
+            self.statusCode = statusCode
+            self.header = header
+            self.body = body
+        }
+
+        /// Headers are optional extras: a missing or differently shaped
+        /// `header` never fails the answer.
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            statusCode = try container.decode(Int.self, forKey: .statusCode)
+            body = try container.decode(String.self, forKey: .body)
+            if let lists = try? container.decodeIfPresent([String: [String]].self, forKey: .header) {
+                header = lists
+            } else if let single = try? container.decodeIfPresent([String: String].self, forKey: .header) {
+                header = single.mapValues { [$0] }
+            } else {
+                header = nil
+            }
+        }
+
         /// The provider's `Retry-After`, in seconds.
         var retryAfter: TimeInterval? {
             let value = header?.first { $0.key.caseInsensitiveCompare("Retry-After") == .orderedSame }?.value.first
@@ -568,9 +590,10 @@ struct CLIProxyClient: Sendable {
         }
     }
 
-    /// One Claude login on this proxy, for `ClaudeRateLimitGate`.
-    func claudeRateLimitKey(_ authIndex: String) -> String {
-        "proxy|" + config.identity + "|" + authIndex
+    /// One Claude account, for `ClaudeRateLimitGate`: its email, so the
+    /// same account on this Mac waits too.
+    func claudeRateLimitKey(_ account: Account) -> String {
+        ClaudeRateLimitGate.key(email: account.email, fallback: "proxy|" + config.identity + "|" + account.authIndex)
     }
 
     private struct ErrorResponse: Decodable {

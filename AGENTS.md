@@ -141,7 +141,8 @@ announcement drafts, environment specifics) and complements this file.
   stops after `invalidKey` until address/key change, waits out
   `tooManyAttempts`, and shares one login list per refresh.
   Rate limits (v2.9.2, `ClaudeRateLimitGate`): after a 429 on usage or
-  profile, a Claude login (local: `local|<id>`; proxy: `proxy|<identity>|
+  profile, a Claude account (key `account|<email>`, shared by its local and
+  proxy rows; without an email `local|<id>` or `proxy|<identity>|
   <auth_index>`) sends nothing to Anthropic until `Retry-After` (60 s–1 h;
   the proxy passes upstream headers in `api-call`'s `header`), else 5 min
   doubling to 30 min; forced refreshes wait too; a 200 resets it. The

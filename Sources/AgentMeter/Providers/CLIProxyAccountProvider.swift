@@ -154,7 +154,7 @@ struct CLIProxyAccountProvider: UsageProvider {
         case .claude:
             // The plan waits for the usage answer: two requests at once from
             // one login can trip Anthropic's rate limit.
-            let response = try await client.claudeUsage(authIndex: account.authIndex)
+            let response = try await client.claudeUsage(account)
             let plan = await client.plan(for: account, cache: planCache)
             usage = ClaudeProvider.usage(from: response, plan: plan, now: now)
         case .codex:

@@ -5,7 +5,8 @@ import Foundation
 /// So after a 429, that login sends nothing to Anthropic for a while: the
 /// server's `Retry-After` when it sends one, otherwise 5 minutes, doubling
 /// while 429s continue, up to 30 minutes. Forced refreshes wait too. The row
-/// keeps its last numbers meanwhile and says when it tries again.
+/// keeps its last numbers meanwhile and says when it tries again. The wait
+/// covers the account, so its local and proxy rows wait together.
 actor ClaudeRateLimitGate {
     static let shared = ClaudeRateLimitGate()
     static let firstWait: TimeInterval = 5 * 60
@@ -19,6 +20,13 @@ actor ClaudeRateLimitGate {
     }
 
     private var entries: [String: Entry] = [:]
+
+    /// One key per Claude account: its email when known, so the account's
+    /// local login and its CLIProxyAPI login wait together.
+    static func key(email: String?, fallback: String) -> String {
+        guard let email = email?.trimmingCharacters(in: .whitespaces), !email.isEmpty else { return fallback }
+        return "account|" + email.lowercased()
+    }
 
     /// Throws `ClaudeError.rateLimited` while `key` is still waiting.
     func check(_ key: String, now: Date = Date()) throws {
