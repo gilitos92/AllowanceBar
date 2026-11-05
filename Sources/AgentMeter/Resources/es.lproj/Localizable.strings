@@ -138,6 +138,8 @@
 	<string>Una clave de inferencia es la opción más segura por defecto: permite que las apps ejecuten modelos, pero limita el acceso a facturación y administración de claves. Allowance Bar solo lee tu saldo mediante un punto de acceso de solo lectura; no puede gastar créditos.</string>
 	<key>Anthropic rate-limited the usage request</key>
 	<string>Anthropic limitó la solicitud de uso</string>
+	<key>Anthropic rate-limited the usage request. Trying again at %@</key>
+	<string>Anthropic limitó la solicitud de uso. Se intentará de nuevo a las %@</string>
 	<key>Anthropic returned HTTP %lld</key>
 	<string>Anthropic devolvió HTTP %lld</string>
 	<key>Apple</key>

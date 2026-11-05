@@ -26,6 +26,7 @@ struct ClaudeProvider: AccountConfigurableProvider {
     var proxyConfig: @Sendable () -> CLIProxyConfig? = { CLIProxyConfig.current() }
     var proxyAccountCache: CLIProxyAccountCache = .shared
     var proxyPlanCache: CLIProxyPlanCache = .shared
+    var rateLimits: ClaudeRateLimitGate = .shared
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     /// The account profile Claude Code reads; it names the login's plan.
@@ -50,7 +51,15 @@ struct ClaudeProvider: AccountConfigurableProvider {
             let creds = try await loadCredentials()
             plan = creds.subscriptionType
             guard !creds.isExpired else { throw ClaudeError.refreshRequired }
-            let response = try await Self.fetchUsage(accessToken: creds.accessToken, session: session)
+            let response = try await Self.fetchUsage(
+                accessToken: creds.accessToken,
+                session: session,
+                rateLimits: rateLimits,
+                key: ClaudeRateLimitGate.key(
+                    email: Self.accountEmail(atPath: accountInfoPath),
+                    fallback: "local|" + id
+                )
+            )
             var usage = Self.usage(from: response, plan: creds.subscriptionType, now: Date())
             usage.accountEmail = Self.accountEmail(atPath: accountInfoPath)
             return usage
@@ -58,17 +67,17 @@ struct ClaudeProvider: AccountConfigurableProvider {
             localError = error
         }
         guard let config = proxyConfig() else { throw localError }
-        let client = CLIProxyClient(config: config, session: session)
+        let client = CLIProxyClient(config: config, session: session, claudeRateLimits: rateLimits)
         let account = try await proxyLogin(client)
         // The local plan describes the proxy login only if it is the same
         // account. Otherwise ask the proxy login's own profile, next to its usage.
         let localEmail = Self.accountEmail(atPath: accountInfoPath)
         let samePlan = localEmail.map { $0.caseInsensitiveCompare(account.email) == .orderedSame } ?? false
         let localPlan = samePlan ? plan : nil
-        let planCache = proxyPlanCache
-        async let lookedUp: String? = localPlan == nil ? client.plan(for: account, cache: planCache) : nil
-        let response = try await client.claudeUsage(authIndex: account.authIndex)
-        let proxyPlan = await lookedUp
+        // The plan waits for the usage answer: two requests at once from one
+        // login can trip Anthropic's rate limit.
+        let response = try await client.claudeUsage(account)
+        let proxyPlan = localPlan == nil ? await client.plan(for: account, cache: proxyPlanCache) : nil
         var usage = Self.usage(from: response, plan: localPlan ?? proxyPlan, now: Date())
         usage.accountEmail = account.email
         return usage
@@ -208,7 +217,15 @@ struct ClaudeProvider: AccountConfigurableProvider {
 
     // MARK: - Networking
 
-    static func fetchUsage(accessToken: String, session: URLSession = HTTP.session) async throws -> UsageResponse {
+    /// Usage for one login. After a 429, `rateLimits` keeps `key` from
+    /// asking again for a while.
+    static func fetchUsage(
+        accessToken: String,
+        session: URLSession = HTTP.session,
+        rateLimits: ClaudeRateLimitGate = .shared,
+        key: String
+    ) async throws -> UsageResponse {
+        try await rateLimits.check(key)
         var request = URLRequest(url: usageURL)
         request.timeoutInterval = 20
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
@@ -219,9 +236,14 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw ClaudeError.badResponse }
         if http.statusCode == 401 { throw ClaudeError.notSignedIn }
-        if http.statusCode == 429 { throw ClaudeError.rateLimited }
+        if http.statusCode == 429 {
+            let wait = ClaudeRateLimitGate.retryAfter(http.value(forHTTPHeaderField: "Retry-After"))
+            throw await rateLimits.limited(key, retryAfter: wait)
+        }
         guard http.statusCode == 200 else { throw ClaudeError.httpStatus(http.statusCode) }
-        return try JSONDecoder().decode(UsageResponse.self, from: data)
+        let usage = try JSONDecoder().decode(UsageResponse.self, from: data)
+        await rateLimits.succeeded(key)
+        return usage
     }
 
     // MARK: - Response mapping
@@ -301,7 +323,8 @@ enum ClaudeError: LocalizedError {
     case notSignedIn
     case refreshRequired
     case keychainUnavailable
-    case rateLimited
+    /// `retryAt`: when this login asks Anthropic again.
+    case rateLimited(retryAt: Date?)
     case badResponse
     case httpStatus(Int)
 
@@ -310,6 +333,8 @@ enum ClaudeError: LocalizedError {
         case .notSignedIn: return L("Not signed in to Claude Code")
         case .refreshRequired: return L("Run Claude Code to renew its credentials, then refresh Allowance Bar")
         case .keychainUnavailable: return L("Could not read Claude Code credentials from Keychain. Unlock your login Keychain, then refresh Allowance Bar")
+        case .rateLimited(let retryAt?):
+            return L("Anthropic rate-limited the usage request. Trying again at \(retryAt.formatted(date: .omitted, time: .shortened))")
         case .rateLimited: return L("Anthropic rate-limited the usage request")
         case .badResponse: return L("Unexpected response from Anthropic")
         case .httpStatus(let code): return L("Anthropic returned HTTP \(code))")

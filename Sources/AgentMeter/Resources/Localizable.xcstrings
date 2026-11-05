@@ -1073,6 +1073,16 @@
         }
       }
     },
+    "Anthropic rate-limited the usage request. Trying again at %@": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anthropic limitó la solicitud de uso. Se intentará de nuevo a las %@"
+          }
+        }
+      }
+    },
     "Anthropic returned HTTP %lld": {
       "localizations": {
         "es": {
