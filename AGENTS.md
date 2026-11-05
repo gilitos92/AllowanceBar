@@ -140,6 +140,12 @@ announcement drafts, environment specifics) and complements this file.
   The proxy bans an IP for 30 min after 5 bad keys, so `CLIProxyAccountCache`
   stops after `invalidKey` until address/key change, waits out
   `tooManyAttempts`, and shares one login list per refresh.
+  Rate limits (v2.9.2, `ClaudeRateLimitGate`): after a 429 on usage or
+  profile, a Claude login (local: `local|<id>`; proxy: `proxy|<identity>|
+  <auth_index>`) sends nothing to Anthropic until `Retry-After` (60 s–1 h;
+  the proxy passes upstream headers in `api-call`'s `header`), else 5 min
+  doubling to 30 min; forced refreshes wait too; a 200 resets it. The
+  Claude plan lookup runs AFTER the usage request, never alongside it.
 - **CLIProxyAPI rows** (v2.7.0, `CLIProxyAccountProvider.swift`): every
   enabled `claude`/`codex`/`antigravity`/`gemini-cli` login in `auth-files`
   becomes a row with id `<base>:proxy-<12 hex of SHA-256(kind, email,

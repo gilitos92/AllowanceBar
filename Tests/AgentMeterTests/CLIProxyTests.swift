@@ -11,6 +11,10 @@ private final class MockCLIProxyServer {
     var upstreamStatus = 200
     /// Overrides `upstreamStatus` for plan lookups only.
     var planStatus: Int?
+    /// Overrides the status of Anthropic's usage answer, through the proxy or direct.
+    var claudeUsageStatus: Int?
+    /// Headers of every upstream answer the proxy passes on.
+    var upstreamHeader: [String: [String]] = [:]
 
     func reset() {
         lock.lock()
@@ -20,6 +24,8 @@ private final class MockCLIProxyServer {
         authFilesStatus = 200
         upstreamStatus = 200
         planStatus = nil
+        claudeUsageStatus = nil
+        upstreamHeader = [:]
     }
 
     func requestLog() -> [String] {
@@ -40,7 +46,7 @@ private final class MockCLIProxyServer {
         return apiCallBodies
     }
 
-    /// The api-call to an address containing `url`. Plan and usage
+    /// The api-call to an address containing `url`. Google plan and usage
     /// requests run side by side, so their order is not fixed.
     func apiCall(to url: String) -> [String: Any]? {
         apiCalls().first { ($0["url"] as? String)?.contains(url) == true }
@@ -90,6 +96,7 @@ private final class MockCLIProxyServer {
                 status = planStatus ?? status
                 upstream = #"{"currentTier":{"id":"standard-tier"},"cloudaicompanionProject":"proj-gem"}"#
             } else if url.contains("api.anthropic.com") {
+                status = claudeUsageStatus ?? status
                 upstream = #"{"five_hour":{"utilization":42.0}}"#
             } else if url.contains("wham/usage") {
                 upstream = """
@@ -115,9 +122,10 @@ private final class MockCLIProxyServer {
             } else {
                 upstream = "{}"
             }
-            let wrapped: [String: Any] = ["status_code": status, "header": [:], "body": upstream]
+            let wrapped: [String: Any] = ["status_code": status, "header": upstreamHeader, "body": upstream]
             return (200, try! JSONSerialization.data(withJSONObject: wrapped))
         case "/api/oauth/usage":
+            if let claudeUsageStatus, claudeUsageStatus != 200 { return (claudeUsageStatus, Data("{}".utf8)) }
             return (200, Data(#"{"five_hour":{"utilization":7.0}}"#.utf8))
         default:
             return (404, Data(#"{"error":"not_found"}"#.utf8))
@@ -194,7 +202,8 @@ final class CLIProxyTests: XCTestCase {
         expiresAt: Double,
         email: String? = "main@example.com",
         config: CLIProxyConfig?,
-        cache: CLIProxyAccountCache = CLIProxyAccountCache()
+        cache: CLIProxyAccountCache = CLIProxyAccountCache(),
+        rateLimits: ClaudeRateLimitGate = ClaudeRateLimitGate()
     ) throws -> ClaudeProvider {
         let credentials = try writeFile(".credentials.json", """
         {"claudeAiOauth":{"accessToken":"local","refreshToken":"R0","expiresAt":\(expiresAt),"subscriptionType":"max"}}
@@ -210,7 +219,8 @@ final class CLIProxyTests: XCTestCase {
             keychainReader: { _ in nil },
             proxyConfig: { config },
             proxyAccountCache: cache,
-            proxyPlanCache: CLIProxyPlanCache()
+            proxyPlanCache: CLIProxyPlanCache(),
+            rateLimits: rateLimits
         )
     }
 
@@ -425,7 +435,92 @@ final class CLIProxyTests: XCTestCase {
         provider.accountCache = cache
         provider.usageCache = CLIProxyUsageCache()
         provider.planCache = CLIProxyPlanCache()
+        provider.claudeRateLimits = ClaudeRateLimitGate()
         return provider
+    }
+
+    func testClaudePlanIsAskedOnlyAfterItsUsage() async throws {
+        _ = try await proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com")).fetch()
+
+        let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
+        XCTAssertEqual(urls, [ClaudeProvider.usageURL.absoluteString, ClaudeProvider.profileURL.absoluteString])
+    }
+
+    func testRateLimitedClaudeLoginWaitsBeforeAskingAgain() async throws {
+        MockCLIProxyURLProtocol.server.claudeUsageStatus = 429
+        MockCLIProxyURLProtocol.server.upstreamHeader = ["Retry-After": ["120"]]
+        let provider = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+        let start = Date()
+
+        for force in [false, true] {
+            do {
+                _ = try await provider.fetch(forceRefresh: force)
+                XCTFail("A rate-limited login has no usage")
+            } catch ClaudeError.rateLimited(let retryAt?) {
+                XCTAssertEqual(retryAt.timeIntervalSince(start), 120, accuracy: 5, "Follows Retry-After")
+            }
+        }
+        let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
+        XCTAssertEqual(urls, [ClaudeProvider.usageURL.absoluteString], "No plan request and no second usage request")
+    }
+
+    func testRateLimitedLocalLoginWaitsBeforeAskingAgain() async throws {
+        MockCLIProxyURLProtocol.server.claudeUsageStatus = 429
+        let provider = try makeProvider(expiresAt: Date().timeIntervalSince1970 * 1000 + 3_600_000, config: config)
+
+        for _ in 0..<2 {
+            do {
+                _ = try await provider.fetch()
+                XCTFail("A rate-limited login has no usage")
+            } catch ClaudeError.rateLimited(let retryAt) {
+                XCTAssertNotNil(retryAt)
+            }
+        }
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), ["GET api.anthropic.com/api/oauth/usage"])
+    }
+
+    func testRateLimitWaitDoublesAndEndsWithAGoodAnswer() async throws {
+        let gate = ClaudeRateLimitGate()
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        var waits: [TimeInterval] = []
+        var time = now
+        for _ in 0..<5 {
+            guard case .rateLimited(let until?) = await gate.limited("a", retryAfter: nil, now: time) else {
+                return XCTFail("Expected a retry time")
+            }
+            waits.append(until.timeIntervalSince(time))
+            time = until
+        }
+        XCTAssertEqual(waits, [300, 600, 1200, 1800, 1800])
+
+        do {
+            try await gate.check("a", now: time.addingTimeInterval(-1))
+            XCTFail("Still waiting")
+        } catch ClaudeError.rateLimited {}
+        try await gate.check("a", now: time)
+        try await gate.check("b", now: now)
+
+        await gate.succeeded("a")
+        guard case .rateLimited(let until?) = await gate.limited("a", retryAfter: nil, now: now) else {
+            return XCTFail("Expected a retry time")
+        }
+        XCTAssertEqual(until.timeIntervalSince(now), 300, "A good answer resets the backoff")
+    }
+
+    func testRetryAfterReadsSecondsAndDatesWithinBounds() async {
+        let now = Date(timeIntervalSince1970: 1_785_000_000)
+        XCTAssertEqual(ClaudeRateLimitGate.retryAfter("90", now: now), 90)
+        XCTAssertEqual(ClaudeRateLimitGate.retryAfter(now.addingTimeInterval(240).httpDate, now: now), 240)
+        XCTAssertNil(ClaudeRateLimitGate.retryAfter("soon", now: now))
+        XCTAssertNil(ClaudeRateLimitGate.retryAfter(nil, now: now))
+
+        let gate = ClaudeRateLimitGate()
+        for (sent, used) in [(0.0, 60.0), (90, 90), (86_400, 3600)] {
+            guard case .rateLimited(let until?) = await gate.limited("k\(sent)", retryAfter: sent, now: now) else {
+                return XCTFail("Expected a retry time")
+            }
+            XCTAssertEqual(until.timeIntervalSince(now), used)
+        }
     }
 
     func testLoginListKeepsEverySupportedKind() async throws {
@@ -898,5 +993,15 @@ private actor LookupCounter {
     func answer(_ plan: String?) -> String? {
         count += 1
         return plan
+    }
+}
+
+private extension Date {
+    var httpDate: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        return formatter.string(from: self)
     }
 }

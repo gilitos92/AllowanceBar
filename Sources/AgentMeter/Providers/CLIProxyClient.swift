@@ -137,6 +137,7 @@ actor CLIProxyAccountCache {
 struct CLIProxyClient: Sendable {
     let config: CLIProxyConfig
     var session: URLSession = HTTP.session
+    var claudeRateLimits: ClaudeRateLimitGate = .shared
 
     /// One login on the proxy. Holds identifiers only, never a token.
     struct Account: Equatable, Sendable {
@@ -216,7 +217,10 @@ struct CLIProxyClient: Sendable {
     }
 
     /// Asks the proxy to call Anthropic's usage endpoint with one login's token.
+    /// After a 429 the login waits before asking again (`ClaudeRateLimitGate`).
     func claudeUsage(authIndex: String) async throws -> ClaudeProvider.UsageResponse {
+        let key = claudeRateLimitKey(authIndex)
+        try await claudeRateLimits.check(key)
         let result = try await apiCall(
             authIndex: authIndex,
             method: "GET",
@@ -233,9 +237,10 @@ struct CLIProxyClient: Sendable {
                 ClaudeProvider.UsageResponse.self,
                 from: Data(result.body.utf8)
             ) else { throw ClaudeError.badResponse }
+            await claudeRateLimits.succeeded(key)
             return usage
         case 401: throw CLIProxyError.loginSignedOut
-        case 429: throw ClaudeError.rateLimited
+        case 429: throw await claudeRateLimits.limited(key, retryAfter: result.retryAfter)
         default: throw ClaudeError.httpStatus(result.statusCode)
         }
     }
@@ -326,6 +331,10 @@ struct CLIProxyClient: Sendable {
         do {
             switch account.kind {
             case .claude:
+                // A login that Anthropic rate-limited waits; a 429 here
+                // counts toward that wait too.
+                let key = claudeRateLimitKey(account.authIndex)
+                try await claudeRateLimits.check(key)
                 let result = try await apiCall(
                     authIndex: account.authIndex,
                     method: "GET",
@@ -337,6 +346,10 @@ struct CLIProxyClient: Sendable {
                     ],
                     timeout: Self.planTimeout
                 )
+                if result.statusCode == 429 {
+                    _ = await claudeRateLimits.limited(key, retryAfter: result.retryAfter)
+                    return nil
+                }
                 return ClaudeProvider.plan(fromProfile: try Self.upstreamBody(result))
             case .gemini:
                 let result = try await apiCall(
@@ -538,12 +551,26 @@ struct CLIProxyClient: Sendable {
 
     struct APICallResponse: Decodable {
         let statusCode: Int
+        /// The provider's response headers, as the proxy passes them on.
+        var header: [String: [String]]?
         let body: String
 
         enum CodingKeys: String, CodingKey {
             case statusCode = "status_code"
+            case header
             case body
         }
+
+        /// The provider's `Retry-After`, in seconds.
+        var retryAfter: TimeInterval? {
+            let value = header?.first { $0.key.caseInsensitiveCompare("Retry-After") == .orderedSame }?.value.first
+            return ClaudeRateLimitGate.retryAfter(value)
+        }
+    }
+
+    /// One Claude login on this proxy, for `ClaudeRateLimitGate`.
+    func claudeRateLimitKey(_ authIndex: String) -> String {
+        "proxy|" + config.identity + "|" + authIndex
     }
 
     private struct ErrorResponse: Decodable {
