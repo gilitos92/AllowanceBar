@@ -20,30 +20,29 @@ self-signed **GGV** certificate and not notarized.
 
 ## Credentials
 
-Nothing is stored in GitHub or the repo.
+No credential is stored in GitHub or in this repo, and the repo does not say
+where they are kept. A release Mac needs, in its keychains:
 
-| Credential | Location |
-|------------|----------|
-| Code-signing identity "Developer ID Application: … (GC28C3K5G9)" | login Keychain |
-| Notarization: App Store Connect API key (Developer role) | login Keychain, as notarytool profile `AllowanceBar` |
-| Sparkle EdDSA private key | login Keychain, account `AllowanceBar` |
-| Old self-signed identity `GGV` (no longer used for releases) | login Keychain |
+- the project's **Developer ID Application** identity (team `GC28C3K5G9`);
+- a **notarytool keychain profile** made from an App Store Connect API key
+  with the Developer role;
+- the **Sparkle EdDSA private key** (`generate_keys --account <account>`).
 
-Backups, all in 1Password vault Personal:
+`release.sh` reads the profile and the Sparkle key's account from
+`NOTARY_PROFILE` and `SPARKLE_ACCOUNT`, set in the environment or in
+`~/.config/allowancebar/release.env` on that Mac (outside the repo). Where
+each credential and its backup live is in the maintainer's private notes.
 
-- Developer ID: the `.p12` file and its password are in the Developer ID
-  item (file "Developer ID Application - GC28C3K5G9").
-- App Store Connect API key: the `.p8` contents are in its own item.
-- Sparkle keys and the old `GGV.p12`: item **"Allowance Bar Release Keys"**.
-
-Restore on a new Mac (delete the copied `.p12` and `.p8` afterwards):
+Set up a new release Mac (delete any copied key files afterwards):
 
 ```bash
-security import DeveloperID.p12 -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
-# Key ID and issuer ID: App Store Connect → Users and Access → Integrations.
-xcrun notarytool store-credentials AllowanceBar --key AuthKey_<KEY_ID>.p8 \
-  --key-id <KEY_ID> --issuer <ISSUER_ID>
-.build/artifacts/sparkle/Sparkle/bin/generate_keys --account AllowanceBar -f <private-key-file>
+security import <developer-id>.p12 -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
+xcrun notarytool store-credentials <profile> --key <api-key>.p8 \
+  --key-id <key-id> --issuer <issuer-id>
+.build/artifacts/sparkle/Sparkle/bin/generate_keys --account <account> -f <private-key-file>
+mkdir -p ~/.config/allowancebar
+printf 'NOTARY_PROFILE=%s\nSPARKLE_ACCOUNT=%s\n' '<profile>' '<account>' \
+  > ~/.config/allowancebar/release.env
 ```
 
 Why a Developer ID: a Keychain item remembers which apps may read it in a
@@ -70,8 +69,8 @@ GGV → Developer ID change (see "Sparkle auto-updates").
 - `SUFeedURL` is
   `https://github.com/gilitos92/AllowanceBar/releases/latest/download/appcast.xml`;
   GitHub redirects it to the newest (non-prerelease) release's asset.
-- `scripts/release.sh` runs `generate_appcast --account AllowanceBar`, which
-  signs the zip with the private key; the matching public key is
+- `scripts/release.sh` runs `generate_appcast --account "$SPARKLE_ACCOUNT"`,
+  which signs the zip with the private key; the matching public key is
   `SUPublicEDKey` in `scripts/bundle.sh`.
 - Upload **both** `AllowanceBar.zip` and `appcast.xml` as release assets.
 - Sparkle accepts an app update when **either** its EdDSA signature matches
@@ -115,8 +114,8 @@ choose another, set `SIGN_IDENTITY`. While an old and a renewed certificate
 overlap, use the SHA-1 (`security find-identity -v -p codesigning`): both
 certificates have the same name, so `codesign` rejects the name as
 ambiguous. It refuses to release without a Developer ID.
-Set `NOTARY_PROFILE` for another notarytool profile, or
-`APPLE_API_KEY_ID`/`APPLE_API_ISSUER`/`APPLE_API_KEY` to skip the profile.
+Instead of `NOTARY_PROFILE`, you can set
+`APPLE_API_KEY_ID`/`APPLE_API_ISSUER`/`APPLE_API_KEY` (path to the `.p8`).
 
 `scripts/bundle.sh` also signs local builds with the Developer ID identity
 when it is in the keychain (with a secure timestamp, so it needs the
