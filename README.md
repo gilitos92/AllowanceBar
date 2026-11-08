@@ -254,12 +254,12 @@ Allowance Bar is open source (MIT) so you can verify exactly what it does:
 1. Download the latest `AllowanceBar.zip` from
    [Releases](https://github.com/gilitos92/AllowanceBar/releases/latest).
 2. Unzip it and drag `Allowance Bar.app` to `/Applications`.
-3. Open it. The first time, macOS says it can't verify the developer, because
-   Allowance Bar is not notarized by Apple. Click **Done**, then open
-   **System Settings → Privacy & Security**, scroll down, and click
-   **Open Anyway** next to "Allowance Bar" ([Apple's
-   instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unknown-developer-mh40616/mac)).
-   You only do this once.
+3. Open it. Allowance Bar is signed with a Developer ID and notarized by
+   Apple, so macOS only asks whether you want to open an app downloaded from
+   the internet.
+4. The first time the app reads a saved key, macOS may ask to allow access
+   to the login keychain. Click **Always Allow**; later updates keep that
+   approval.
 
 After that, the app keeps itself up to date. Updates are verified with the
 project's signing key before they install.
