@@ -46,7 +46,8 @@ rm -f "$ZIP"
 /usr/bin/ditto -c -k --keepParent "$APP" "$ZIP"
 
 # 3. Notarize, then staple the ticket to the app. `notarytool --wait` can exit
-#    0 for a rejected submission, so check the status it reports.
+#    0 for a rejected submission, so check the status it reports. `|| true`
+#    keeps a non-zero exit from stopping the script before the log is shown.
 NOTARY_ARGS=()
 if [[ -n "${APPLE_API_KEY_ID:-}" ]]; then
     : "${APPLE_API_ISSUER:?Set APPLE_API_ISSUER}"
@@ -56,7 +57,7 @@ else
     NOTARY_ARGS=(--keychain-profile "${NOTARY_PROFILE:-AllowanceBar}")
 fi
 echo "Submitting $ZIP for notarization (usually a few minutes)..."
-NOTARY_JSON=$(xcrun notarytool submit "$ZIP" "${NOTARY_ARGS[@]}" --wait --output-format json)
+NOTARY_JSON=$(xcrun notarytool submit "$ZIP" "${NOTARY_ARGS[@]}" --wait --output-format json) || true
 NOTARY_STATUS=$(plutil -extract status raw -o - - <<<"$NOTARY_JSON" 2>/dev/null || true)
 NOTARY_ID=$(plutil -extract id raw -o - - <<<"$NOTARY_JSON" 2>/dev/null || true)
 if [[ "$NOTARY_STATUS" != "Accepted" ]]; then
@@ -90,10 +91,12 @@ if [[ "$SIGNATURE_INFO" != *"(runtime)"* ]]; then
     exit 1
 fi
 xcrun stapler validate "$VERIFY_APP"
-GATEKEEPER=$(spctl -a -t exec -vv "$VERIFY_APP" 2>&1)
+# spctl exits non-zero when it rejects the app; keep its output for the error.
+GATEKEEPER=$(spctl -a -t exec -vv "$VERIFY_APP" 2>&1) || true
 if [[ "$GATEKEEPER" != *"source=Notarized Developer ID"* ]]; then
     echo "error: Gatekeeper does not accept the zipped app as notarized:" >&2
     echo "$GATEKEEPER" >&2
+    rm -rf "$VERIFY_DIR"
     exit 1
 fi
 rm -rf "$VERIFY_DIR"

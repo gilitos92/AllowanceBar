@@ -236,7 +236,9 @@ swift build                 # NOTE: run outside the tool sandbox; SwiftPM's own
                             # Operation not permitted". Use full permissions.
 swift test                  # live-network tests are opt-in via env
                             # (CURSOR_LIVE_TEST=1) and skip by default.
-scripts/bundle.sh [--install]   # builds "Allowance Bar.app" (ad-hoc signed by default)
+scripts/bundle.sh [--install]   # builds "Allowance Bar.app"; Developer ID signed
+                                # (needs the network for the timestamp) when
+                                # that identity is in the keychain, else ad-hoc
 ```
 
 - There is no GitHub Actions CI. Before merging, run `swift build` and

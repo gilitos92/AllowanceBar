@@ -110,9 +110,11 @@ GGV → Developer ID change (see "Sparkle auto-updates").
 
 Versioning: MINOR for features, PATCH for fixes and small UX follow-ups.
 
-`release.sh` picks the team's Developer ID identity by itself; set
-`SIGN_IDENTITY` (SHA-1 or name) to choose one, for example while an old and a
-renewed certificate overlap. It refuses to release without a Developer ID.
+`release.sh` picks the team's Developer ID identity by itself, by SHA-1. To
+choose another, set `SIGN_IDENTITY`. While an old and a renewed certificate
+overlap, use the SHA-1 (`security find-identity -v -p codesigning`): both
+certificates have the same name, so `codesign` rejects the name as
+ambiguous. It refuses to release without a Developer ID.
 Set `NOTARY_PROFILE` for another notarytool profile, or
 `APPLE_API_KEY_ID`/`APPLE_API_ISSUER`/`APPLE_API_KEY` to skip the profile.
 
