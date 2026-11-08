@@ -259,22 +259,22 @@ scripts/bundle.sh [--install]   # builds "Allowance Bar.app"; Developer ID signe
 
 Releases are cut locally. Full detail in [docs/RELEASING.md](docs/RELEASING.md).
 
-Release machine: Gil's MacBook (it holds every key below; 2.9.0–2.9.2 were
-built on the Mac mini, which has only GGV).
+This repo is public: never write where credentials or their backups are
+kept (vaults, item names, keychain accounts, profile names, which machine
+holds them) into tracked files, commits, PRs or release notes. That belongs
+in `HANDOFF.md` (gitignored) or the maintainer's private notes.
 
 Credentials (do NOT prompt for them; never print them):
-- Signing identity: "Developer ID Application: … (GC28C3K5G9)" in the login
-  keychain; `scripts/signing-identity.sh` finds it by team. `release.sh`
-  refuses any other identity.
-- Notarization: notarytool keychain profile `AllowanceBar` (App Store
-  Connect API key, Developer role; reuse it, don't create another).
-- Sparkle EdDSA key: login keychain, account `AllowanceBar`
-  (`generate_keys --account AllowanceBar`). NEVER change it together with
-  the signing certificate: Sparkle accepts an update when either the EdDSA
-  signature or the code signature matches the installed app.
-- Backups, 1Password vault Personal (plain `op`, never the Automation
-  vault): the Developer ID `.p12` + password, the API key `.p8`, and
-  "Allowance Bar Release Keys" (Sparkle keys, old `GGV.p12`).
+- Signing identity: the Developer ID Application identity of team
+  `GC28C3K5G9`; `scripts/signing-identity.sh` finds it by team.
+  `release.sh` refuses any other identity.
+- Notarization: a notarytool keychain profile (App Store Connect API key,
+  Developer role); reuse the existing one, don't create another.
+- Sparkle EdDSA key: in the release Mac's keychain. NEVER change it together
+  with the signing certificate: Sparkle accepts an update when either the
+  EdDSA signature or the code signature matches the installed app.
+- `release.sh` reads `NOTARY_PROFILE` and `SPARKLE_ACCOUNT` from the
+  environment or `~/.config/allowancebar/release.env` (outside the repo).
 - Never sign public builds with the Apple Development certificate: it is
   for testing, not distribution.
 
