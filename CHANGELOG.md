@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.9.3] — 2026-11-07
+
 ### Changed
 - Releases are signed with a Developer ID and notarized by Apple. macOS
   opens the downloaded app without the "Open Anyway" step, and the app's
