@@ -18,19 +18,26 @@
 # NOTARY_PROFILE and SPARKLE_ACCOUNT are machine-local, so they are not in
 # this public repo: set them in the environment or in the settings file
 # ALLOWANCEBAR_RELEASE_ENV (default ~/.config/allowancebar/release.env),
-# which this script sources when it exists. Environment values win.
+# which this script sources when it exists. Environment values win:
+# SPARKLE_ACCOUNT on its own, and the notarization settings (NOTARY_PROFILE,
+# APPLE_API_*) as one set, so a one-off profile or key never mixes with the
+# file's.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source scripts/signing-identity.sh
 
 RELEASE_ENV="${ALLOWANCEBAR_RELEASE_ENV:-$HOME/.config/allowancebar/release.env}"
+NOTARY_VARS=(NOTARY_PROFILE APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_API_KEY)
 if [[ -f "$RELEASE_ENV" ]]; then
-    ENV_NOTARY_PROFILE="${NOTARY_PROFILE:-}"
     ENV_SPARKLE_ACCOUNT="${SPARKLE_ACCOUNT:-}"
+    typeset -A ENV_NOTARY
+    for var in $NOTARY_VARS; do ENV_NOTARY[$var]="${(P)var:-}"; done
     source "$RELEASE_ENV"
-    NOTARY_PROFILE="${ENV_NOTARY_PROFILE:-${NOTARY_PROFILE:-}}"
     SPARKLE_ACCOUNT="${ENV_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-}}"
+    if [[ -n "${ENV_NOTARY[NOTARY_PROFILE]}${ENV_NOTARY[APPLE_API_KEY_ID]}" ]]; then
+        for var in $NOTARY_VARS; do typeset -g "$var=${ENV_NOTARY[$var]}"; done
+    fi
 fi
 if [[ -z "${SPARKLE_ACCOUNT:-}" ]]; then
     echo "error: set SPARKLE_ACCOUNT (the Sparkle EdDSA key's Keychain account)" >&2
@@ -42,6 +49,10 @@ if [[ -z "${NOTARY_PROFILE:-}" && -z "${APPLE_API_KEY_ID:-}" ]]; then
     echo "       APPLE_API_KEY_ID/APPLE_API_ISSUER/APPLE_API_KEY, in the environment" >&2
     echo "       or in $RELEASE_ENV." >&2
     exit 1
+fi
+if [[ -n "${APPLE_API_KEY_ID:-}" ]]; then
+    : "${APPLE_API_ISSUER:?Set APPLE_API_ISSUER}"
+    : "${APPLE_API_KEY:?Set APPLE_API_KEY (path to .p8)}"
 fi
 
 if [[ -z "${SIGN_IDENTITY:-}" ]]; then
@@ -71,8 +82,6 @@ rm -f "$ZIP"
 #    keeps a non-zero exit from stopping the script before the log is shown.
 NOTARY_ARGS=()
 if [[ -n "${APPLE_API_KEY_ID:-}" ]]; then
-    : "${APPLE_API_ISSUER:?Set APPLE_API_ISSUER}"
-    : "${APPLE_API_KEY:?Set APPLE_API_KEY (path to .p8)}"
     NOTARY_ARGS=(--key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER")
 else
     NOTARY_ARGS=(--keychain-profile "$NOTARY_PROFILE")
