@@ -24,7 +24,7 @@ APP_NAME="Allowance Bar"
 EXECUTABLE="AllowanceBar"
 BUNDLE_ID="com.ggv.AllowanceBar"
 CLI_NAME="allowancebar"
-VERSION="${ALLOWANCEBAR_VERSION:-2.9.2}"
+VERSION="${ALLOWANCEBAR_VERSION:-2.9.3}"
 if [[ -z "${SIGN_IDENTITY:-}" ]]; then
     SIGN_IDENTITY="$(find_developer_id_identity)"
     SIGN_IDENTITY="${SIGN_IDENTITY:--}"

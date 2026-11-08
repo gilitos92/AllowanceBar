@@ -4,7 +4,7 @@
 # See docs/RELEASING.md.
 #
 # Environment:
-#   ALLOWANCEBAR_VERSION  e.g. 2.9.2 (defaults to 2.9.2)
+#   ALLOWANCEBAR_VERSION  e.g. 2.9.3 (defaults to 2.9.3)
 #   SIGN_IDENTITY         code-signing identity (SHA-1 or certificate name);
 #                         defaults to the project's "Developer ID Application"
 #                         identity (team GC28C3K5G9) in the keychain. It must
@@ -31,7 +31,7 @@ if ! is_developer_id_identity "$SIGN_IDENTITY"; then
     echo "       and notarized; see docs/RELEASING.md to restore the certificate." >&2
     exit 1
 fi
-VERSION="${ALLOWANCEBAR_VERSION:-2.9.2}"
+VERSION="${ALLOWANCEBAR_VERSION:-2.9.3}"
 SPARKLE_ACCOUNT="AllowanceBar"
 REPO="gilitos92/AllowanceBar"
 
