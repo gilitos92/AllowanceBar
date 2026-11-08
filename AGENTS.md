@@ -236,49 +236,65 @@ swift build                 # NOTE: run outside the tool sandbox; SwiftPM's own
                             # Operation not permitted". Use full permissions.
 swift test                  # live-network tests are opt-in via env
                             # (CURSOR_LIVE_TEST=1) and skip by default.
-scripts/bundle.sh [--install]   # builds "Allowance Bar.app" (ad-hoc signed by default)
+scripts/bundle.sh [--install]   # builds "Allowance Bar.app"; Developer ID signed
+                                # (needs the network for the timestamp) when
+                                # that identity is in the keychain, else ad-hoc
 ```
 
 - There is no GitHub Actions CI. Before merging, run `swift build` and
   `swift test` locally; nothing else checks that a pushed branch builds.
 - There is no release workflow: releases are cut LOCALLY (see runbook below).
 - Every build is signed with the hardened runtime (blocks `DYLD_*` code
-  injection that would inherit the app's Keychain access). Builds without a
-  Team ID add `Resources/AllowanceBar.entitlements`
-  (disable-library-validation) so the self-signed Sparkle framework loads.
-  The inherited Developer ID/notarization workflow was removed in 2.0.1.
+  injection that would inherit the app's Keychain access). Releases (and
+  local `bundle.sh` builds when the identity is in the keychain) use the
+  Developer ID Application certificate, team `GC28C3K5G9`, with a secure
+  timestamp and no entitlements. The team ID gives Keychain items the stable
+  partition `teamid:GC28C3K5G9`; a certificate without a team ID (the old
+  self-signed GGV, used up to 2.9.2, or ad-hoc) gets one `cdhash:` per build,
+  which re-prompted after every build or update. Ad-hoc builds add
+  `Resources/AllowanceBar.entitlements` (disable-library-validation) so
+  Sparkle loads.
 
 ## Release runbook (the actual, tested end-to-end flow)
 
 Releases are cut locally. Full detail in [docs/RELEASING.md](docs/RELEASING.md).
 
+Release machine: Gil's MacBook (it holds every key below; 2.9.0–2.9.2 were
+built on the Mac mini, which has only GGV).
+
 Credentials (do NOT prompt for them; never print them):
-- Signing identity: self-signed `GGV` certificate in the login keychain
-  (default `SIGN_IDENTITY` in `release.sh`). No Developer ID, so builds are
-  NOT notarized.
+- Signing identity: "Developer ID Application: … (GC28C3K5G9)" in the login
+  keychain; `scripts/signing-identity.sh` finds it by team. `release.sh`
+  refuses any other identity.
+- Notarization: notarytool keychain profile `AllowanceBar` (App Store
+  Connect API key, Developer role; reuse it, don't create another).
 - Sparkle EdDSA key: login keychain, account `AllowanceBar`
-  (`generate_keys --account AllowanceBar`).
-- Backup of both: 1Password vault Personal, item "Allowance Bar Release Keys"
-  (Sparkle keys, attached `GGV.p12`, and its password).
-- Never sign public builds with the Apple Development certificate: it embeds
-  the owner's legal name.
+  (`generate_keys --account AllowanceBar`). NEVER change it together with
+  the signing certificate: Sparkle accepts an update when either the EdDSA
+  signature or the code signature matches the installed app.
+- Backups, 1Password vault Personal (plain `op`, never the Automation
+  vault): the Developer ID `.p12` + password, the API key `.p8`, and
+  "Allowance Bar Release Keys" (Sparkle keys, old `GGV.p12`).
+- Never sign public builds with the Apple Development certificate: it is
+  for testing, not distribution.
 
 Steps (bump `X.Y.Z`, keep `CHANGELOG.md` updated first):
 1. Branch `Release-X.Y.Z` from `Development`, commit "Prepare Allowance Bar
    X.Y.Z release", merge `--no-ff` into `main` and `Development`.
-2. `ALLOWANCEBAR_VERSION=X.Y.Z scripts/release.sh` — builds, signs with GGV
-   (inside-out incl. Sparkle), zips `AllowanceBar.zip`, writes a signed
-   `appcast.xml`.
+2. `ALLOWANCEBAR_VERSION=X.Y.Z scripts/release.sh` — builds, signs with
+   Developer ID (inside-out incl. Sparkle), notarizes and staples, zips
+   `AllowanceBar.zip`, verifies the unzipped copy ("Notarized Developer
+   ID"), then writes a signed `appcast.xml`.
 3. `git tag vX.Y.Z` on `main`; `git push origin main Development vX.Y.Z`.
 4. `gh release create vX.Y.Z AllowanceBar.zip appcast.xml -R gilitos92/AllowanceBar
    --title "Allowance Bar X.Y.Z" --notes ...` — BOTH assets; the app's
-   SUFeedURL is `releases/latest/download/appcast.xml`. Notes mention the
-   self-signed, not-notarized build and the one-time "Open Anyway" step.
+   SUFeedURL is `releases/latest/download/appcast.xml`. Notes say the
+   build is Developer ID signed and notarized.
 5. Install locally to verify (`cp -R "Allowance Bar.app" /Applications/`).
 
 Gotchas:
 - `generate_appcast` or `codesign` may trigger a Keychain prompt for the
-  Sparkle or GGV key. Approve with "Always Allow".
+  Sparkle or Developer ID key. Approve with "Always Allow".
 - `appcast.xml` and `AllowanceBar.zip` are gitignored (release assets only).
   The old `AgentMeter.zip` is still tracked (historical); leave it alone.
 - `.build/`, `*.app/`, `HANDOFF.md` are gitignored.

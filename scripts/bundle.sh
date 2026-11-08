@@ -6,22 +6,29 @@
 #     --install   also copy the app to /Applications
 #
 # Optional environment for signing (used by scripts/release.sh):
-#   SIGN_IDENTITY   code-signing identity; defaults to ad-hoc "-". Every build
-#                   gets the hardened runtime. A Developer ID identity also gets
-#                   the timestamp needed for notarization; any other identity
-#                   (e.g. the self-signed "GGV" certificate) gets the
-#                   library-validation entitlement so Sparkle still loads.
+#   SIGN_IDENTITY   code-signing identity (SHA-1 or certificate name). Defaults
+#                   to the project's Developer ID Application identity when it
+#                   is in the keychain (see scripts/signing-identity.sh), else
+#                   ad-hoc "-". Every build gets the hardened runtime. A
+#                   Developer ID identity also gets the secure timestamp that
+#                   notarization needs; any other identity (ad-hoc, or a
+#                   certificate without a Team ID) gets the library-validation
+#                   entitlement so Sparkle still loads.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+source scripts/signing-identity.sh
 
 # Display/bundle name, and the SwiftPM executable product built for it.
 APP_NAME="Allowance Bar"
 EXECUTABLE="AllowanceBar"
 BUNDLE_ID="com.ggv.AllowanceBar"
 CLI_NAME="allowancebar"
-VERSION="${ALLOWANCEBAR_VERSION:-2.9.2}"
-SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+VERSION="${ALLOWANCEBAR_VERSION:-2.9.3}"
+if [[ -z "${SIGN_IDENTITY:-}" ]]; then
+    SIGN_IDENTITY="$(find_developer_id_identity)"
+    SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+fi
 
 # Compile Spanish strings from the catalog; en.lproj is checked in separately.
 xcrun xcstringstool compile Sources/AgentMeter/Resources/Localizable.xcstrings \
@@ -113,13 +120,14 @@ PLIST
 # Sign inside-out (--deep is discouraged): Sparkle.framework, including its
 # XPC services, before the app. Every build gets the hardened runtime, which
 # makes the app ignore DYLD_* environment variables so other processes cannot
-# inject code that inherits its Keychain access. Only Developer ID builds get
-# a secure timestamp (needed for notarization; Apple's timestamp server
-# rejects other certificates). Builds without a Team ID (self-signed or
-# ad-hoc) also need the entitlement that turns off library validation, or the
-# runtime would refuse to load Sparkle.
+# inject code that inherits its Keychain access. Developer ID builds get a
+# secure timestamp (needed for notarization) and no entitlements: Sparkle is
+# re-signed by the same team, so library validation lets it load. Other
+# builds (ad-hoc, or a certificate without a Team ID) need the entitlement
+# that turns off library validation, or the runtime would refuse to load
+# Sparkle.
 SIGN_FLAGS=(--force --options runtime --sign "$SIGN_IDENTITY")
-if [[ "$SIGN_IDENTITY" == *"Developer ID"* ]]; then
+if is_developer_id_identity "$SIGN_IDENTITY"; then
     SIGN_FLAGS+=(--timestamp)
 else
     SIGN_FLAGS+=(--entitlements Resources/AllowanceBar.entitlements)
