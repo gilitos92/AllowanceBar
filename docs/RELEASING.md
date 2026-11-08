@@ -5,17 +5,17 @@ Allowance Bar ships as a signed `.app` (with the `allowancebar` CLI inside at
 together with a Sparkle `appcast.xml`. Releases are cut **locally** with
 `scripts/release.sh`; there is no GitHub Actions workflow.
 
-Builds are signed with the self-signed **GGV** certificate and are **not
-notarized** (no paid Apple Developer Program membership). Users approve the
-app once in System Settings → Privacy & Security → Open Anyway; Sparkle
-updates install afterwards without that step.
+Releases are signed with the project's **Developer ID Application**
+certificate (team `GC28C3K5G9`) and **notarized** by Apple, so the app opens
+without a Gatekeeper warning. Releases up to 2.9.2 were signed with the
+self-signed **GGV** certificate and not notarized.
 
 ## What a release contains
 
 | Artifact | Produced by | Notes |
 |----------|-------------|-------|
 | `Allowance Bar.app` | `scripts/bundle.sh` | Compiles the String Catalog, builds the `AllowanceBar` and `allowancebar-cli` products, embeds Sparkle.framework, writes Info.plist (version, `allowancebar://` URL scheme, Sparkle keys), signs inside-out: XPC services → Sparkle → `Helpers/allowancebar` → app. |
-| `AllowanceBar.zip` | `scripts/release.sh` | `ditto`-zipped. Notarized and stapled only with a Developer ID identity. |
+| `AllowanceBar.zip` | `scripts/release.sh` | `ditto`-zipped after notarization and stapling; `release.sh` unzips it and checks the team, hardened runtime, staple and "Notarized Developer ID" before writing the appcast. |
 | `appcast.xml` | `scripts/release.sh` (`generate_appcast`) | EdDSA-signed Sparkle feed. Must be uploaded with the zip. |
 
 ## Credentials
@@ -24,31 +24,46 @@ Nothing is stored in GitHub or the repo.
 
 | Credential | Location |
 |------------|----------|
-| Code-signing identity `GGV` (self-signed, CN=GGV, no Team ID) | login Keychain |
+| Code-signing identity "Developer ID Application: … (GC28C3K5G9)" | login Keychain |
+| Notarization: App Store Connect API key (Developer role) | login Keychain, as notarytool profile `AllowanceBar` |
 | Sparkle EdDSA private key | login Keychain, account `AllowanceBar` |
+| Old self-signed identity `GGV` (no longer used for releases) | login Keychain |
 
-Both are backed up in one 1Password item, **"Allowance Bar Release Keys"**
-(vault Personal): the Sparkle private and public keys, the attached
-`GGV.p12`, and its password.
+Backups, all in 1Password vault Personal:
 
-Restore on a new Mac:
+- Developer ID: the `.p12` file and its password are in the Developer ID
+  item (file "Developer ID Application - GC28C3K5G9").
+- App Store Connect API key: the `.p8` contents are in its own item.
+- Sparkle keys and the old `GGV.p12`: item **"Allowance Bar Release Keys"**.
+
+Restore on a new Mac (delete the copied `.p12` and `.p8` afterwards):
 
 ```bash
-security import GGV.p12 -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
+security import DeveloperID.p12 -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
+# Key ID and issuer ID: App Store Connect → Users and Access → Integrations.
+xcrun notarytool store-credentials AllowanceBar --key AuthKey_<KEY_ID>.p8 \
+  --key-id <KEY_ID> --issuer <ISSUER_ID>
 .build/artifacts/sparkle/Sparkle/bin/generate_keys --account AllowanceBar -f <private-key-file>
 ```
 
-Why self-signed instead of ad-hoc: macOS ties Keychain "Always Allow"
-grants to the code signature's designated requirement. Ad-hoc signatures
-change with every build, so users would be re-prompted after each update; a
-stable certificate keeps the trusted-app identity. This does not prevent
-Claude Code from resetting the item's separate partition grant during token
-renewal, so Claude credential reads use Apple's trusted `security` tool.
-The certificate shows only "GGV".
+Why a Developer ID: a Keychain item remembers which apps may read it in a
+*partition list*. An app signed by an Apple-issued certificate with a team ID
+gets the partition `teamid:GC28C3K5G9`, which stays the same for every build
+and survives certificate renewals. A certificate without a team ID (the old
+GGV certificate, or ad-hoc signing) gets `cdhash:<fingerprint of this
+build>` instead, so every build and every update asked for Keychain access
+again. Claude credential reads still go through Apple's trusted `security`
+tool, because Claude Code can reset its own item's partition grant during
+token renewal.
 
-Never re-create the GGV certificate or the Sparkle key casually: a new
-certificate re-triggers Keychain prompts for every user, and a new Sparkle
-key means shipped apps can never auto-update again.
+The signature shows the certificate holder's legal name ("Developer ID
+Application: GILBERTO GOMEZ VALADEZ"); Apple issues individual certificates
+that way. Never sign public builds with the Apple Development certificate: it
+is meant for testing, not distribution.
+
+Never re-create the Sparkle key casually: a new Sparkle key means shipped apps
+can never auto-update again. The EdDSA key also carried updates across the
+GGV → Developer ID change (see "Sparkle auto-updates").
 
 ## Sparkle auto-updates
 
@@ -59,6 +74,13 @@ key means shipped apps can never auto-update again.
   signs the zip with the private key; the matching public key is
   `SUPublicEDKey` in `scripts/bundle.sh`.
 - Upload **both** `AllowanceBar.zip` and `appcast.xml` as release assets.
+- Sparkle accepts an app update when **either** its EdDSA signature matches
+  the installed app's `SUPublicEDKey` **or** its code signature matches the
+  installed app's designated requirement (`SUUpdateValidator.m`,
+  `validateUpdateForHost:`; "allows change of Code Signing identity"). The
+  EdDSA key did not change, so the first Developer ID release installs
+  automatically over GGV-signed 2.9.2 and earlier. Never change the EdDSA key
+  and the signing certificate in the same release.
 
 ## Cutting a release
 
@@ -69,9 +91,12 @@ key means shipped apps can never auto-update again.
    X.Y.Z release", merge `--no-ff` into `main` and `Development`.
 3. Build, sign, and write the appcast:
    ```bash
-   ALLOWANCEBAR_VERSION=X.Y.Z scripts/release.sh   # SIGN_IDENTITY defaults to GGV
+   ALLOWANCEBAR_VERSION=X.Y.Z scripts/release.sh   # Developer ID + notarization
    ```
-   (Approve Keychain prompts for the GGV key or the Sparkle key with
+   It signs with the Developer ID identity, submits the zip to Apple's
+   notary service (usually a few minutes), staples the ticket, re-zips,
+   verifies the zipped copy, and only then writes the EdDSA-signed appcast.
+   (Approve Keychain prompts for the Developer ID key or the Sparkle key with
    "Always Allow" if they appear.)
 4. Tag `main` and publish with BOTH assets:
    ```bash
@@ -79,19 +104,24 @@ key means shipped apps can never auto-update again.
    gh release create vX.Y.Z AllowanceBar.zip appcast.xml \
      --title "Allowance Bar X.Y.Z" --notes "..."
    ```
-   Release notes say the build is signed with a self-signed certificate and
-   not notarized, with the "Open Anyway" first-launch step.
+   Release notes say the build is signed with Developer ID and notarized.
 5. Install locally to verify (`cp -R "Allowance Bar.app" /Applications/`;
    `allowancebar --version` reports the new version).
 
 Versioning: MINOR for features, PATCH for fixes and small UX follow-ups.
 
-With a Developer ID later: pass `SIGN_IDENTITY="Developer ID Application: …"`
-plus `NOTARY_PROFILE` (or `APPLE_API_KEY_ID`/`APPLE_API_ISSUER`/`APPLE_API_KEY`);
-`release.sh` then adds a secure timestamp, notarizes, and staples. Every
-build already uses the hardened runtime; builds without a Team ID add
-`Resources/AllowanceBar.entitlements` so the self-signed Sparkle framework loads. Switching
-identity changes the designated requirement, so users see Keychain prompts once.
+`release.sh` picks the team's Developer ID identity by itself; set
+`SIGN_IDENTITY` (SHA-1 or name) to choose one, for example while an old and a
+renewed certificate overlap. It refuses to release without a Developer ID.
+Set `NOTARY_PROFILE` for another notarytool profile, or
+`APPLE_API_KEY_ID`/`APPLE_API_ISSUER`/`APPLE_API_KEY` to skip the profile.
+
+`scripts/bundle.sh` also signs local builds with the Developer ID identity
+when it is in the keychain (with a secure timestamp, so it needs the
+network), so a dev build installed over the release keeps the Keychain
+grant. Without that identity it signs ad-hoc and adds
+`Resources/AllowanceBar.entitlements`, so Sparkle still loads. Every build
+uses the hardened runtime.
 
 ### Local packaging checks
 
