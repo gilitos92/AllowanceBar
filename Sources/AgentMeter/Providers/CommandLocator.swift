@@ -2,9 +2,10 @@ import Foundation
 
 /// Finds another tool's command-line program (Codex, Muse Code). Apps opened
 /// from Finder get a minimal PATH, so the usual install folders come first,
-/// then PATH, then the user's login shell. A found path is cached; a miss is
-/// looked up again after `missRetryInterval`, so installing the tool later
-/// needs no restart.
+/// then PATH, then the user's login shell. A found path is cached. After a
+/// miss the folders are still checked on every call (a few file checks), so
+/// a fresh install is found at once; only the login-shell lookup waits
+/// `missRetryInterval`.
 enum CommandLocator {
     nonisolated static let missRetryInterval: TimeInterval = 300
 
@@ -36,9 +37,9 @@ enum CommandLocator {
     /// to the login shell as is.
     nonisolated static func resolve(_ command: String) -> URL? {
         cacheLock.withLock {
-            if let cached = cache[command],
-               cached.url != nil || Date().timeIntervalSince(cached.date) < missRetryInterval {
-                return cached.url
+            let cached = cache[command]
+            if let url = cached?.url {
+                return url
             }
             let home = FileManager.default.homeDirectoryForCurrentUser.path
             let pathEnv = ProcessInfo.processInfo.environment["PATH"]
@@ -47,6 +48,9 @@ enum CommandLocator {
                 let url = URL(fileURLWithPath: candidate)
                 cache[command] = Lookup(url: url, date: Date())
                 return url
+            }
+            if let cached, Date().timeIntervalSince(cached.date) < missRetryInterval {
+                return nil
             }
             let resolved = resolveViaShell(command)
             cache[command] = Lookup(url: resolved, date: Date())
