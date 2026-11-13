@@ -84,6 +84,17 @@ final class MuseCodeProviderTests: XCTestCase {
         }
     }
 
+    func testExtraAccountsGetTheirOwnInstructions() {
+        XCTAssertEqual(MuseServeError.notSignedIn.forExtraAccount, .notSignedInExtraAccount)
+        XCTAssertEqual(MuseServeError.apiKeyOnly.forExtraAccount, .apiKeyOnlyExtraAccount)
+        XCTAssertEqual(MuseServeError.accountSetupRequired.forExtraAccount, .accountSetupRequiredExtraAccount)
+        XCTAssertEqual(MuseServeError.noSubscription.forExtraAccount, .noSubscription)
+        for error in [MuseServeError.apiKeyOnlyExtraAccount, .accountSetupRequiredExtraAccount] {
+            XCTAssertFalse(error.errorDescription?.contains("(muse login)") ?? true)
+            XCTAssertTrue(error.errorDescription?.contains("Settings") ?? false)
+        }
+    }
+
     func testFailuresWaitBeforeMuseCodeStartsAgain() {
         XCTAssertEqual(MuseServeClient.retryInterval(after: .apiKeyOnly), MuseServeClient.pollInterval)
         XCTAssertEqual(MuseServeClient.retryInterval(after: .noSubscription), MuseServeClient.pollInterval)
@@ -234,7 +245,7 @@ final class MuseCodeProviderTests: XCTestCase {
             _ = try await provider.fetch(forceRefresh: true)
             XCTFail("An API-key host returned usage")
         } catch {
-            XCTAssertEqual(error as? MuseServeError, .apiKeyOnly)
+            XCTAssertEqual(error as? MuseServeError, .apiKeyOnlyExtraAccount)
         }
         // Reading must leave the login in the folder, not move it to the
         // shared Keychain item.

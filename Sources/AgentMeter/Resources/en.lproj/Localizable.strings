@@ -204,6 +204,8 @@
 	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>Failed to parse Venice response: %@</string>
+	<key>Finish setting up this Meta account: run muse with the same variables as the login command in Settings</key>
+	<string>Finish setting up this Meta account: run muse with the same variables as the login command in Settings</string>
 	<key>Finish setting up your Meta account: run muse in Terminal</key>
 	<string>Finish setting up your Meta account: run muse in Terminal</string>
 	<key>Folder</key>
@@ -410,6 +412,8 @@
 	<string>This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.</string>
 	<key>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</key>
 	<string>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</string>
+	<key>This account uses an API key. Sign it in with your Meta account (the login command in Settings) to show subscription limits.</key>
+	<string>This account uses an API key. Sign it in with your Meta account (the login command in Settings) to show subscription limits.</string>
 	<key>This folder is already added</key>
 	<string>This folder is already added</string>
 	<key>This key is tied to a GLM Coding Plan subscription. Allowance Bar reads your time and token quotas (they reset every few hours). It cannot spend money, call models, or change your account.</key>

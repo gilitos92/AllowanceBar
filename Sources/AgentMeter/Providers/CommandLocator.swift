@@ -2,10 +2,19 @@ import Foundation
 
 /// Finds another tool's command-line program (Codex, Muse Code). Apps opened
 /// from Finder get a minimal PATH, so the usual install folders come first,
-/// then PATH, then the user's login shell. Results are cached per command.
+/// then PATH, then the user's login shell. A found path is cached; a miss is
+/// looked up again after `missRetryInterval`, so installing the tool later
+/// needs no restart.
 enum CommandLocator {
+    nonisolated static let missRetryInterval: TimeInterval = 300
+
+    private struct Lookup {
+        let url: URL?
+        let date: Date
+    }
+
     private nonisolated static let cacheLock = NSLock()
-    private nonisolated(unsafe) static var cache: [String: URL?] = [:]
+    private nonisolated(unsafe) static var cache: [String: Lookup] = [:]
 
     nonisolated static func candidatePaths(command: String, home: String, pathEnv: String?) -> [String] {
         var paths = [
@@ -27,19 +36,20 @@ enum CommandLocator {
     /// to the login shell as is.
     nonisolated static func resolve(_ command: String) -> URL? {
         cacheLock.withLock {
-            if let cached = cache[command] {
-                return cached
+            if let cached = cache[command],
+               cached.url != nil || Date().timeIntervalSince(cached.date) < missRetryInterval {
+                return cached.url
             }
             let home = FileManager.default.homeDirectoryForCurrentUser.path
             let pathEnv = ProcessInfo.processInfo.environment["PATH"]
             for candidate in candidatePaths(command: command, home: home, pathEnv: pathEnv)
             where FileManager.default.isExecutableFile(atPath: candidate) {
                 let url = URL(fileURLWithPath: candidate)
-                cache[command] = .some(url)
+                cache[command] = Lookup(url: url, date: Date())
                 return url
             }
             let resolved = resolveViaShell(command)
-            cache[command] = .some(resolved)
+            cache[command] = Lookup(url: resolved, date: Date())
             return resolved
         }
     }

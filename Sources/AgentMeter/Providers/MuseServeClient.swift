@@ -27,9 +27,11 @@ enum MuseServeError: LocalizedError, Equatable {
     case notSignedIn
     case notSignedInExtraAccount
     case apiKeyOnly
+    case apiKeyOnlyExtraAccount
     case noSubscription
     case noUsageData
     case accountSetupRequired
+    case accountSetupRequiredExtraAccount
     case refreshFailed
     case rateLimited(retryAfter: TimeInterval?)
     case unsupportedVersion
@@ -46,12 +48,16 @@ enum MuseServeError: LocalizedError, Equatable {
             return L("Not signed in — run the login command in Settings")
         case .apiKeyOnly:
             return L("Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits.")
+        case .apiKeyOnlyExtraAccount:
+            return L("This account uses an API key. Sign it in with your Meta account (the login command in Settings) to show subscription limits.")
         case .noSubscription:
             return L("This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.")
         case .noUsageData:
             return L("Muse Code has no usage data yet. It appears after your first prompt in a new window.")
         case .accountSetupRequired:
             return L("Finish setting up your Meta account: run muse in Terminal")
+        case .accountSetupRequiredExtraAccount:
+            return L("Finish setting up this Meta account: run muse with the same variables as the login command in Settings")
         case .refreshFailed:
             return L("Meta couldn't report Muse Code usage right now")
         case .rateLimited:
@@ -62,6 +68,18 @@ enum MuseServeError: LocalizedError, Equatable {
             return detail
         case .timeout:
             return L("Muse Code timed out")
+        }
+    }
+
+    /// The same problem worded for an extra account, whose login is only
+    /// reached with its folder's variables: plain `muse` would act on the
+    /// default login instead.
+    var forExtraAccount: MuseServeError {
+        switch self {
+        case .notSignedIn: return .notSignedInExtraAccount
+        case .apiKeyOnly: return .apiKeyOnlyExtraAccount
+        case .accountSetupRequired: return .accountSetupRequiredExtraAccount
+        default: return self
         }
     }
 }
@@ -94,7 +112,8 @@ enum MuseServeClient {
         case .refreshFailed, .protocolError, .timeout:
             return minimumInterval
         case .museNotFound, .notSignedIn, .notSignedInExtraAccount, .apiKeyOnly,
-             .noSubscription, .noUsageData, .accountSetupRequired, .unsupportedVersion:
+             .apiKeyOnlyExtraAccount, .noSubscription, .noUsageData, .accountSetupRequired,
+             .accountSetupRequiredExtraAccount, .unsupportedVersion:
             return pollInterval
         }
     }

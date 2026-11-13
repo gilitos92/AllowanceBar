@@ -54,8 +54,8 @@ struct MuseCodeProvider: AccountConfigurableProvider {
             return MuseServeClient.usage(from: reading, now: now)
         } catch var error as MuseServeError {
             DebugLog.write("muse serve \(providerID): failed: \(error)")
-            if error == .notSignedIn, configHome != nil {
-                error = .notSignedInExtraAccount
+            if configHome != nil {
+                error = error.forExtraAccount
             }
             await MainActor.run { MuseUsageCache.shared.storeFailure(error, for: providerID, at: now) }
             if case .rateLimited = error, let cached {
