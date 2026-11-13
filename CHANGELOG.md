@@ -7,6 +7,15 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Added
+- Muse Code, Meta's coding agent. Allowance Bar shows a Muse Code
+  subscription's 5-hour and weekly limits and its plan. It reads them
+  through your own Muse Code CLI (`muse serve`), which checks the usage
+  without spending a prompt; Allowance Bar never sees your Meta login. Sign
+  in with `muse login` first. Extra accounts each use their own folder; see
+  docs/MULTIPLE_ACCOUNTS.md. API keys and pay-as-you-go accounts show a
+  message instead of numbers, because Meta has no balance API.
+
 ### Fixed
 - Claude accounts in CLIProxyAPI hit Anthropic's rate limit much less
   often. CLIProxyAPI keeps the 5-hour and weekly limits that Anthropic sends

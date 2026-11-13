@@ -1,7 +1,7 @@
 # Allowance Bar — Agent Context
 
 macOS menu bar app (SwiftUI, Swift Package, macOS 14+) showing AI coding usage
-limits for Codex, Cursor, Claude Code, Gemini, Claude API reporting (multiple accounts each),
+limits for Codex, Cursor, Claude Code, Gemini, Muse Code, Claude API reporting (multiple accounts each),
 every CLIProxyAPI login (Claude, Codex, Antigravity, Gemini), and
 pay-as-you-go balances for OpenRouter, DeepSeek, Kimi, Z.ai, and Venice.
 Public repo: https://github.com/gilitos92/AllowanceBar, a fork of
@@ -227,6 +227,29 @@ announcement drafts, environment specifics) and complements this file.
   `modelId`, `remainingFraction` (0..1 remaining, invert for used), `resetTime`.
   Extra accounts: `GEMINI_CLI_HOME=<dir>` moves the whole `.gemini` folder to
   `<dir>/.gemini/oauth_creds.json` (gemini-cli `packages/core/src/utils/paths.ts`).
+- **Muse Code** (`muse`, Meta): `MuseServeClient` spawns `muse serve
+  --no-session-log` (resolved via `CommandLocator`, like Codex) with cwd in
+  the temp folder and speaks MSP, newline-delimited JSON-RPC 2.0 (schema:
+  github.com/meta-models/muse-code-sdk `schema/msp`). The host REJECTS
+  requests sent before `initialize` is answered (no pipelining), and
+  `clientInfo.name` must match `^[a-z0-9_]+$`. `initialize` asks
+  `capabilities.experimentalApi`; then `initialized`, experimental
+  `account/read` (`state` loggedOut/apiKey/envKey/accountLogin, `label`)
+  and experimental `usage/refresh` (`{usage{observedAtMs, tier,
+  window{usedPercent, resetsAtMs, windowDurationMins}, weekly{usedPercent,
+  resetsAtMs}}, tierName, subscriptionActive}`; error kinds
+  `usageRefreshUnavailable` -32081 = no Meta-account login,
+  `usageRefreshRateLimited` -32080 with `retryAfterMs`, one refresh per
+  host per 60 s). Stable `usage/read` is useless here: a new host returns
+  `{}`. No prompt is spent. Polled every 5 min, cached in `MuseUsageCache`.
+  `META_API_KEY` is removed from the child's environment. Detection:
+  `~/.config/muse/auth.json` (the login itself is in Keychain item
+  `ai.meta.dev.credentials`, account `meta`, read only by Muse Code).
+  Extra accounts: folder = `XDG_CONFIG_HOME`, PLUS
+  `TBH_CREDENTIAL_BACKEND=file` (undocumented): the Keychain item is shared
+  by every folder, and `muse` run without that variable MOVES a folder's
+  file login into it, replacing the default login. `MuseServeClient.
+  environment` sets both. Pay-as-you-go API keys have no balance endpoint.
 
 ## Ground rules (project's core promise — do not violate)
 

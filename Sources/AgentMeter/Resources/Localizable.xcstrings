@@ -5210,6 +5210,166 @@
           }
         }
       }
+    },
+    "Muse Code CLI not found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code CLI not found"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontró la CLI de Muse Code"
+          }
+        }
+      }
+    },
+    "Not signed in — run muse login in Terminal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not signed in — run muse login in Terminal"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No has iniciado sesión — ejecuta muse login en Terminal"
+          }
+        }
+      }
+    },
+    "Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code está usando una clave API. Inicia sesión con tu cuenta de Meta (muse login) para ver los límites de tu suscripción."
+          }
+        }
+      }
+    },
+    "This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta cuenta de Meta no tiene suscripción a Muse Code. Allowance Bar solo puede mostrar límites de suscripción."
+          }
+        }
+      }
+    },
+    "Muse Code has no usage data yet. It appears after your first prompt in a new window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code has no usage data yet. It appears after your first prompt in a new window."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code aún no tiene datos de uso. Aparecen después de tu primer prompt en una ventana nueva."
+          }
+        }
+      }
+    },
+    "Muse Code asked to wait before checking usage again": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code asked to wait before checking usage again"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code pidió esperar antes de volver a consultar el uso"
+          }
+        }
+      }
+    },
+    "Update Muse Code — this version can't report usage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Muse Code — this version can't report usage"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualiza Muse Code — esta versión no puede informar el uso"
+          }
+        }
+      }
+    },
+    "Muse Code timed out": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code timed out"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se agotó el tiempo de espera de Muse Code"
+          }
+        }
+      }
+    },
+    "Muse Code protocol error": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code protocol error"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error de protocolo de Muse Code"
+          }
+        }
+      }
+    },
+    "Muse Code exited unexpectedly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code exited unexpectedly"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code se cerró inesperadamente"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

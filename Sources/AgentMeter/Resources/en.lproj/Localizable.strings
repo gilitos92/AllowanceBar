@@ -276,12 +276,28 @@
 	<string>Menu bar monitor for AI coding usage limits.</string>
 	<key>Month to date (UTC)</key>
 	<string>Month to date (UTC)</string>
+	<key>Muse Code CLI not found</key>
+	<string>Muse Code CLI not found</string>
+	<key>Muse Code asked to wait before checking usage again</key>
+	<string>Muse Code asked to wait before checking usage again</string>
+	<key>Muse Code exited unexpectedly</key>
+	<string>Muse Code exited unexpectedly</string>
+	<key>Muse Code has no usage data yet. It appears after your first prompt in a new window.</key>
+	<string>Muse Code has no usage data yet. It appears after your first prompt in a new window.</string>
+	<key>Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits.</key>
+	<string>Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits.</string>
+	<key>Muse Code protocol error</key>
+	<string>Muse Code protocol error</string>
+	<key>Muse Code timed out</key>
+	<string>Muse Code timed out</string>
 	<key>Nano View</key>
 	<string>Nano View</string>
 	<key>Not confirmed yet — check the platform that bills you.</key>
 	<string>Not confirmed yet — check the platform that bills you.</string>
 	<key>Not signed in</key>
 	<string>Not signed in</string>
+	<key>Not signed in — run muse login in Terminal</key>
+	<string>Not signed in — run muse login in Terminal</string>
 	<key>Not signed in — run the login command in Settings</key>
 	<string>Not signed in — run the login command in Settings</string>
 	<key>Opacity</key>
@@ -386,6 +402,8 @@
 	<string>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</string>
 	<key>This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.</key>
 	<string>This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.</string>
+	<key>This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.</key>
+	<string>This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.</string>
 	<key>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</key>
 	<string>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</string>
 	<key>This folder is already added</key>
@@ -406,6 +424,8 @@
 	<string>Unexpected Claude API report</string>
 	<key>Unexpected response from CLIProxyAPI</key>
 	<string>Unexpected response from CLIProxyAPI</string>
+	<key>Update Muse Code — this version can't report usage</key>
+	<string>Update Muse Code — this version can't report usage</string>
 	<key>Usage</key>
 	<string>Usage</string>
 	<key>Usage Details</key>

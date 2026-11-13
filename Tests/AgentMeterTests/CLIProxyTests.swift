@@ -1028,7 +1028,8 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(index(logins[0].providerID), index("claude") + 1)
         XCTAssertEqual(index(logins[3].providerID), index("gemini") + 1)
         XCTAssertEqual(index(logins[2].providerID), index("gemini") + 2)
-        XCTAssertEqual(index("openrouter"), index("gemini") + 3)
+        XCTAssertEqual(index("muse"), index("gemini") + 3)
+        XCTAssertEqual(index("openrouter"), index("gemini") + 4)
     }
 
     func testDuplicateNeedsTheSameProviderAndEmail() {

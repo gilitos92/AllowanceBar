@@ -424,6 +424,20 @@
 	<string>Modo</string>
 	<key>Month to date (UTC)</key>
 	<string>Mes hasta la fecha (UTC)</string>
+	<key>Muse Code CLI not found</key>
+	<string>No se encontró la CLI de Muse Code</string>
+	<key>Muse Code asked to wait before checking usage again</key>
+	<string>Muse Code pidió esperar antes de volver a consultar el uso</string>
+	<key>Muse Code exited unexpectedly</key>
+	<string>Muse Code se cerró inesperadamente</string>
+	<key>Muse Code has no usage data yet. It appears after your first prompt in a new window.</key>
+	<string>Muse Code aún no tiene datos de uso. Aparecen después de tu primer prompt en una ventana nueva.</string>
+	<key>Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits.</key>
+	<string>Muse Code está usando una clave API. Inicia sesión con tu cuenta de Meta (muse login) para ver los límites de tu suscripción.</string>
+	<key>Muse Code protocol error</key>
+	<string>Error de protocolo de Muse Code</string>
+	<key>Muse Code timed out</key>
+	<string>Se agotó el tiempo de espera de Muse Code</string>
 	<key>Nano View</key>
 	<string>Vista nano</string>
 	<key>No %@ API key set — add one in Settings</key>
@@ -446,6 +460,8 @@
 	<string>No has iniciado sesión en Claude Code</string>
 	<key>Not signed in to Gemini (run 'gemini' to authenticate)</key>
 	<string>No has iniciado sesión en Gemini (ejecuta 'gemini' para autenticarte)</string>
+	<key>Not signed in — run muse login in Terminal</key>
+	<string>No has iniciado sesión — ejecuta muse login en Terminal</string>
 	<key>Not signed in — run the login command in Settings</key>
 	<string>Sin iniciar sesión — ejecuta el comando de inicio de sesión en Ajustes</string>
 	<key>Notifies once per limit window when usage is 15 or more points ahead of even pace, after the first 10% of the window. At that rate the limit runs out before it resets.</key>
@@ -616,6 +632,8 @@
 	<string>Este inicio de sesión de CLIProxyAPI está cerrado. Vuelve a iniciar sesión en CLIProxyAPI.</string>
 	<key>This Mac</key>
 	<string>Esta Mac</string>
+	<key>This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.</key>
+	<string>Esta cuenta de Meta no tiene suscripción a Muse Code. Allowance Bar solo puede mostrar límites de suscripción.</string>
 	<key>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</key>
 	<string>Esta cuenta viene de CLIProxyAPI. Desactívala o elimínala ahí para ocultarla aquí.</string>
 	<key>This folder is already added</key>
@@ -658,6 +676,8 @@
 	<string>Respuesta inesperada de Z.ai</string>
 	<key>Unexpected response from cursor.com</key>
 	<string>Respuesta inesperada de cursor.com</string>
+	<key>Update Muse Code — this version can't report usage</key>
+	<string>Actualiza Muse Code — esta versión no puede informar el uso</string>
 	<key>Updated %@</key>
 	<string>Actualizado %@</string>
 	<key>Usage</key>
