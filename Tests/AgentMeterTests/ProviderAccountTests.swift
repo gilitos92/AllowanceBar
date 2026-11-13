@@ -104,7 +104,7 @@ final class ProviderAccountTests: XCTestCase {
         let deepseek = ProviderAccountConfig(baseProviderID: "deepseek", label: "Team")
         let unknown = ProviderAccountConfig(baseProviderID: "nope", label: "X")
         let ids = UsageStore.defaultProviders(extraAccounts: [deepseek, claude, codex, unknown]).map(\.id)
-        XCTAssertEqual(ids.count, 13)
+        XCTAssertEqual(ids.count, 14)
         XCTAssertEqual(Array(ids.prefix(5)), ["codex", codex.providerID, "cursor", "claude", claude.providerID])
         let deepseekIndex = try XCTUnwrap(ids.firstIndex(of: "deepseek"))
         XCTAssertEqual(ids[deepseekIndex + 1], deepseek.providerID)

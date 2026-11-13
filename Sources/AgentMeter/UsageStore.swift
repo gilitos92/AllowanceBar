@@ -96,7 +96,7 @@ final class UsageStore: ObservableObject {
     ) -> [any UsageProvider] {
         let bases: [any UsageProvider] = [
             CodexProvider(), CursorProvider(), ClaudeProvider(), ClaudeAPIProvider(), GeminiProvider(),
-            OpenRouterProvider(), DeepSeekProvider(), MoonshotProvider(),
+            MuseCodeProvider(), OpenRouterProvider(), DeepSeekProvider(), MoonshotProvider(),
             ZaiProvider(), VeniceProvider(),
         ]
         func proxyRows(_ baseID: String) -> [any UsageProvider] {
@@ -133,6 +133,7 @@ final class UsageStore: ObservableObject {
         for removed in oldIDs.subtracting(newIDs) {
             states.removeValue(forKey: removed)
             CodexAccountCache.shared.clear(providerID: removed)
+            MuseUsageCache.shared.clear(providerID: removed)
         }
         for added in newIDs.subtracting(oldIDs) {
             states[added] = .loading

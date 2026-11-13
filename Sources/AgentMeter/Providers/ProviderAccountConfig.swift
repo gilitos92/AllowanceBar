@@ -64,6 +64,11 @@ struct ProviderAccountConfig: Codable, Equatable, Identifiable, Sendable {
             var provider = configured(CursorProvider())
             provider.fetcher.stateDBPath = CursorUsageFetcher.stateDBPath(userDataDirectory: home)
             return provider
+        case "muse":
+            guard let home = expandedHomeURL() else { return nil }
+            var provider = configured(MuseCodeProvider())
+            provider.configHome = home
+            return provider
         case "claude-api":
             return configured(ClaudeAPIProvider(id: providerID))
         case "openrouter":
@@ -171,6 +176,22 @@ struct ProviderAccountSupport: Sendable {
                     "open -na Cursor --args --user-data-dir=\(ProviderAccountPath.shellQuoted(path))"
                 },
                 loginTool: "Cursor"
+            )))
+        case "muse":
+            return ProviderAccountSupport(credential: .folder(Folder(
+                defaultPath: "~/.config",
+                suggestedPrefix: "~/.muse-",
+                discoveryMarker: "muse/auth.json",
+                loginCommand: { path in
+                    // The folder becomes XDG_CONFIG_HOME. Muse Code keeps
+                    // logins in one shared Keychain item by default, so a
+                    // second login there would replace the first;
+                    // TBH_CREDENTIAL_BACKEND=file keeps it in this folder
+                    // (MuseServeClient.environment sets it too).
+                    let quoted = ProviderAccountPath.shellQuoted(path)
+                    return "mkdir -p \(quoted) && XDG_CONFIG_HOME=\(quoted) TBH_CREDENTIAL_BACKEND=file muse login"
+                },
+                loginTool: "Muse Code"
             )))
         case "claude-api", "openrouter", "deepseek", "moonshot", "zai", "venice":
             return ProviderAccountSupport(credential: .apiKey)

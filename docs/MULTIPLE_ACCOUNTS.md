@@ -8,7 +8,7 @@ setting (Auto/On/Off), its own menu bar toggle, and its own alerts.
 Open **Settings → Providers**. Under each provider there is an
 **<Provider> accounts** group with **Add account…**.
 
-## Tools that keep their own login (Codex, Claude Code, Gemini, Cursor)
+## Tools that keep their own login (Codex, Claude Code, Gemini, Cursor, Muse Code)
 
 These tools keep one login per folder. A second account gets a second folder,
 selected when you sign in. Allowance Bar never signs in for you; it shows the
@@ -20,6 +20,7 @@ command, and you run it in Terminal.
 | Claude Code | `~/.claude` | `~/.claude-work` | `mkdir -p ~/.claude-work && CLAUDE_CONFIG_DIR=~/.claude-work claude auth login` |
 | Gemini | `~/.gemini` | `~/.gemini-work` | `mkdir -p ~/.gemini-work && GEMINI_CLI_HOME=~/.gemini-work gemini` (then choose Sign in with Google) |
 | Cursor | `~/Library/Application Support/Cursor` | `~/.cursor-work` | `open -na Cursor --args --user-data-dir=~/.cursor-work` (then sign in inside that window) |
+| Muse Code | `~/.config` (login in `~/.config/muse`) | `~/.muse-work` | `mkdir -p ~/.muse-work && XDG_CONFIG_HOME=~/.muse-work TBH_CREDENTIAL_BACKEND=file muse login` |
 
 Keep using the same variable or flag whenever you use that account, for
 example `CLAUDE_CONFIG_DIR=~/.claude-work claude`.
@@ -36,6 +37,19 @@ Where Allowance Bar reads each login:
 - **Gemini**: `<folder>/.gemini/oauth_creds.json`.
 - **Cursor**: `<folder>/User/globalStorage/state.vscdb`.
 - **Codex**: see [CODEX_ACCOUNTS.md](CODEX_ACCOUNTS.md).
+- **Muse Code**: Allowance Bar starts `muse serve` with that folder as
+  `XDG_CONFIG_HOME` and asks it for the usage; Muse Code reads the login in
+  `<folder>/muse/auth.json` itself.
+
+**Muse Code needs both variables every time.** By default Muse Code keeps
+its login in one Keychain item that every folder shares, so a second login
+would replace your first one. `TBH_CREDENTIAL_BACKEND=file` keeps the extra
+account's login in its folder instead. Muse Code moves a folder's login into
+that shared Keychain item whenever it runs without the variable, so always
+run that account with both, for example
+`XDG_CONFIG_HOME=~/.muse-work TBH_CREDENTIAL_BACKEND=file muse`. Allowance
+Bar always sets both for extra accounts. The variable is not documented by
+Meta, so a future Muse Code version may change it.
 
 **Removing** one of these accounts only forgets the folder. It does not sign
 out.
