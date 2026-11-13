@@ -240,8 +240,14 @@ announcement drafts, environment specifics) and complements this file.
   resetsAtMs}}, tierName, subscriptionActive}`; error kinds
   `usageRefreshUnavailable` -32081 = no Meta-account login,
   `usageRefreshRateLimited` -32080 with `retryAfterMs`, one refresh per
-  host per 60 s). Stable `usage/read` is useless here: a new host returns
-  `{}`. No prompt is spent. Polled every 5 min, cached in `MuseUsageCache`.
+  host per 60 s, `usageRefreshFailed` -32082 whose `data.failureKind`
+  (credential_rejected, payment_subscription_required, onboarding,
+  age_requirement, transient, terminal) is the branch point, never
+  `message`). Stable `usage/read` is useless here: a new host returns
+  `{}`. No prompt is spent. Polled every 5 min, cached in `MuseUsageCache`;
+  failures are remembered too (`MuseServeClient.retryInterval`: 5 min for
+  states only the user can change, else 1 min) so an API-key login does
+  not start `muse serve` on every refresh.
   `META_API_KEY` is removed from the child's environment. Detection:
   `~/.config/muse/auth.json` (the login itself is in Keychain item
   `ai.meta.dev.credentials`, account `meta`, read only by Muse Code).

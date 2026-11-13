@@ -204,6 +204,8 @@
 	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>Failed to parse Venice response: %@</string>
+	<key>Finish setting up your Meta account: run muse in Terminal</key>
+	<string>Finish setting up your Meta account: run muse in Terminal</string>
 	<key>Folder</key>
 	<string>Folder</string>
 	<key>Folder is required</key>
@@ -274,6 +276,8 @@
 	<string>Marks today as the date you verified this renewal on your billing platform.</string>
 	<key>Menu bar monitor for AI coding usage limits.</key>
 	<string>Menu bar monitor for AI coding usage limits.</string>
+	<key>Meta couldn't report Muse Code usage right now</key>
+	<string>Meta couldn't report Muse Code usage right now</string>
 	<key>Month to date (UTC)</key>
 	<string>Month to date (UTC)</string>
 	<key>Muse Code CLI not found</key>

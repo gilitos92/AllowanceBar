@@ -26,8 +26,20 @@ struct MuseCodeProvider: AccountConfigurableProvider {
     func fetch(forceRefresh: Bool) async throws -> ProviderUsage {
         let now = Date()
         let providerID = id
-        let cached = await MainActor.run { MuseUsageCache.shared.entry(for: providerID) }
-        if let cached {
+        let (cached, failure) = await MainActor.run {
+            (MuseUsageCache.shared.entry(for: providerID), MuseUsageCache.shared.failure(for: providerID))
+        }
+        if let failure {
+            let age = now.timeIntervalSince(failure.timestamp)
+            if age < MuseServeClient.minimumInterval
+                || (!forceRefresh && age < MuseServeClient.retryInterval(after: failure.error)) {
+                if case .rateLimited = failure.error, let cached {
+                    return MuseServeClient.usage(from: cached.reading, now: now)
+                }
+                throw failure.error
+            }
+        }
+        if let cached, failure == nil {
             let age = now.timeIntervalSince(cached.timestamp)
             if age < MuseServeClient.minimumInterval
                 || (!forceRefresh && age < MuseServeClient.pollInterval) {
@@ -40,14 +52,16 @@ struct MuseCodeProvider: AccountConfigurableProvider {
             DebugLog.write("muse serve \(providerID): ok (window: \(reading.window != nil), weekly: \(reading.weekly != nil))")
             await MainActor.run { MuseUsageCache.shared.store(reading, for: providerID, at: now) }
             return MuseServeClient.usage(from: reading, now: now)
-        } catch MuseServeError.rateLimited(let retryAfter) {
-            DebugLog.write("muse serve \(providerID): rate limited (retry after: \(retryAfter.map { String(Int($0)) } ?? "unknown") s)")
-            if let cached {
+        } catch var error as MuseServeError {
+            DebugLog.write("muse serve \(providerID): failed: \(error)")
+            if error == .notSignedIn, configHome != nil {
+                error = .notSignedInExtraAccount
+            }
+            await MainActor.run { MuseUsageCache.shared.storeFailure(error, for: providerID, at: now) }
+            if case .rateLimited = error, let cached {
                 return MuseServeClient.usage(from: cached.reading, now: now)
             }
-            throw MuseServeError.rateLimited(retryAfter: retryAfter)
-        } catch MuseServeError.notSignedIn where configHome != nil {
-            throw MuseServeError.notSignedInExtraAccount
+            throw error
         } catch {
             DebugLog.write("muse serve \(providerID): failed: \(error)")
             throw error
@@ -65,17 +79,34 @@ final class MuseUsageCache {
         let timestamp: Date
     }
 
+    struct Failure: Equatable {
+        let error: MuseServeError
+        let timestamp: Date
+    }
+
     private var entries: [String: Entry] = [:]
+    private var failures: [String: Failure] = [:]
 
     func entry(for providerID: String) -> Entry? {
         entries[providerID]
     }
 
+    /// The last attempt's error, when it failed after the last success.
+    func failure(for providerID: String) -> Failure? {
+        failures[providerID]
+    }
+
     func store(_ reading: MuseUsageReading, for providerID: String, at timestamp: Date = Date()) {
         entries[providerID] = Entry(reading: reading, timestamp: timestamp)
+        failures.removeValue(forKey: providerID)
+    }
+
+    func storeFailure(_ error: MuseServeError, for providerID: String, at timestamp: Date = Date()) {
+        failures[providerID] = Failure(error: error, timestamp: timestamp)
     }
 
     func clear(providerID: String) {
         entries.removeValue(forKey: providerID)
+        failures.removeValue(forKey: providerID)
     }
 }

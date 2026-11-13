@@ -45,7 +45,9 @@ final class MuseCodeProviderTests: XCTestCase {
         let unavailable = #"{"jsonrpc":"2.0","id":4,"error":{"code":-32081,"message":"usage/refresh needs a Meta-account login on this host","data":{"kind":"usageRefreshUnavailable","retryable":false}}}"#
         let rateLimited = #"{"id":3,"error":{"code":-32080,"message":"wait","data":{"kind":"usageRefreshRateLimited","retryAfterMs":42000,"retryable":true}}}"#
         let experimental = #"{"id":3,"error":{"code":-32601,"message":"experimental","data":{"kind":"experimentalRequired"}}}"#
-        let failed = #"{"id":3,"error":{"code":-32082,"message":"usage refresh failed","data":{"kind":"usageRefreshFailed"}}}"#
+        func failed(_ failureKind: String) -> String {
+            #"{"id":3,"error":{"code":-32082,"message":"Meta says no","data":{"kind":"usageRefreshFailed","failureKind":"\#(failureKind)"}}}"#
+        }
         let noSubscription = #"{"id":3,"result":{"subscriptionActive":false}}"#
         let noUsage = #"{"id":3,"result":{"subscriptionActive":true,"tierName":"Everyday Usage"}}"#
 
@@ -61,8 +63,18 @@ final class MuseCodeProviderTests: XCTestCase {
         XCTAssertThrowsError(try MuseServeClient.reading(account: nil, refresh: object(experimental))) {
             XCTAssertEqual($0 as? MuseServeError, .unsupportedVersion)
         }
-        XCTAssertThrowsError(try MuseServeClient.reading(account: nil, refresh: object(failed))) {
-            XCTAssertEqual($0 as? MuseServeError, .protocolError("usage refresh failed"))
+        let failures: [(String, MuseServeError)] = [
+            ("credential_rejected", .notSignedIn),
+            ("payment_subscription_required", .noSubscription),
+            ("onboarding", .accountSetupRequired),
+            ("age_requirement", .accountSetupRequired),
+            ("transient", .refreshFailed),
+            ("terminal", .refreshFailed),
+        ]
+        for (kind, expected) in failures {
+            XCTAssertThrowsError(try MuseServeClient.reading(account: object(account), refresh: object(failed(kind)))) {
+                XCTAssertEqual($0 as? MuseServeError, expected, kind)
+            }
         }
         XCTAssertThrowsError(try MuseServeClient.reading(account: object(account), refresh: object(noSubscription))) {
             XCTAssertEqual($0 as? MuseServeError, .noSubscription)
@@ -70,6 +82,39 @@ final class MuseCodeProviderTests: XCTestCase {
         XCTAssertThrowsError(try MuseServeClient.reading(account: object(account), refresh: object(noUsage))) {
             XCTAssertEqual($0 as? MuseServeError, .noUsageData)
         }
+    }
+
+    func testFailuresWaitBeforeMuseCodeStartsAgain() {
+        XCTAssertEqual(MuseServeClient.retryInterval(after: .apiKeyOnly), MuseServeClient.pollInterval)
+        XCTAssertEqual(MuseServeClient.retryInterval(after: .noSubscription), MuseServeClient.pollInterval)
+        XCTAssertEqual(MuseServeClient.retryInterval(after: .refreshFailed), MuseServeClient.minimumInterval)
+        XCTAssertEqual(MuseServeClient.retryInterval(after: .rateLimited(retryAfter: 120)), 120)
+        XCTAssertEqual(MuseServeClient.retryInterval(after: .rateLimited(retryAfter: nil)), MuseServeClient.minimumInterval)
+    }
+
+    /// A remembered failure is shown again without starting Muse Code (the
+    /// configured folder does not exist, so a start would fail differently).
+    @MainActor
+    func testRememberedFailureIsReused() async throws {
+        var provider = MuseCodeProvider()
+        provider.id = "muse:test-\(UUID().uuidString)"
+        provider.configHome = URL(fileURLWithPath: "/nonexistent-\(UUID().uuidString)")
+        defer { MuseUsageCache.shared.clear(providerID: provider.id) }
+
+        MuseUsageCache.shared.storeFailure(.apiKeyOnly, for: provider.id, at: Date().addingTimeInterval(-120))
+        do {
+            _ = try await provider.fetch(forceRefresh: false)
+            XCTFail("Expected the remembered failure")
+        } catch {
+            XCTAssertEqual(error as? MuseServeError, .apiKeyOnly)
+        }
+
+        // Rate limited with an earlier answer: the answer stays on screen.
+        let reading = try MuseServeClient.reading(account: object(account), refresh: object(refresh))
+        MuseUsageCache.shared.store(reading, for: provider.id, at: Date().addingTimeInterval(-600))
+        MuseUsageCache.shared.storeFailure(.rateLimited(retryAfter: 300), for: provider.id, at: Date().addingTimeInterval(-10))
+        let usage = try await provider.fetch(forceRefresh: true)
+        XCTAssertEqual(usage.planName, "Power Usage")
     }
 
     func testEnvironmentDropsAPIKeyAndSetsConfigHome() {
@@ -183,6 +228,8 @@ final class MuseCodeProviderTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: MuseServeClient.authFile(configRoot: folder).path))
 
         XCTAssertTrue(provider.isDetected)
+        // A new id: the signed-out failure above is remembered for a minute.
+        provider.id = "muse:live-\(UUID().uuidString)"
         do {
             _ = try await provider.fetch(forceRefresh: true)
             XCTFail("An API-key host returned usage")

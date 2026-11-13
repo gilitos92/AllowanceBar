@@ -29,6 +29,8 @@ enum MuseServeError: LocalizedError, Equatable {
     case apiKeyOnly
     case noSubscription
     case noUsageData
+    case accountSetupRequired
+    case refreshFailed
     case rateLimited(retryAfter: TimeInterval?)
     case unsupportedVersion
     case protocolError(String)
@@ -48,6 +50,10 @@ enum MuseServeError: LocalizedError, Equatable {
             return L("This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.")
         case .noUsageData:
             return L("Muse Code has no usage data yet. It appears after your first prompt in a new window.")
+        case .accountSetupRequired:
+            return L("Finish setting up your Meta account: run muse in Terminal")
+        case .refreshFailed:
+            return L("Meta couldn't report Muse Code usage right now")
         case .rateLimited:
             return L("Muse Code asked to wait before checking usage again")
         case .unsupportedVersion:
@@ -76,6 +82,22 @@ enum MuseServeClient {
     /// Muse Code allows one refresh per host per minute; forced refreshes
     /// wait at least that long too.
     nonisolated static let minimumInterval: TimeInterval = 60
+
+    /// How long a failure is shown before Muse Code is started again (unless
+    /// the user refreshes). States that only the user can change, such as a
+    /// missing login or subscription, wait as long as a success; others
+    /// wait a minute, or as long as Muse Code asked.
+    nonisolated static func retryInterval(after error: MuseServeError) -> TimeInterval {
+        switch error {
+        case .rateLimited(let retryAfter):
+            return max(minimumInterval, retryAfter ?? 0)
+        case .refreshFailed, .protocolError, .timeout:
+            return minimumInterval
+        case .museNotFound, .notSignedIn, .notSignedInExtraAccount, .apiKeyOnly,
+             .noSubscription, .noUsageData, .accountSetupRequired, .unsupportedVersion:
+            return pollInterval
+        }
+    }
 
     nonisolated static var defaultConfigRoot: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -206,6 +228,19 @@ enum MuseServeClient {
                     throw MuseServeError.apiKeyOnly
                 }
                 throw MuseServeError.notSignedIn
+            case "usageRefreshFailed":
+                // `failureKind` is the schema's branch point; the message is
+                // display text only.
+                switch data?["failureKind"] as? String {
+                case "credential_rejected":
+                    throw MuseServeError.notSignedIn
+                case "payment_subscription_required":
+                    throw MuseServeError.noSubscription
+                case "onboarding", "age_requirement":
+                    throw MuseServeError.accountSetupRequired
+                default:
+                    throw MuseServeError.refreshFailed
+                }
             case "usageRefreshRateLimited":
                 let milliseconds = (data?["retryAfterMs"] as? NSNumber)?.doubleValue
                 throw MuseServeError.rateLimited(retryAfter: milliseconds.map { $0 / 1000 })

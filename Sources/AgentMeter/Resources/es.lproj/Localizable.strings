@@ -324,6 +324,8 @@
 	<string>Expandir</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>No se pudo interpretar la respuesta de Venice: %@</string>
+	<key>Finish setting up your Meta account: run muse in Terminal</key>
+	<string>Termina de configurar tu cuenta de Meta: ejecuta muse en Terminal</string>
 	<key>Flash (24h)</key>
 	<string>Flash (24 h)</string>
 	<key>Flash-Lite (24h)</key>
@@ -420,6 +422,8 @@
 	<string>Monitor de límites de uso de IA para programación en la barra de menús.</string>
 	<key>Menu bar style</key>
 	<string>Estilo de barra de menús</string>
+	<key>Meta couldn't report Muse Code usage right now</key>
+	<string>Meta no pudo informar el uso de Muse Code en este momento</string>
 	<key>Mode</key>
 	<string>Modo</string>
 	<key>Month to date (UTC)</key>

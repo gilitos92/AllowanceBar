@@ -5370,6 +5370,38 @@
           }
         }
       }
+    },
+    "Finish setting up your Meta account: run muse in Terminal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish setting up your Meta account: run muse in Terminal"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termina de configurar tu cuenta de Meta: ejecuta muse en Terminal"
+          }
+        }
+      }
+    },
+    "Meta couldn't report Muse Code usage right now": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meta couldn't report Muse Code usage right now"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meta no pudo informar el uso de Muse Code en este momento"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
