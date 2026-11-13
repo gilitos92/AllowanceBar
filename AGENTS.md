@@ -187,6 +187,20 @@ announcement drafts, environment specifics) and complements this file.
   known; never when several proxy logins fit one local account; remembered in defaults
   `cliProxyLocalAccountEmails` for the loading phase; a local error, or
   stale for over 10 min (`localFailureGrace`), shows the proxy row.
+  Proxy numbers first (`ClaudeProxyQuota`): `auth-files` carries each Claude
+  login's `quota{observed_at, signals}` — the `anthropic-ratelimit-unified-
+  {5h,7d}-{utilization (0..1), reset (epoch s), status}` headers of its last
+  proxied message, kept in the proxy's memory only (lost on restart; none
+  until a message passes). Younger than 15 min (`maxAge`), they replace the
+  usage request for proxy rows AND for local Claude rows whose login is on
+  the proxy (`ClaudeProvider.proxyNumbers`, which waits at most 3 s for the
+  list via `Deadline`, then falls through to the local token). `asOf` =
+  `observed_at`; `rejected` = 100%; a passed reset = 0% and no reset. No
+  Opus window from headers. `api-call` itself has no cache: every relayed
+  request reaches Anthropic and counts toward the account's limit. A local
+  Claude row that falls back to the proxy keeps its answer in
+  `CLIProxyUsageCache` (2 min, key `<identity>|local|<id>|<auth_index>`)
+  unless forced, like proxy rows.
 - **Claude API** (`claude-api`, v1.12.0): separate from subscription Claude.
   Keychain API key must have organization reporting access. Read-only GET
   `/v1/organizations/cost_report` and `/v1/organizations/usage_report/messages`

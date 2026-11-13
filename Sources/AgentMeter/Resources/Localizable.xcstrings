@@ -5051,18 +5051,18 @@
         }
       }
     },
-    "When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.": {
+    "Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ."
+            "value": "Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cuando expira un inicio de sesión de Claude Code en esta Mac, Allowance Bar lo lee a través del inicio de sesión del proxy con el mismo correo. Elige otro aquí si los correos son distintos."
+            "value": "Allowance Bar usa el inicio de sesión del proxy con el mismo correo para cada inicio de sesión de Claude Code en esta Mac: muestra los límites que el proxy vio en mensajes recientes y lee a través del proxy cuando expira el inicio de sesión en esta Mac. Elige otro aquí si los correos son distintos."
           }
         }
       }

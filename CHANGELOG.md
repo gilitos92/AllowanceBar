@@ -7,6 +7,20 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Fixed
+- Claude accounts in CLIProxyAPI hit Anthropic's rate limit much less
+  often. CLIProxyAPI keeps the 5-hour and weekly limits that Anthropic sends
+  with every Claude Code message. Allowance Bar now reads those numbers from
+  the proxy's login list, which it already downloads, and asks Anthropic's
+  usage endpoint only when an account has none from the last 15 minutes.
+  This applies to the proxy's rows and to Claude accounts on this Mac whose
+  login is also on the proxy. "Data as of" shows when the proxy saw the
+  numbers. An account that is waiting out a rate limit still shows them.
+- A Claude account on this Mac that reads its usage through CLIProxyAPI
+  (because its own login has expired) now keeps each answer for two minutes,
+  like the proxy's own rows. Before, it asked Anthropic again on every
+  refresh, up to twice a minute. The Refresh button still asks right away.
+
 ## [2.9.3] — 2026-11-07
 
 ### Changed

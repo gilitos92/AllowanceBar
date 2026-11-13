@@ -72,6 +72,8 @@
 	<string>Allowance Bar could not reach the provider to check this key. That is usually a network issue or a temporary API change. Your saved key was not removed.</string>
 	<key>Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.</key>
 	<string>Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.</string>
+	<key>Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ.</key>
+	<string>Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ.</string>
 	<key>Also show this window on every desktop and over full-screen apps. Requires Keep on Top.</key>
 	<string>Also show this window on every desktop and over full-screen apps. Requires Keep on Top.</string>
 	<key>An Admin key can see billing details and manage other keys. Allowance Bar only reads your balance; it cannot spend credits or change settings. An Inference key is safer and also works with Allowance Bar.</key>
@@ -428,8 +430,6 @@
 	<string>Waiting for browser authorization…</string>
 	<key>Website &amp; source code</key>
 	<string>Website &amp; source code</string>
-	<key>When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.</key>
-	<string>When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.</string>
 	<key>Window Options</key>
 	<string>Window Options</string>
 	<key>Works for usage monitoring.</key>
