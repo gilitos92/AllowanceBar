@@ -128,6 +128,8 @@
 	<string>Allowance Bar no pudo contactar al proveedor para verificar esta clave. Suele ser un problema de red o un cambio temporal en la API. Tu clave guardada no se eliminó.</string>
 	<key>Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.</key>
 	<string>Allowance Bar muestra cada inicio de sesión de Claude, Codex, Antigravity y Gemini de tu servidor CLIProxyAPI. Uno que coincide con una cuenta de esta Mac se muestra una sola vez. Tus tokens se quedan en el proxy.</string>
+	<key>Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ.</key>
+	<string>Allowance Bar usa el inicio de sesión del proxy con el mismo correo para cada inicio de sesión de Claude Code en esta Mac: muestra los límites que el proxy vio en mensajes recientes y lee a través del proxy cuando expira el inicio de sesión en esta Mac. Elige otro aquí si los correos son distintos.</string>
 	<key>Also show this window on every desktop and over full-screen apps. Requires Keep on Top.</key>
 	<string>Muestra también esta ventana en todos los escritorios y sobre apps en pantalla completa. Requiere Mantener encima.</string>
 	<key>An Admin key can see billing details and manage other keys. Allowance Bar only reads your balance; it cannot spend credits or change settings. An Inference key is safer and also works with Allowance Bar.</key>
@@ -690,8 +692,6 @@
 	<string>Semanal (Opus)</string>
 	<key>Weekly limit</key>
 	<string>Límite semanal</string>
-	<key>When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.</key>
-	<string>Cuando expira un inicio de sesión de Claude Code en esta Mac, Allowance Bar lo lee a través del inicio de sesión del proxy con el mismo correo. Elige otro aquí si los correos son distintos.</string>
 	<key>Window</key>
 	<string>Ventana</string>
 	<key>Window Options</key>

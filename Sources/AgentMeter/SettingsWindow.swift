@@ -303,7 +303,7 @@ private struct CLIProxySection: View {
                     Text(checkResult).font(.callout).foregroundStyle(.secondary)
                 }
                 if !proxyEmails.isEmpty {
-                    Text(L("When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ."))
+                    Text(L("Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ."))
                         .font(.subheadline)
                         .foregroundStyle(.tertiary)
                     ForEach(localClaudeProviderIDs, id: \.self) { providerID in
