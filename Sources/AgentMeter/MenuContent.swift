@@ -9,6 +9,9 @@ struct MenuContent: View {
     @State private var menuScreenVisibleHeight: CGFloat?
     @State private var providerContentHeight: CGFloat?
     @State private var providerContentBottom: CGFloat = 0
+    /// Whether the Usage Details window is on screen; only then does the
+    /// footer's view switcher highlight its view.
+    @State private var usageDetailsIsOpen = false
 
     private let tipJarURL = URL(string: "https://www.buymeacoffee.com/gilitos92")!
 
@@ -123,9 +126,22 @@ struct MenuContent: View {
             }
             .help(L("Refresh"))
             .accessibilityLabel(L("Refresh"))
-            ViewModeButtons(current: settings.usageDetailsMode) { mode in
+            ViewModeButtons(
+                current: settings.usageDetailsMode,
+                highlightsCurrent: usageDetailsIsOpen
+            ) { mode in
                 settings.usageDetailsMode = mode
                 openUsageDetails()
+            }
+            // The dropdown's window becomes key each time it opens, and the
+            // Usage Details window can close while the dropdown is open.
+            .onAppear(perform: refreshUsageDetailsState)
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+                refreshUsageDetailsState()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
+                // The closing window is still visible during this notification.
+                DispatchQueue.main.async(execute: refreshUsageDetailsState)
             }
             SettingsLink {
                 Image(systemName: "gearshape")
@@ -173,6 +189,13 @@ struct MenuContent: View {
         .fixedSize()
         .help(L("More"))
         .accessibilityLabel(L("More"))
+    }
+
+    private func refreshUsageDetailsState() {
+        usageDetailsIsOpen = NSApp.windows.contains { window in
+            // SwiftUI names the window after its scene ID.
+            window.isVisible && (window.identifier?.rawValue.contains("usage-details") ?? false)
+        }
     }
 
     private func openUsageDetails() {
@@ -312,10 +335,11 @@ private struct MenuWindowScreenReader: NSViewRepresentable {
 }
 
 /// The Usage Details window's three views on one capsule, like the window's
-/// own view switcher. Each opens the window in that view; the highlighted one
-/// is the view ⌘D opens.
+/// own view switcher. Each opens the window in that view, and ⌘D opens the
+/// current one. The current view is highlighted while the window is open.
 private struct ViewModeButtons: View {
     let current: UsageDetailsMode
+    let highlightsCurrent: Bool
     let open: (UsageDetailsMode) -> Void
 
     var body: some View {
@@ -324,10 +348,10 @@ private struct ViewModeButtons: View {
                 let button = Button { open(mode) } label: {
                     Image(systemName: mode.symbol)
                 }
-                .buttonStyle(ViewModeButtonStyle(isSelected: mode == current))
+                .buttonStyle(ViewModeButtonStyle(isSelected: highlightsCurrent && mode == current))
                 .help(mode.help)
                 .accessibilityLabel(mode.title)
-                .accessibilityAddTraits(mode == current ? .isSelected : [])
+                .accessibilityAddTraits(highlightsCurrent && mode == current ? .isSelected : [])
                 if mode == current {
                     button.keyboardShortcut("d", modifiers: [.command])
                 } else {
