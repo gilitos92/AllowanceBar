@@ -909,8 +909,13 @@ struct WindowLevelSetter: NSViewRepresentable {
         var compact = false {
             didSet { applyLevel() }
         }
-        var anchorsBottomRight = false
+        var anchorsBottomRight = false {
+            didSet { if anchorsBottomRight != oldValue { applyLevel() } }
+        }
         private var lastFrame: NSRect?
+        /// The window's toolbar while the nano panel is showing; see
+        /// `applyCompactChrome`.
+        private var detachedToolbar: NSToolbar?
         private var fullSizeContentBeforeCompact: Bool?
         private var dragMonitor: Any?
         private var mouseDownLocation: NSPoint?
@@ -1176,6 +1181,20 @@ struct WindowLevelSetter: NSViewRepresentable {
             updateDragMonitor()
             for kind: NSWindow.ButtonType in [.closeButton, .miniaturizeButton, .zoomButton] {
                 window.standardWindowButton(kind)?.isHidden = compact
+            }
+            // On macOS 26 and later a window with a toolbar is at least as tall
+            // as the toolbar's title bar (52 pt), even while the toolbar is
+            // hidden, which leaves an empty band of glass under the nano
+            // panel. Detach the toolbar while nano and put the same one back
+            // afterwards, so SwiftUI keeps its items, title and subtitle.
+            if compact && anchorsBottomRight {
+                if let toolbar = window.toolbar {
+                    detachedToolbar = toolbar
+                    window.toolbar = nil
+                }
+            } else if let toolbar = detachedToolbar {
+                detachedToolbar = nil
+                window.toolbar = toolbar
             }
             if compact {
                 if fullSizeContentBeforeCompact == nil {

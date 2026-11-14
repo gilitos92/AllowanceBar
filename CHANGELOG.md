@@ -43,6 +43,10 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
   with several lists its accounts, and each account opens its own settings.
   Adding an account and folders found on this Mac have their own places.
   Every Settings pane uses the same rounded cards and capsule controls.
+- The app now records the macOS SDK it is built with. Before, macOS ran it
+  in compatibility mode, so on macOS 26 and later its buttons, switches and
+  segmented controls kept the older look. The nano window stays a slim
+  capsule under the new design.
 
 ### Fixed
 - Claude accounts in CLIProxyAPI hit Anthropic's rate limit much less

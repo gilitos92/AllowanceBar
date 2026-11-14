@@ -284,6 +284,11 @@ scripts/bundle.sh [--install]   # builds "Allowance Bar.app"; Developer ID signe
                                 # that identity is in the keychain, else ad-hoc
 ```
 
+- `bundle.sh` passes the SDK version to the linker (`-platform_version macos
+  14.0 <SDK>`). Without it SwiftPM records SDK 14.0, and macOS runs the app
+  in compatibility mode with the pre-macOS 26 controls. Check with
+  `otool -l "Allowance Bar.app/Contents/MacOS/AllowanceBar" | grep -A4
+  LC_BUILD_VERSION` (`sdk` should match `xcrun --show-sdk-version`).
 - There is no GitHub Actions CI. Before merging, run `swift build` and
   `swift test` locally; nothing else checks that a pushed branch builds.
 - There is no release workflow: releases are cut LOCALLY (see runbook below).
