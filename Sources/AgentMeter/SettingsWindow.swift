@@ -214,33 +214,38 @@ private struct ProvidersSettingsTab: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            List(selection: $selection) {
-                Section {
+            // A SwiftUI scroll view like the page beside it, not a List: on
+            // macOS 26 and later the title bar treats a List differently from
+            // a scroll view, which split the title bar in two at the list's
+            // edge. A sidebar-style List also became the window's sidebar.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 2) {
                     ForEach(groups) { group in
-                        sidebarRow(for: group)
-                            .tag(ProviderPane.provider(group.baseID))
-                            .listRowSeparator(.hidden)
-                    }
-                }
-                Section {
-                    HStack(spacing: 8) {
-                        CLIProxyBadge(size: 20)
-                        Text(L("CLIProxyAPI"))
-                        Spacer(minLength: 4)
-                        if CLIProxyConfig.isConfigured {
-                            Circle().fill(.green).frame(width: 7, height: 7)
-                                .accessibilityLabel(L("Saved"))
+                        SidebarItem(isSelected: selection == .provider(group.baseID)) {
+                            selection = .provider(group.baseID)
+                        } label: { isSelected in
+                            sidebarRow(for: group, isSelected: isSelected)
                         }
                     }
-                    .tag(ProviderPane.cliProxy)
-                    .listRowSeparator(.hidden)
+                    Divider()
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                    SidebarItem(isSelected: selection == .cliProxy) {
+                        selection = .cliProxy
+                    } label: { _ in
+                        HStack(spacing: 8) {
+                            CLIProxyBadge(size: 20)
+                            Text(L("CLIProxyAPI"))
+                            Spacer(minLength: 4)
+                            if CLIProxyConfig.isConfigured {
+                                Circle().fill(.green).frame(width: 7, height: 7)
+                                    .accessibilityLabel(L("Saved"))
+                            }
+                        }
+                    }
                 }
+                .padding(10)
             }
-            // Not `.sidebar`: on macOS 26 and later a sidebar list becomes the
-            // window's sidebar, which runs up under the title bar and pushes
-            // the Settings toolbar to the right.
-            .listStyle(.inset)
-            .scrollContentBackground(.hidden)
             // Only behind the list, not up under the title bar.
             .background(Color.settingsCardFill, ignoresSafeAreaEdges: [])
             .frame(width: 220)
@@ -257,7 +262,7 @@ private struct ProvidersSettingsTab: View {
         }
     }
 
-    private func sidebarRow(for group: ProviderGroup) -> some View {
+    private func sidebarRow(for group: ProviderGroup, isSelected: Bool) -> some View {
         HStack(spacing: 8) {
             ProviderBadge(providerID: group.baseID, shortCode: group.baseShortCode, size: 20)
             Text(group.baseName)
@@ -266,11 +271,10 @@ private struct ProvidersSettingsTab: View {
             if let summary = summary(for: group) {
                 Text(summary)
                     .font(.callout)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.white.opacity(0.85)) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
             }
         }
-        .accessibilityElement(children: .combine)
     }
 
     /// "Off", "3 accounts", the plan or the balance, in that order.
@@ -314,6 +318,34 @@ private struct ProvidersSettingsTab: View {
     private var emptyDetail: some View {
         Text(L("No providers enabled. Open Settings to turn some on."))
             .foregroundStyle(.secondary)
+    }
+}
+
+/// A row of the Providers pane's list: a rounded accent highlight when
+/// selected, a light one on hover.
+private struct SidebarItem<Label: View>: View {
+    let isSelected: Bool
+    let select: () -> Void
+    @ViewBuilder let label: (Bool) -> Label
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: select) {
+            label(isSelected)
+                .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(isSelected ? AnyShapeStyle(Color.accentColor)
+                              : AnyShapeStyle(Color.primary.opacity(isHovering ? 0.06 : 0)))
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 
