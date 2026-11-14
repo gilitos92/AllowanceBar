@@ -342,8 +342,6 @@
 	<string>Ritmo parejo: %lld%% usado a estas alturas.</string>
 	<key>Exact</key>
 	<string>Exacto</string>
-	<key>Expand</key>
-	<string>Expandir</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>No se pudo interpretar la respuesta de Venice: %@</string>
 	<key>Find Accounts</key>
@@ -674,6 +672,8 @@
 	<string>Renovación de suscripción</string>
 	<key>Subscription renews soon</key>
 	<string>La suscripción se renueva pronto</string>
+	<key>Support Allowance Bar</key>
+	<string>Apoyar a Allowance Bar</string>
 	<key>Support ♥</key>
 	<string>Apoyar ♥</string>
 	<key>Team pool</key>

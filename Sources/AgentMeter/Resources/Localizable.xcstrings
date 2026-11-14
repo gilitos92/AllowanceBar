@@ -3323,22 +3323,6 @@
         }
       }
     },
-    "Expand": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expand"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expandir"
-          }
-        }
-      }
-    },
     "Opacity": {
       "localizations": {
         "en": {
@@ -5705,6 +5689,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diagnóstico"
+          }
+        }
+      }
+    },
+    "Support Allowance Bar": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apoyar a Allowance Bar"
           }
         }
       }

@@ -89,7 +89,7 @@ struct MenuContent: View {
         return min(providerContentHeight, maxHeight)
     }
 
-    /// The refresh time and four round buttons. Less frequent commands live
+    /// The refresh time and five round buttons. Less frequent commands live
     /// in the More menu, so nothing wraps.
     private var footer: some View {
         HStack(spacing: 8) {
@@ -129,6 +129,14 @@ struct MenuContent: View {
                 NSApp.activate(ignoringOtherApps: true)
                 Self.closeMenuBarWindow()
             })
+            Button {
+                Self.closeMenuBarWindow()
+                openURL(tipJarURL)
+            } label: {
+                Image(systemName: "heart")
+            }
+            .help(L("Support Allowance Bar"))
+            .accessibilityLabel(L("Support Allowance Bar"))
             moreMenu
         }
         .buttonStyle(CircleIconButtonStyle())
@@ -146,10 +154,6 @@ struct MenuContent: View {
                 Self.closeMenuBarWindow()
                 openWindow(id: "about")
                 NSApp.activate(ignoringOtherApps: true)
-            }
-            Button(L("Support ♥")) {
-                Self.closeMenuBarWindow()
-                openURL(tipJarURL)
             }
             Divider()
             Button(L("Quit")) { NSApp.terminate(nil) }

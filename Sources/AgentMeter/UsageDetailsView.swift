@@ -443,7 +443,8 @@ private struct NanoUsageView: View {
     }
 }
 
-/// Hover controls shared by the compact and nano panels.
+/// Hover controls shared by the compact and nano panels: the window options,
+/// and the same three-way view switcher as the full window's toolbar.
 private struct PanelControls: View {
     @ObservedObject var settings: SettingsStore
     @Binding var isAdjustingOpacity: Bool
@@ -451,42 +452,51 @@ private struct PanelControls: View {
     @Environment(\.controlSize) private var controlSize
 
     var body: some View {
-        let buttons = HStack(spacing: 2) {
-            CompactControlButton(title: L("Close"), symbol: "xmark", isOn: false, action: close)
-            CompactControlButton(
-                title: L("Keep on Top"),
-                symbol: settings.usageDetailsAlwaysOnTop ? "pin.fill" : "pin",
-                isOn: settings.usageDetailsAlwaysOnTop
-            ) { settings.usageDetailsAlwaysOnTop.toggle() }
-            CompactControlButton(
-                title: L("Show on All Desktops"),
-                symbol: settings.usageDetailsOnAllSpaces
-                    ? "rectangle.fill.on.rectangle.fill" : "rectangle.on.rectangle",
-                isOn: settings.usageDetailsOnAllSpaces
-            ) { settings.usageDetailsOnAllSpaces.toggle() }
-            .disabled(!settings.usageDetailsAlwaysOnTop)
-            BackgroundButton(
-                opacity: $settings.usageDetailsBackgroundOpacity,
-                compact: true,
-                isPresented: $isAdjustingOpacity
-            )
-            if !settings.usageDetailsNano {
-                CompactControlButton(
-                    title: L("Nano View"),
-                    symbol: UsageDetailsMode.nano.symbol,
-                    isOn: false
-                ) { settings.usageDetailsMode = .nano }
+        HStack(spacing: 4) {
+            glassGroup { windowOptions }
+            glassGroup {
+                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                    CompactControlButton(
+                        title: mode.title,
+                        symbol: mode.symbol,
+                        isOn: settings.usageDetailsMode == mode,
+                        help: mode.help,
+                        showsSelection: true
+                    ) { settings.usageDetailsMode = mode }
+                }
             }
-            CompactControlButton(
-                title: L("Expand"),
-                symbol: "rectangle.expand.vertical",
-                isOn: false
-            ) {
-                // The nano panel expands one step, to the compact panel.
-                settings.usageDetailsMode = settings.usageDetailsNano ? .mini : .full
-            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(L("View"))
         }
-        .padding(controlSize == .small ? 2 : 3)
+    }
+
+    @ViewBuilder
+    private var windowOptions: some View {
+        CompactControlButton(title: L("Close"), symbol: "xmark", isOn: false, action: close)
+        CompactControlButton(
+            title: L("Keep on Top"),
+            symbol: settings.usageDetailsAlwaysOnTop ? "pin.fill" : "pin",
+            isOn: settings.usageDetailsAlwaysOnTop
+        ) { settings.usageDetailsAlwaysOnTop.toggle() }
+        CompactControlButton(
+            title: L("Show on All Desktops"),
+            symbol: settings.usageDetailsOnAllSpaces
+                ? "rectangle.fill.on.rectangle.fill" : "rectangle.on.rectangle",
+            isOn: settings.usageDetailsOnAllSpaces
+        ) { settings.usageDetailsOnAllSpaces.toggle() }
+        .disabled(!settings.usageDetailsAlwaysOnTop)
+        BackgroundButton(
+            opacity: $settings.usageDetailsBackgroundOpacity,
+            compact: true,
+            isPresented: $isAdjustingOpacity
+        )
+    }
+
+    /// A row of buttons on its own glass capsule.
+    @ViewBuilder
+    private func glassGroup<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        let buttons = HStack(spacing: 2) { content() }
+            .padding(controlSize == .small ? 2 : 3)
         if #available(macOS 26, *) {
             buttons.glassEffect(.regular.interactive(), in: Capsule())
         } else {

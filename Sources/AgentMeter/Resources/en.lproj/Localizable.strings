@@ -194,8 +194,6 @@
 	<string>Enable notifications to change this.</string>
 	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</key>
 	<string>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</string>
-	<key>Expand</key>
-	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>Failed to parse Venice response: %@</string>
 	<key>Finish setting up this Meta account: run muse with the same variables as the login command in Settings</key>
