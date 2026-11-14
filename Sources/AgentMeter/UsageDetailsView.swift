@@ -24,8 +24,8 @@ enum UsageDetailsMode: CaseIterable {
     var symbol: String {
         switch self {
         case .full: "list.bullet.rectangle"
-        case .mini: "rectangle.compress.vertical"
-        case .nano: "capsule"
+        case .mini: "capsule"
+        case .nano: "rectangle.compress.vertical"
         }
     }
 }
