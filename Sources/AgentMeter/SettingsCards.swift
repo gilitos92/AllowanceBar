@@ -6,11 +6,29 @@ import SwiftUI
 /// A scrolling settings pane.
 struct SettingsPage<Content: View>: View {
     @ViewBuilder var content: Content
+    @Environment(\.settingsPageLeadingInset) private var leadingInset
 
     var body: some View {
         ScrollView {
+            // Empty space for a view floating over the page's leading side
+            // (the Providers list). It is part of the scrolled content, so the
+            // scroll view's top edge effect under the title bar spans the
+            // whole width.
             SettingsColumn { content }
+                .padding(.leading, leadingInset)
         }
+    }
+}
+
+private struct SettingsPageLeadingInsetKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    /// Room a settings page leaves on its leading side for a floating view.
+    var settingsPageLeadingInset: CGFloat {
+        get { self[SettingsPageLeadingInsetKey.self] }
+        set { self[SettingsPageLeadingInsetKey.self] = newValue }
     }
 }
 

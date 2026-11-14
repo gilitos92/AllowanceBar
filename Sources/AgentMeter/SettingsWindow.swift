@@ -223,7 +223,7 @@ private struct ProvidersSettingsTab: View {
         ZStack(alignment: .topLeading) {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .safeAreaPadding(.leading, Self.listWidth)
+                .environment(\.settingsPageLeadingInset, Self.listWidth)
             providerList
                 .frame(width: Self.listWidth, alignment: .top)
         }
