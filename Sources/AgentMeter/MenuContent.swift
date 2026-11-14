@@ -5,18 +5,22 @@ struct MenuContent: View {
     @ObservedObject var store: UsageStore
     @ObservedObject var settings: SettingsStore
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openURL) private var openURL
     @State private var menuScreenVisibleHeight: CGFloat?
     @State private var providerContentHeight: CGFloat?
     @State private var providerContentBottom: CGFloat = 0
+    /// Whether the Usage Details window is on screen; only then does the
+    /// footer's view switcher highlight its view.
+    @State private var usageDetailsIsOpen = false
 
     private let tipJarURL = URL(string: "https://www.buymeacoffee.com/gilitos92")!
 
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             usageView
         }
-        .padding(14)
+        .padding(GlassStyle.inset)
         .frame(width: 360)
         .fixedSize(horizontal: false, vertical: true)
         .background {
@@ -32,10 +36,10 @@ struct MenuContent: View {
     }
 
     private var usageView: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 12) {
-                    ProviderUsageSections(store: store, settings: settings)
+                VStack(alignment: .leading, spacing: GlassStyle.inset) {
+                    ProviderUsageSections(store: store, settings: settings, layout: .dropdown)
                 }
                 .background {
                     GeometryReader { proxy in
@@ -50,7 +54,9 @@ struct MenuContent: View {
                     }
                 }
             }
+            .scrollIndicators(.automatic)
             .frame(height: providerViewportHeight, alignment: .top)
+            .clipShape(RoundedRectangle(cornerRadius: GlassStyle.platterRadius, style: .continuous))
             .coordinateSpace(name: "providerViewport")
             .onPreferenceChange(ProviderContentHeightKey.self) { height in
                 guard providerContentHeight != height else { return }
@@ -61,24 +67,17 @@ struct MenuContent: View {
             }
             .overlay(alignment: .bottom) {
                 if providerContentBottom > providerViewportHeight + 1 {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .mask {
-                            LinearGradient(colors: [.clear, .black],
-                                           startPoint: .top, endPoint: .bottom)
-                        }
-                        .frame(height: 36)
-                        .overlay(alignment: .bottom) {
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                                .padding(.bottom, 4)
-                        }
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(.regularMaterial))
+                        .overlay(Circle().strokeBorder(Color.platterEdge, lineWidth: 0.5))
+                        .padding(.bottom, 6)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }
             }
-            Divider()
             footer
         }
     }
@@ -93,71 +92,109 @@ struct MenuContent: View {
         return min(providerContentHeight, maxHeight)
     }
 
+    /// The refresh time, the Usage Details views and round buttons. Less
+    /// frequent commands live in the More menu, so nothing wraps.
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        HStack(spacing: 6) {
+            // Two short lines, so the time stays whole next to the buttons.
+            Group {
                 if let refreshed = store.lastRefreshed {
-                    Text(L("Updated \(refreshed.formatted(date: .omitted, time: .shortened))"))
-                        .font(.callout.weight(.medium))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(L("Updated"))
+                            .font(.system(size: 10.5, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                        Text(refreshed.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(L("Updated \(refreshed.formatted(date: .omitted, time: .shortened))"))
+                } else {
+                    Text(L("Loading…"))
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Button {
-                    store.refresh(forceRefresh: true)
-                } label: {
-                    Label(L("Refresh"), systemImage: "arrow.clockwise")
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.plain)
-                .font(.callout.weight(.medium))
-                .help(L("Refresh"))
-                .accessibilityLabel(L("Refresh"))
             }
-            HStack {
-                Button {
-                    openUsageDetails()
-                } label: {
-                    Text(L("Usage Details"))
-                }
-                .buttonStyle(.plain)
-                .font(.callout.weight(.medium))
-                .keyboardShortcut("d", modifiers: [.command])
-                .help(L("Usage Details"))
-                .accessibilityLabel(L("Usage Details"))
-                SettingsLink {
-                    Text(L("Settings…"))
-                }
-                .buttonStyle(.plain)
-                .font(.callout.weight(.medium))
-                .help(L("Settings…"))
-                .accessibilityLabel(L("Settings…"))
-                .simultaneousGesture(TapGesture().onEnded {
-                    NSApp.activate(ignoringOtherApps: true)
-                    Self.closeMenuBarWindow()
-                })
-                Spacer()
-                Button(L("Check for Updates…")) {
-                    Self.closeMenuBarWindow()
-                    Updater.shared.checkForUpdates()
-                }
-                .buttonStyle(.plain)
-                .font(.callout.weight(.medium))
-                .help(L("Check for Updates…"))
-                .accessibilityLabel(L("Check for Updates…"))
-                Spacer()
-                Link(destination: tipJarURL) {
-                    Text(L("Support ♥"))
-                }
-                .font(.callout.weight(.medium))
-                .help(L("Support ♥"))
-                .accessibilityLabel(L("Support ♥"))
-                Spacer()
-                Button(L("Quit")) { NSApp.terminate(nil) }
-                    .buttonStyle(.plain)
-                    .font(.callout.weight(.medium))
-                    .help(L("Quit"))
-                    .accessibilityLabel(L("Quit"))
+            .monospacedDigit()
+            .lineLimit(1)
+            .fixedSize()
+            Spacer(minLength: 4)
+            Button {
+                store.refresh(forceRefresh: true)
+            } label: {
+                Image(systemName: "arrow.clockwise")
             }
+            .help(L("Refresh"))
+            .accessibilityLabel(L("Refresh"))
+            ViewModeButtons(
+                current: settings.usageDetailsMode,
+                highlightsCurrent: usageDetailsIsOpen
+            ) { mode in
+                settings.usageDetailsMode = mode
+                openUsageDetails()
+            }
+            // The dropdown's window becomes key each time it opens, and the
+            // Usage Details window can close while the dropdown is open.
+            .onAppear(perform: refreshUsageDetailsState)
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+                refreshUsageDetailsState()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
+                // The closing window is still visible during this notification.
+                DispatchQueue.main.async(execute: refreshUsageDetailsState)
+            }
+            SettingsLink {
+                Image(systemName: "gearshape")
+            }
+            .help(L("Settings…"))
+            .accessibilityLabel(L("Settings…"))
+            .simultaneousGesture(TapGesture().onEnded {
+                NSApp.activate(ignoringOtherApps: true)
+                Self.closeMenuBarWindow()
+            })
+            Button {
+                Self.closeMenuBarWindow()
+                openURL(tipJarURL)
+            } label: {
+                Image(systemName: "heart")
+            }
+            .help(L("Support Allowance Bar"))
+            .accessibilityLabel(L("Support Allowance Bar"))
+            moreMenu
+        }
+        .buttonStyle(CircleIconButtonStyle())
+        .padding(.top, GlassStyle.inset)
+        .padding(.horizontal, 4)
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Button(L("Check for Updates…")) {
+                Self.closeMenuBarWindow()
+                Updater.shared.checkForUpdates()
+            }
+            Button(L("About Allowance Bar")) {
+                Self.closeMenuBarWindow()
+                openWindow(id: "about")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            Divider()
+            Button(L("Quit")) { NSApp.terminate(nil) }
+                .keyboardShortcut("q", modifiers: [.command])
+        } label: {
+            Image(systemName: "ellipsis")
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(L("More"))
+        .accessibilityLabel(L("More"))
+    }
+
+    private func refreshUsageDetailsState() {
+        usageDetailsIsOpen = NSApp.windows.contains { window in
+            // SwiftUI names the window after its scene ID.
+            window.isVisible && (window.identifier?.rawValue.contains("usage-details") ?? false)
         }
     }
 
@@ -294,5 +331,70 @@ private struct MenuWindowScreenReader: NSViewRepresentable {
             NotificationCenter.default.removeObserver(self)
             observedWindow = nil
         }
+    }
+}
+
+/// The Usage Details window's three views on one capsule, like the window's
+/// own view switcher. Each opens the window in that view, and ⌘D opens the
+/// current one. The current view is highlighted while the window is open.
+private struct ViewModeButtons: View {
+    let current: UsageDetailsMode
+    let highlightsCurrent: Bool
+    let open: (UsageDetailsMode) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                let button = Button { open(mode) } label: {
+                    Image(systemName: mode.symbol)
+                }
+                .buttonStyle(ViewModeButtonStyle(isSelected: highlightsCurrent && mode == current))
+                .help(mode.help)
+                .accessibilityLabel(mode.title)
+                .accessibilityAddTraits(highlightsCurrent && mode == current ? .isSelected : [])
+                if mode == current {
+                    button.keyboardShortcut("d", modifiers: [.command])
+                } else {
+                    button
+                }
+            }
+        }
+        .padding(2)
+        .background(Capsule().fill(Color.platterFill))
+        .overlay(Capsule().strokeBorder(Color.platterEdge, lineWidth: 0.5))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(L("Usage Details"))
+    }
+}
+
+private struct ViewModeButtonStyle: ButtonStyle {
+    let isSelected: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        ViewModeButtonBody(configuration: configuration, isSelected: isSelected)
+    }
+}
+
+private struct ViewModeButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let isSelected: Bool
+    @State private var isHovering = false
+
+    var body: some View {
+        configuration.label
+            .font(.system(size: 12.5, weight: .medium))
+            .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            .frame(width: 30, height: 26)
+            .background(Capsule().fill(fill))
+            .contentShape(Capsule())
+            .onHover { isHovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+    }
+
+    private var fill: Color {
+        if configuration.isPressed { return Color.primary.opacity(0.18) }
+        if isSelected { return Color.primary.opacity(0.13) }
+        if isHovering { return Color.primary.opacity(0.08) }
+        return .clear
     }
 }

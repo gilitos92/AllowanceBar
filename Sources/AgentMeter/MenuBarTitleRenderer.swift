@@ -29,7 +29,7 @@ enum MenuBarTitleRenderer {
     static func nsColor(for severity: MenuBarSeverity) -> NSColor {
         switch severity {
         case .normal: .labelColor
-        case .warning: .systemYellow
+        case .warning: .systemOrange
         case .critical: .systemRed
         case .stale: .secondaryLabelColor
         }
@@ -44,7 +44,7 @@ enum MenuBarTitleRenderer {
     }
 
     static func image(
-        entries: [(text: String, severity: MenuBarSeverity)],
+        entries: [MenuBarEntry],
         accessibilityDescription: String
     ) -> NSImage {
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
@@ -56,10 +56,21 @@ enum MenuBarTitleRenderer {
                     attributes: [.font: font, .foregroundColor: NSColor.tertiaryLabelColor]
                 ))
             }
+            let color = nsColor(for: entry.severity)
+            // Warning and critical entries are bolder and carry their symbol,
+            // so severity never relies on color alone.
+            let emphasized = entry.severity == .warning || entry.severity == .critical
             attributed.append(NSAttributedString(
                 string: entry.text,
-                attributes: [.font: font, .foregroundColor: nsColor(for: entry.severity)]
+                attributes: [
+                    .font: emphasized ? NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold) : font,
+                    .foregroundColor: color,
+                ]
             ))
+            if let symbol = symbolName(for: entry.severity) {
+                attributed.append(NSAttributedString(string: "\u{2009}", attributes: [.font: font]))
+                attributed.append(symbolAttachment(symbol, color: color, font: font))
+            }
         }
         let size = attributed.size()
         let image = NSImage(size: NSSize(width: ceil(size.width), height: ceil(size.height)), flipped: false) { _ in
@@ -69,6 +80,31 @@ enum MenuBarTitleRenderer {
         image.isTemplate = false
         image.accessibilityDescription = accessibilityDescription
         return image
+    }
+
+    /// SF Symbol shown after a warning or critical entry.
+    nonisolated static func symbolName(for severity: MenuBarSeverity) -> String? {
+        switch severity {
+        case .warning: UsageMeterSeverity.warning.symbolName
+        case .critical: UsageMeterSeverity.critical.symbolName
+        case .normal, .stale: nil
+        }
+    }
+
+    private static func symbolAttachment(_ name: String, color: NSColor, font: NSFont) -> NSAttributedString {
+        let configuration = NSImage.SymbolConfiguration(pointSize: font.pointSize - 1, weight: .semibold)
+            .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(configuration) else { return NSAttributedString() }
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        attachment.bounds = CGRect(
+            x: 0,
+            y: ((font.capHeight - image.size.height) / 2).rounded(),
+            width: image.size.width,
+            height: image.size.height
+        )
+        return NSAttributedString(attachment: attachment)
     }
 
     /// Fill fractions of the three meter bars, matching the app icon.

@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>%@ accounts</key>
-	<string>%@ accounts</string>
 	<key>%@ balance</key>
 	<string>%@ balance</string>
 	<key>%@ proxy login</key>
@@ -188,20 +186,14 @@
 	<string>Couldn't check key</string>
 	<key>Couldn't install the command-line tool: %@</key>
 	<string>Couldn't install the command-line tool: %@</string>
-	<key>Default (%@)</key>
-	<string>Default (%@)</string>
 	<key>Diagnostics copied</key>
 	<string>Diagnostics copied</string>
-	<key>Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.</key>
-	<string>Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.</string>
 	<key>Enable agent &amp; CLI access</key>
 	<string>Enable agent &amp; CLI access</string>
 	<key>Enable notifications to change this.</key>
 	<string>Enable notifications to change this.</string>
 	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</key>
 	<string>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</string>
-	<key>Expand</key>
-	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>Failed to parse Venice response: %@</string>
 	<key>Finish setting up this Meta account: run muse with the same variables as the login command in Settings</key>
@@ -252,8 +244,6 @@
 	<string>Key not working</string>
 	<key>Key type: %@. %@</key>
 	<string>Key type: %@. %@</string>
-	<key>Label</key>
-	<string>Label</string>
 	<key>Label is required</key>
 	<string>Label is required</string>
 	<key>Last checked %@</key>
@@ -342,10 +332,6 @@
 	<string>Remind me</string>
 	<key>Removing only forgets the path; it does not sign out.</key>
 	<string>Removing only forgets the path; it does not sign out.</string>
-	<key>Rename</key>
-	<string>Rename</string>
-	<key>Rename %@</key>
-	<string>Rename %@</string>
 	<key>Renamed to %@</key>
 	<string>Renamed to %@</string>
 	<key>Renews %@</key>

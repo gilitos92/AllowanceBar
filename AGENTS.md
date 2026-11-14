@@ -45,16 +45,25 @@ announcement drafts, environment specifics) and complements this file.
   and still mirrored to the Codex-only `codexExtraAccounts` key so
   downgrades keep Codex accounts), `subscriptionRenewals`
   (`[providerID: SubscriptionRenewal]`, JSON).
-- UI: `MenuContent` (dropdown with a display-bounded scrolling provider list
-  and a fixed footer; short lists shrink to their content; provider sections live in
-  `ProviderUsageSections.swift` and are shared with `UsageDetailsView`, the
-  ⌘D / `allowancebar://details` window; `ProviderGroup` puts a provider's
-  accounts under one header via `ProviderGroupSection`, single accounts keep
-  `ProviderSection`), `SettingsWindow` (native tabbed
-  Settings: General / Providers / Display / Alerts; includes
-  `CodexAccountsSection` with auto-discovery of `~/.codex-*` homes and
-  `CodexSubscriptionSettings`), `AboutWindow`. Menu bar title is a rendered
-  `NSImage` (`MenuBarTitleRenderer`) with an `accessibilityDescription`.
+- UI ("Glass Modules" design, shared styles in `GlassStyle.swift`):
+  `MenuContent` (dropdown with a display-bounded scrolling provider list
+  and a fixed footer; short lists shrink to their content); provider
+  modules live in `ProviderUsageSections.swift` (`ProviderModule`; a
+  provider's accounts share one module via `ProviderGroup`) and are shared
+  with `UsageDetailsView`, the ⌘D / `allowancebar://details` window with
+  full, mini and nano views (`UsageDetailsMode`). `SettingsWindow` (tabbed
+  Settings: General / Providers / Display / Alerts / Agents) draws its own
+  cards with `SettingsCards.swift` instead of grouped forms; the Providers
+  pane lists providers beside one page per provider, with account sheets
+  and account discovery (`~/.<tool>-*` homes). `AboutWindow`. Menu bar
+  title is a rendered `NSImage` (`MenuBarTitleRenderer`) with an
+  `accessibilityDescription`.
+- macOS 26+ layout gotchas: a `.sidebar` List in Settings becomes the
+  window's sidebar, and on macOS 27.2 panes run under the translucent title
+  bar, where each scroll view's top edge effect shows on toolbar hover, so
+  the Providers pane uses one full-width scroll view with the list floating
+  over it. A titled window with a toolbar can't be shorter than 52 pt, so
+  the nano view detaches the toolbar.
 - Cross-cutting: `CredentialAssessment` (key-type detection + plain-language
   explainers), `UsageMeterSeverity` (shared 60/85% thresholds, symbols,
   spoken qualifiers), `NotificationManager` (`ThresholdTracker`,
@@ -284,6 +293,11 @@ scripts/bundle.sh [--install]   # builds "Allowance Bar.app"; Developer ID signe
                                 # that identity is in the keychain, else ad-hoc
 ```
 
+- `bundle.sh` passes the SDK version to the linker (`-platform_version macos
+  14.0 <SDK>`). Without it SwiftPM records SDK 14.0, and macOS runs the app
+  in compatibility mode with the pre-macOS 26 controls. Check with
+  `otool -l "Allowance Bar.app/Contents/MacOS/AllowanceBar" | grep -A4
+  LC_BUILD_VERSION` (`sdk` should match `xcrun --show-sdk-version`).
 - There is no GitHub Actions CI. Before merging, run `swift build` and
   `swift test` locally; nothing else checks that a pushed branch builds.
 - There is no release workflow: releases are cut LOCALLY (see runbook below).
