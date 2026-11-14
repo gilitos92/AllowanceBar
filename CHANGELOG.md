@@ -38,7 +38,11 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
   account name of providers with several accounts. The nano window is a
   glass capsule with a dot in each provider's color.
 - Settings has an Agents pane for agent and command-line access, and the
-  Providers pane lists the providers beside one page per provider.
+  Providers pane lists the providers beside one page per provider. A
+  provider with one account shows its settings on its page; a provider
+  with several lists its accounts, and each account opens its own settings.
+  Adding an account and folders found on this Mac have their own places.
+  Every Settings pane uses the same rounded cards and capsule controls.
 
 ### Fixed
 - Claude accounts in CLIProxyAPI hit Anthropic's rate limit much less

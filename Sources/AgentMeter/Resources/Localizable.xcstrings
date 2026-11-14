@@ -2039,22 +2039,6 @@
         }
       }
     },
-    "Label": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Label"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Etiqueta"
-          }
-        }
-      }
-    },
     "Label is required": {
       "localizations": {
         "en": {
@@ -2239,16 +2223,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex."
-          }
-        }
-      }
-    },
-    "Mode": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Modo"
           }
         }
       }
@@ -4171,22 +4145,6 @@
         }
       }
     },
-    "%@ accounts": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ accounts"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuentas de %@"
-          }
-        }
-      }
-    },
     "%@ removed": {
       "localizations": {
         "en": {
@@ -4247,38 +4205,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copia el comando de Terminal para iniciar sesión en esta cuenta de %@"
-          }
-        }
-      }
-    },
-    "Default (%@)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Default (%@)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Predeterminada (%@)"
-          }
-        }
-      }
-    },
-    "Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cada cuenta tiene su propia sección abajo para su clave. Quitar una cuenta elimina su clave guardada en Allowance Bar."
           }
         }
       }
@@ -4359,38 +4285,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Esta carpeta ya está agregada"
-          }
-        }
-      }
-    },
-    "Rename": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cambiar nombre"
-          }
-        }
-      }
-    },
-    "Rename %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cambiar nombre de %@"
           }
         }
       }
@@ -5521,6 +5415,296 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld cuentas"
+          }
+        }
+      }
+    },
+    "%@ added": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ se agregó"
+          }
+        }
+      }
+    },
+    "1 account found": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se encontró 1 cuenta"
+          }
+        }
+      }
+    },
+    "%lld accounts found": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se encontraron %lld cuentas"
+          }
+        }
+      }
+    },
+    "Accounts": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuentas"
+          }
+        }
+      }
+    },
+    "Add Account…": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agregar cuenta…"
+          }
+        }
+      }
+    },
+    "After adding it, open the account to save its key.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Después de agregarla, abre la cuenta para guardar su clave."
+          }
+        }
+      }
+    },
+    "Auto shows this account when Allowance Bar finds it on this Mac.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático muestra esta cuenta cuando Allowance Bar la encuentra en esta Mac."
+          }
+        }
+      }
+    },
+    "Claude, Codex, Gemini and Antigravity logins from your proxy": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicios de sesión de Claude, Codex, Gemini y Antigravity de tu proxy"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listo"
+          }
+        }
+      }
+    },
+    "Find Accounts": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar cuentas"
+          }
+        }
+      }
+    },
+    "Found on this Mac": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encontradas en esta Mac"
+          }
+        }
+      }
+    },
+    "Looks for other signed-in folders of this tool in your home folder.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Busca otras carpetas con sesión iniciada de esta herramienta en tu carpeta de inicio."
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre"
+          }
+        }
+      }
+    },
+    "No other accounts found.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontraron otras cuentas."
+          }
+        }
+      }
+    },
+    "Opens this account's settings": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre los ajustes de esta cuenta"
+          }
+        }
+      }
+    },
+    "Organization spend from the Claude API": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gasto de la organización desde la API de Claude"
+          }
+        }
+      }
+    },
+    "Pay-as-you-go balance": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saldo de prepago"
+          }
+        }
+      }
+    },
+    "Plan usage from the Cursor app": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uso del plan desde la app de Cursor"
+          }
+        }
+      }
+    },
+    "Quotas from the Gemini CLI": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuotas desde la CLI de Gemini"
+          }
+        }
+      }
+    },
+    "Quotas from your CLIProxyAPI logins": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuotas de tus inicios de sesión en CLIProxyAPI"
+          }
+        }
+      }
+    },
+    "Remove Account": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar cuenta"
+          }
+        }
+      }
+    },
+    "Removing deletes this account's saved key from Allowance Bar.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al quitarla se borra la clave guardada de esta cuenta en Allowance Bar."
+          }
+        }
+      }
+    },
+    "Show": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar"
+          }
+        }
+      }
+    },
+    "Sign-in command": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comando de inicio de sesión"
+          }
+        }
+      }
+    },
+    "Subscription limits from Claude Code": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Límites de la suscripción desde Claude Code"
+          }
+        }
+      }
+    },
+    "Subscription limits from the Codex CLI": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Límites de la suscripción desde la CLI de Codex"
+          }
+        }
+      }
+    },
+    "Subscription limits from the Muse Code CLI": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Límites de la suscripción desde la CLI de Muse Code"
+          }
+        }
+      }
+    },
+    "Account": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnóstico"
           }
         }
       }

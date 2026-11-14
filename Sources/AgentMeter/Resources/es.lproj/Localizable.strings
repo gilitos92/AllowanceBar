@@ -6,8 +6,8 @@
 	<string>% restante</string>
 	<key>% used</key>
 	<string>% usado</string>
-	<key>%@ accounts</key>
-	<string>Cuentas de %@</string>
+	<key>%@ added</key>
+	<string>%@ se agregó</string>
 	<key>%@ ahead of pace</key>
 	<string>%@ por delante del ritmo</string>
 	<key>%@ at %@%%</key>
@@ -48,6 +48,8 @@
 	<string>%@m</string>
 	<key>%lld accounts</key>
 	<string>%lld cuentas</string>
+	<key>%lld accounts found</key>
+	<string>Se encontraron %lld cuentas</string>
 	<key>%lld%%</key>
 	<string>%lld%%</string>
 	<key>%lld%% left</key>
@@ -66,6 +68,8 @@
 	<string>(confirmado)</string>
 	<key>(expected)</key>
 	<string>(estimado)</string>
+	<key>1 account found</key>
+	<string>Se encontró 1 cuenta</string>
 	<key>1 day before</key>
 	<string>1 día antes</string>
 	<key>1 minute</key>
@@ -100,10 +104,16 @@
 	<string>Acerca de Allowance Bar</string>
 	<key>About this key</key>
 	<string>Acerca de esta clave</string>
+	<key>Account</key>
+	<string>Cuenta</string>
+	<key>Accounts</key>
+	<string>Cuentas</string>
 	<key>Add</key>
 	<string>Agregar</string>
 	<key>Add %@ account</key>
 	<string>Agregar cuenta de %@</string>
+	<key>Add Account…</key>
+	<string>Agregar cuenta…</string>
 	<key>Add account…</key>
 	<string>Agregar cuenta…</string>
 	<key>Add the CLIProxyAPI management key in Settings.</key>
@@ -114,6 +124,8 @@
 	<string>Ajusta qué tan transparente es el fondo de la ventana.</string>
 	<key>Admin key</key>
 	<string>Clave de administrador</string>
+	<key>After adding it, open the account to save its key.</key>
+	<string>Después de agregarla, abre la cuenta para guardar su clave.</string>
 	<key>Agents</key>
 	<string>Agentes</string>
 	<key>Ahead of pace: using it faster than time passes.</key>
@@ -156,6 +168,8 @@
 	<string>A este ritmo se agota en %@.</string>
 	<key>Auto</key>
 	<string>Automático</string>
+	<key>Auto shows this account when Allowance Bar finds it on this Mac.</key>
+	<string>Automático muestra esta cuenta cuando Allowance Bar la encuentra en esta Mac.</string>
 	<key>Auto usage</key>
 	<string>Uso automático</string>
 	<key>Auto-updates powered by Sparkle (MIT License).</key>
@@ -218,6 +232,8 @@
 	<string>Límite de solicitudes de informes de Claude API alcanzado (HTTP 429)</string>
 	<key>Claude API reporting returned HTTP %@</key>
 	<string>Los informes de Claude API devolvieron HTTP %@</string>
+	<key>Claude, Codex, Gemini and Antigravity logins from your proxy</key>
+	<string>Inicios de sesión de Claude, Codex, Gemini y Antigravity de tu proxy</string>
 	<key>Clear</key>
 	<string>Transparente</string>
 	<key>Clear glass dims what is behind it to keep text readable.</key>
@@ -300,20 +316,20 @@
 	<string>Clave de DeepSeek rechazada — revisa la clave en Ajustes</string>
 	<key>DeepSeek returned HTTP %lld</key>
 	<string>DeepSeek devolvió HTTP %lld</string>
-	<key>Default (%@)</key>
-	<string>Predeterminada (%@)</string>
 	<key>Default account</key>
 	<string>Cuenta predeterminada</string>
 	<key>Detected</key>
 	<string>Detectado</string>
+	<key>Diagnostics</key>
+	<string>Diagnóstico</string>
 	<key>Diagnostics copied</key>
 	<string>Diagnóstico copiado</string>
 	<key>Disconnect</key>
 	<string>Desconectar</string>
 	<key>Display</key>
 	<string>Visualización</string>
-	<key>Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.</key>
-	<string>Cada cuenta tiene su propia sección abajo para su clave. Quitar una cuenta elimina su clave guardada en Allowance Bar.</string>
+	<key>Done</key>
+	<string>Listo</string>
 	<key>Enable agent &amp; CLI access</key>
 	<string>Activar acceso para agentes y CLI</string>
 	<key>Enable notifications to change this.</key>
@@ -330,6 +346,8 @@
 	<string>Expandir</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>No se pudo interpretar la respuesta de Venice: %@</string>
+	<key>Find Accounts</key>
+	<string>Buscar cuentas</string>
 	<key>Finish setting up this Meta account: run muse with the same variables as the login command in Settings</key>
 	<string>Termina de configurar esta cuenta de Meta: ejecuta muse con las mismas variables que el comando de inicio de sesión en Configuración</string>
 	<key>Finish setting up your Meta account: run muse in Terminal</key>
@@ -344,6 +362,8 @@
 	<string>La carpeta es obligatoria</string>
 	<key>Found %@ account: %@</key>
 	<string>Se encontró una cuenta de %@: %@</string>
+	<key>Found on this Mac</key>
+	<string>Encontradas en esta Mac</string>
 	<key>Full</key>
 	<string>Completo</string>
 	<key>Full View</key>
@@ -400,8 +420,6 @@
 	<string>Clave de Kimi rechazada — revisa la clave en Ajustes</string>
 	<key>Kimi returned HTTP %lld</key>
 	<string>Kimi devolvió HTTP %lld</string>
-	<key>Label</key>
-	<string>Etiqueta</string>
 	<key>Label is required</key>
 	<string>La etiqueta es obligatoria</string>
 	<key>Last checked %@</key>
@@ -418,6 +436,8 @@
 	<string>Cargando…</string>
 	<key>Login command copied</key>
 	<string>Comando de inicio de sesión copiado</string>
+	<key>Looks for other signed-in folders of this tool in your home folder.</key>
+	<string>Busca otras carpetas con sesión iniciada de esta herramienta en tu carpeta de inicio.</string>
 	<key>Manage keys</key>
 	<string>Administrar claves</string>
 	<key>Management key</key>
@@ -434,8 +454,6 @@
 	<string>Estilo de barra de menús</string>
 	<key>Meta couldn't report Muse Code usage right now</key>
 	<string>Meta no pudo informar el uso de Muse Code en este momento</string>
-	<key>Mode</key>
-	<string>Modo</string>
 	<key>Month to date (UTC)</key>
 	<string>Mes hasta la fecha (UTC)</string>
 	<key>More</key>
@@ -454,12 +472,16 @@
 	<string>Error de protocolo de Muse Code</string>
 	<key>Muse Code timed out</key>
 	<string>Se agotó el tiempo de espera de Muse Code</string>
+	<key>Name</key>
+	<string>Nombre</string>
 	<key>Nano View</key>
 	<string>Vista nano</string>
 	<key>No %@ API key set — add one in Settings</key>
 	<string>No hay clave de API de %@ — agrega una en Ajustes</string>
 	<key>No Codex session logs found</key>
 	<string>No se encontraron registros de sesión de Codex</string>
+	<key>No other accounts found.</key>
+	<string>No se encontraron otras cuentas.</string>
 	<key>No providers enabled. Open Settings to turn some on.</key>
 	<string>No hay proveedores habilitados. Abre Ajustes para activar algunos.</string>
 	<key>No rate-limit data in recent sessions</key>
@@ -508,20 +530,28 @@
 	<string>Clave de OpenRouter rechazada — vuelve a conectar en Ajustes</string>
 	<key>OpenRouter returned HTTP %lld</key>
 	<string>OpenRouter devolvió HTTP %lld</string>
+	<key>Opens this account's settings</key>
+	<string>Abre los ajustes de esta cuenta</string>
 	<key>Or paste an API key</key>
 	<string>O pega una clave de API</string>
 	<key>Organization</key>
 	<string>Organización</string>
+	<key>Organization spend from the Claude API</key>
+	<string>Gasto de la organización desde la API de Claude</string>
 	<key>Organization-wide API spend and tokens require a Claude Console Admin reporting key or an eligible unscoped personal or service key. Workspace-scoped keys and individual accounts cannot access these reports. Prepaid credit balance is unavailable through this API.</key>
 	<string>El gasto y los tokens de API de la organización requieren una clave de administrador de Claude Console o una clave personal o de servicio apta sin restricción de espacio de trabajo. Las claves restringidas a un espacio de trabajo y las cuentas individuales no pueden acceder a estos informes. Esta API no ofrece el saldo de créditos prepagados.</string>
 	<key>Other</key>
 	<string>Otro</string>
 	<key>Output tokens</key>
 	<string>Tokens de salida</string>
+	<key>Pay-as-you-go balance</key>
+	<string>Saldo de prepago</string>
 	<key>Personal cap</key>
 	<string>Límite personal</string>
 	<key>Place %lld of %lld among %@ logins in CLIProxyAPI's order of use (priority %lld). The proxy sends new requests to the highest priority first.</key>
 	<string>Puesto %1$lld de %2$lld entre los inicios de sesión de %3$@ en el orden de uso de CLIProxyAPI (prioridad %4$lld). El proxy envía las solicitudes nuevas primero a la prioridad más alta.</string>
+	<key>Plan usage from the Cursor app</key>
+	<string>Uso del plan desde la app de Cursor</string>
 	<key>Prepaid credits</key>
 	<string>Créditos prepagados</string>
 	<key>Pro (24h)</key>
@@ -534,6 +564,10 @@
 	<string>Proxy #%lld</string>
 	<key>Quit</key>
 	<string>Salir</string>
+	<key>Quotas from the Gemini CLI</key>
+	<string>Cuotas desde la CLI de Gemini</string>
+	<key>Quotas from your CLIProxyAPI logins</key>
+	<string>Cuotas de tus inicios de sesión en CLIProxyAPI</string>
 	<key>Reads prepaid balance only.</key>
 	<string>Solo lee el saldo prepagado.</string>
 	<key>Refresh</key>
@@ -550,12 +584,12 @@
 	<string>Recordarme</string>
 	<key>Remove</key>
 	<string>Eliminar</string>
+	<key>Remove Account</key>
+	<string>Quitar cuenta</string>
+	<key>Removing deletes this account's saved key from Allowance Bar.</key>
+	<string>Al quitarla se borra la clave guardada de esta cuenta en Allowance Bar.</string>
 	<key>Removing only forgets the path; it does not sign out.</key>
 	<string>Quitar solo olvida la ruta; no cierra la sesión.</string>
-	<key>Rename</key>
-	<string>Cambiar nombre</string>
-	<key>Rename %@</key>
-	<string>Cambiar nombre de %@</string>
 	<key>Renamed to %@</key>
 	<string>Nuevo nombre: %@</string>
 	<key>Renews %@</key>
@@ -588,6 +622,8 @@
 	<string>Dirección del servidor</string>
 	<key>Settings…</key>
 	<string>Ajustes…</string>
+	<key>Show</key>
+	<string>Mostrar</string>
 	<key>Show CLIProxyAPI priority</key>
 	<string>Mostrar la prioridad de CLIProxyAPI</string>
 	<key>Show CLIProxyAPI priority in the nano window</key>
@@ -614,6 +650,8 @@
 	<string>Muestra tus cuotas de 5 horas y de tokens.</string>
 	<key>Shrink into a tiny panel with only the menu bar text.</key>
 	<string>Reduce la ventana a un panel diminuto con solo el texto de la barra de menús.</string>
+	<key>Sign-in command</key>
+	<string>Comando de inicio de sesión</string>
 	<key>Spending capped — Allowance Bar can read usage within this limit.</key>
 	<string>Gasto limitado — Allowance Bar puede leer el uso dentro de este límite.</string>
 	<key>Stale since %@</key>
@@ -626,6 +664,12 @@
 	<string>Estado</string>
 	<key>Subscription</key>
 	<string>Suscripción</string>
+	<key>Subscription limits from Claude Code</key>
+	<string>Límites de la suscripción desde Claude Code</string>
+	<key>Subscription limits from the Codex CLI</key>
+	<string>Límites de la suscripción desde la CLI de Codex</string>
+	<key>Subscription limits from the Muse Code CLI</key>
+	<string>Límites de la suscripción desde la CLI de Muse Code</string>
 	<key>Subscription renewal</key>
 	<string>Renovación de suscripción</string>
 	<key>Subscription renews soon</key>
