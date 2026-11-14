@@ -138,8 +138,9 @@ struct UsageDetailsView: View {
         return names
     }
 
-    /// The view switcher and the window options. On macOS 26 and later each
-    /// group shares one Liquid Glass capsule, like a floating toolbar.
+    /// The window options and, at the far right as in the mini and nano
+    /// panels, the view switcher. On macOS 26 and later each group shares one
+    /// Liquid Glass capsule, like a floating toolbar.
     @ToolbarContentBuilder
     private var windowOptions: some ToolbarContent {
         if #available(macOS 26, *) {
@@ -154,25 +155,6 @@ struct UsageDetailsView: View {
     @available(macOS 26, *)
     @ToolbarContentBuilder
     private var floatingToolbar: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            HStack(spacing: 2) {
-                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
-                    CompactControlButton(
-                        title: mode.title,
-                        symbol: mode.symbol,
-                        isOn: settings.usageDetailsMode == mode,
-                        help: mode.help,
-                        large: true,
-                        showsSelection: true
-                    ) { settings.usageDetailsMode = mode }
-                }
-            }
-            .padding(3)
-            .glassEffect(.regular.interactive(), in: Capsule())
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(L("View"))
-        }
-        .sharedBackgroundVisibility(.hidden)
         ToolbarItem(placement: .primaryAction) {
             HStack(spacing: 2) {
                 CompactControlButton(
@@ -213,21 +195,29 @@ struct UsageDetailsView: View {
             .accessibilityLabel(L("Window Options"))
         }
         .sharedBackgroundVisibility(.hidden)
+        ToolbarItem(placement: .primaryAction) {
+            HStack(spacing: 2) {
+                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                    CompactControlButton(
+                        title: mode.title,
+                        symbol: mode.symbol,
+                        isOn: settings.usageDetailsMode == mode,
+                        help: mode.help,
+                        large: true,
+                        showsSelection: true
+                    ) { settings.usageDetailsMode = mode }
+                }
+            }
+            .padding(3)
+            .glassEffect(.regular.interactive(), in: Capsule())
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(L("View"))
+        }
+        .sharedBackgroundVisibility(.hidden)
     }
 
     private var windowOptionsGroup: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
-            Picker(L("View"), selection: Binding(
-                get: { settings.usageDetailsMode },
-                set: { settings.usageDetailsMode = $0 }
-            )) {
-                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
-                    Label(mode.title, systemImage: mode.symbol).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .help(L("View"))
-
             WindowOptionButton(
                 title: L("Keep on Top"),
                 help: L("Keep this window above other windows, even when you switch apps."),
@@ -256,6 +246,17 @@ struct UsageDetailsView: View {
                 Label(L("Refresh"), systemImage: "arrow.clockwise")
             }
             .help(L("Refresh"))
+
+            Picker(L("View"), selection: Binding(
+                get: { settings.usageDetailsMode },
+                set: { settings.usageDetailsMode = $0 }
+            )) {
+                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                    Label(mode.title, systemImage: mode.symbol).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .help(L("View"))
         }
     }
 
