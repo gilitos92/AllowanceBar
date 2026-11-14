@@ -33,12 +33,21 @@ enum UsageMeterSeverity: Equatable {
 import SwiftUI
 
 extension UsageMeterSeverity {
-    /// Progress bar and percent tint.
+    /// Meter fill: quiet when healthy, system orange and red otherwise.
     var color: Color {
         switch self {
-        case .normal: return .primary
-        case .warning: return .yellow
-        case .critical: return .red
+        case .normal: return .meterNormal
+        case .warning: return Color(nsColor: .systemOrange)
+        case .critical: return Color(nsColor: .systemRed)
+        }
+    }
+
+    /// Percent text tint; nil keeps the surrounding text color.
+    var textColor: Color? {
+        switch self {
+        case .normal: return nil
+        case .warning: return .warningText
+        case .critical: return .criticalText
         }
     }
 }
@@ -53,11 +62,12 @@ struct UsageMeterBar: View {
     /// Even-pace position, 0...100 in the same units as `percent`: where the
     /// fill would end with even use across the window. Nil hides the marker.
     var paceMarkerPercent: Double? = nil
+    var height: CGFloat = 6
 
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Capsule().fill(.quaternary)
+                Capsule().fill(Color.meterTrack)
                 Capsule()
                     .fill(severity.color)
                     .frame(width: proxy.size.width * min(1, max(0, percent / 100)))
@@ -67,16 +77,16 @@ struct UsageMeterBar: View {
                     let x = proxy.size.width * min(1, max(0, paceMarkerPercent / 100))
                     Capsule()
                         .fill(.primary)
-                        .frame(width: 2, height: 14)
+                        .frame(width: 2, height: height + 6)
                         .padding(.horizontal, 1)
                         .background(Capsule().fill(Color(nsColor: .windowBackgroundColor)))
                         .position(x: min(max(x, 2), max(2, proxy.size.width - 2)), y: proxy.size.height / 2)
                 }
             }
         }
-        .frame(height: 6)
-        // Matches the spacing the system progress bar used to reserve.
-        .padding(.vertical, 6)
+        .frame(height: height)
+        // Room for the pace marker above and below the bar.
+        .padding(.vertical, 3)
         .accessibilityHidden(true)
     }
 }
@@ -89,37 +99,20 @@ extension CountDirection {
     }
 }
 
-/// Fill and text colors for a warning or critical value badge.
-struct SeverityBadgeStyle {
-    let fill: Color
-    let foreground: Color
-}
-
-extension UsageMeterSeverity {
-    /// Yellow or red text is hard to read on light backgrounds, so warning
-    /// and critical values sit in a pill of the severity color instead. The
-    /// red is darker than `.red` so white text on it stays readable.
-    var badgeStyle: SeverityBadgeStyle? {
-        switch self {
-        case .normal: return nil
-        case .warning: return SeverityBadgeStyle(fill: .yellow, foreground: .black)
-        case .critical: return SeverityBadgeStyle(fill: Color(red: 0.8, green: 0.1, blue: 0.1), foreground: .white)
-        }
-    }
-}
-
-/// A percent or balance value with its severity symbol. Values with a badge
-/// style are drawn as a pill; others as plain text in `plainColor`.
+/// A percent or balance value with its severity symbol. Warning and critical
+/// values take the severity's text color; severity is never shown by color
+/// alone, so they also carry a symbol.
 struct SeverityValueLabel: View {
     let text: String
     let symbolName: String?
-    let badge: SeverityBadgeStyle?
+    /// Severity tint; nil draws the value in `plainColor`.
+    let tint: Color?
     var plainColor: Color = .primary
-    var font: Font = .callout.monospacedDigit().weight(.semibold)
-    var symbolFont: Font = .subheadline.weight(.medium)
+    var font: Font = .meterValue()
+    var symbolFont: Font = .system(size: 10.5, weight: .semibold)
 
     var body: some View {
-        let content = HStack(spacing: 3) {
+        HStack(spacing: 3) {
             Text(text).font(font)
             if let symbolName {
                 Image(systemName: symbolName)
@@ -127,14 +120,8 @@ struct SeverityValueLabel: View {
                     .accessibilityHidden(true)
             }
         }
-        if let badge {
-            content
-                .foregroundStyle(badge.foreground)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 1)
-                .background(Capsule().fill(badge.fill))
-        } else {
-            content.foregroundStyle(plainColor)
-        }
+        .foregroundStyle(tint ?? plainColor)
+        .lineLimit(1)
+        .fixedSize()
     }
 }

@@ -46,6 +46,8 @@
 	<string>%@h %@m</string>
 	<key>%@m</key>
 	<string>%@m</string>
+	<key>%lld accounts</key>
+	<string>%lld cuentas</string>
 	<key>%lld%%</key>
 	<string>%lld%%</string>
 	<key>%lld%% left</key>
@@ -74,6 +76,8 @@
 	<string>30 segundos</string>
 	<key>5 minutes</key>
 	<string>5 minutos</string>
+	<key>5h</key>
+	<string>5 h</string>
 	<key>5h limit</key>
 	<string>Límite de 5 h</string>
 	<key>7 days before</key>
@@ -110,6 +114,8 @@
 	<string>Ajusta qué tan transparente es el fondo de la ventana.</string>
 	<key>Admin key</key>
 	<string>Clave de administrador</string>
+	<key>Agents</key>
+	<string>Agentes</string>
 	<key>Ahead of pace: using it faster than time passes.</key>
 	<string>Por delante del ritmo: lo usas más rápido de lo que pasa el tiempo.</string>
 	<key>Alert when a limit runs ahead of pace</key>
@@ -340,6 +346,8 @@
 	<string>Se encontró una cuenta de %@: %@</string>
 	<key>Full</key>
 	<string>Completo</string>
+	<key>Full View</key>
+	<string>Vista completa</string>
 	<key>Full access including billing and key management.</key>
 	<string>Acceso completo, incluida la facturación y la administración de claves.</string>
 	<key>Full account access — more powerful than Allowance Bar needs.</key>
@@ -430,6 +438,8 @@
 	<string>Modo</string>
 	<key>Month to date (UTC)</key>
 	<string>Mes hasta la fecha (UTC)</string>
+	<key>More</key>
+	<string>Más</string>
 	<key>Muse Code CLI not found</key>
 	<string>No se encontró la CLI de Muse Code</string>
 	<key>Muse Code asked to wait before checking usage again</key>
@@ -586,6 +596,8 @@
 	<string>Mostrar todos los límites en la barra de menús</string>
 	<key>Show all limits in the nano window</key>
 	<string>Mostrar todos los límites en la ventana nano</string>
+	<key>Show every provider's limits, reset times and plans.</key>
+	<string>Muestra los límites, los reinicios y los planes de cada proveedor.</string>
 	<key>Show in menu bar</key>
 	<string>Mostrar en la barra de menús</string>
 	<key>Show on All Desktops</key>
@@ -710,12 +722,16 @@
 	<string>La verificación falló — tu clave puede seguir funcionando.</string>
 	<key>Version %@</key>
 	<string>Versión %@</string>
+	<key>View</key>
+	<string>Vista</string>
 	<key>View prepaid credits</key>
 	<string>Ver créditos prepagados</string>
 	<key>Waiting for browser authorization…</key>
 	<string>Esperando autorización en el navegador…</string>
 	<key>Website &amp; source code</key>
 	<string>Sitio web y código fuente</string>
+	<key>Week</key>
+	<string>Semana</string>
 	<key>Weekly (Opus)</key>
 	<string>Semanal (Opus)</string>
 	<key>Weekly limit</key>
@@ -760,6 +776,8 @@
 	<string>hora</string>
 	<key>hours</key>
 	<string>horas</string>
+	<key>in %@</key>
+	<string>en %@</string>
 	<key>key exchange rejected</key>
 	<string>intercambio de clave rechazado</string>
 	<key>less than a minute</key>

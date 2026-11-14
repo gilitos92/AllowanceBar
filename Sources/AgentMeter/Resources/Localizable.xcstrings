@@ -5434,6 +5434,96 @@
           }
         }
       }
+    },
+    "5h": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 h"
+          }
+        }
+      }
+    },
+    "Week": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Semana"
+          }
+        }
+      }
+    },
+    "in %@": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en %@"
+          }
+        }
+      }
+    },
+    "Full View": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista completa"
+          }
+        }
+      }
+    },
+    "Show every provider's limits, reset times and plans.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muestra los límites, los reinicios y los planes de cada proveedor."
+          }
+        }
+      }
+    },
+    "View": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista"
+          }
+        }
+      }
+    },
+    "More": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agentes"
+          }
+        }
+      }
+    },
+    "%lld accounts": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld cuentas"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

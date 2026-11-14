@@ -8,23 +8,31 @@ struct SettingsRootView: View {
     var body: some View {
         TabView {
             GeneralSettingsTab(store: store, settings: settings)
+                .frame(width: 520, height: 400)
                 .tabItem {
                     Label(L("General"), systemImage: "gearshape")
                 }
             ProvidersSettingsTab(store: store, settings: settings)
+                .frame(minWidth: 720, idealWidth: 760, minHeight: 460, idealHeight: 540)
                 .tabItem {
                     Label(L("Providers"), systemImage: "list.bullet")
                 }
             DisplaySettingsTab(settings: settings)
+                .frame(width: 520, height: 520)
                 .tabItem {
-                    Label(L("Display"), systemImage: "eye")
+                    Label(L("Display"), systemImage: "macwindow")
                 }
             AlertsSettingsTab(store: store, settings: settings)
+                .frame(width: 520, height: 400)
                 .tabItem {
                     Label(L("Alerts"), systemImage: "bell")
                 }
+            AgentsSettingsTab(store: store, settings: settings)
+                .frame(width: 520, height: 340)
+                .tabItem {
+                    Label(L("Agents"), systemImage: "apple.terminal")
+                }
         }
-        .frame(width: 500, height: 420)
     }
 }
 
@@ -34,28 +42,12 @@ private struct GeneralSettingsTab: View {
     @Environment(\.openWindow) private var openWindow
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var diagnosticsCopied = false
-    @State private var cliInstallPath: String?
-    @State private var cliInstallResultMessage: String?
 
     var body: some View {
         Form {
             Section {
                 Toggle(L("Launch at Login"), isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in setLaunchAtLogin(enabled) }
-            }
-            Section {
-                Toggle(L("Enable agent & CLI access"), isOn: $settings.agentAccessEnabled)
-                    .onChange(of: settings.agentAccessEnabled) { _, enabled in
-                        if enabled {
-                            StatusSnapshotWriter.writeIfEnabled(store: store, settings: settings)
-                        }
-                    }
-
-                cliToolInstallSection
-            } footer: {
-                Text(L("Writes a machine-readable usage snapshot (never credentials) to Application Support for the allowancebar command-line tool and other local agents."))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
             Section {
                 Picker(L("Refresh interval"), selection: Binding(
@@ -91,6 +83,59 @@ private struct GeneralSettingsTab: View {
                     openWindow(id: "about")
                     NSApp.activate(ignoringOtherApps: true)
                 }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func copyDiagnostics() {
+        let report = Diagnostics.report(store: store, settings: settings)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(report, forType: .string)
+        diagnosticsCopied = true
+        AccessibilityNotification.Announcement(L("Diagnostics copied")).post()
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            diagnosticsCopied = false
+        }
+    }
+
+    private func setLaunchAtLogin(_ enabled: Bool) {
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+        }
+    }
+}
+
+/// The opt-in snapshot for the allowancebar command-line tool and agents.
+private struct AgentsSettingsTab: View {
+    @ObservedObject var store: UsageStore
+    @ObservedObject var settings: SettingsStore
+    @State private var cliInstallPath: String?
+    @State private var cliInstallResultMessage: String?
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(L("Enable agent & CLI access"), isOn: $settings.agentAccessEnabled)
+                    .onChange(of: settings.agentAccessEnabled) { _, enabled in
+                        if enabled {
+                            StatusSnapshotWriter.writeIfEnabled(store: store, settings: settings)
+                        }
+                    }
+            } footer: {
+                Text(L("Writes a machine-readable usage snapshot (never credentials) to Application Support for the allowancebar command-line tool and other local agents."))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                cliToolInstallSection
             }
         }
         .formStyle(.grouped)
@@ -150,91 +195,219 @@ private struct GeneralSettingsTab: View {
         }
     }
 
-    private func copyDiagnostics() {
-        let report = Diagnostics.report(store: store, settings: settings)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(report, forType: .string)
-        diagnosticsCopied = true
-        AccessibilityNotification.Announcement(L("Diagnostics copied")).post()
-        Task {
-            try? await Task.sleep(for: .seconds(2))
-            diagnosticsCopied = false
-        }
-    }
-
-    private func setLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-        } catch {
-            launchAtLogin = SMAppService.mainApp.status == .enabled
-        }
-    }
 }
 
+/// A list of providers beside one page per provider, so each provider's
+/// accounts and settings no longer share one long form.
 private struct ProvidersSettingsTab: View {
     @ObservedObject var store: UsageStore
     @ObservedObject var settings: SettingsStore
+    @State private var selection: ProviderPane? = nil
+
+    enum ProviderPane: Hashable {
+        case provider(String)
+        case cliProxy
+    }
+
+    private var groups: [ProviderGroup] {
+        ProviderGroup.groups(store.providers)
+    }
 
     var body: some View {
-        Form {
-            Section {
-                CLIProxySection(store: store, settings: settings)
-            } header: {
-                Text(L("CLIProxyAPI"))
-            }
-            ForEach(store.providers, id: \.id) { provider in
+        HStack(spacing: 0) {
+            List(selection: $selection) {
                 Section {
-                    Picker(L("Mode"), selection: Binding(
-                        get: { settings.mode(for: provider.id) },
-                        set: { newValue in
-                            settings.setMode(newValue, for: provider.id)
-                            store.refresh()
+                    ForEach(groups) { group in
+                        sidebarRow(for: group)
+                            .tag(ProviderPane.provider(group.baseID))
+                    }
+                }
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 20, height: 20)
+                            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.green.gradient))
+                            .accessibilityHidden(true)
+                        Text(L("CLIProxyAPI"))
+                        Spacer(minLength: 4)
+                        if CLIProxyConfig.isConfigured {
+                            Circle().fill(.green).frame(width: 7, height: 7)
+                                .accessibilityLabel(L("Saved"))
                         }
-                    )) {
-                        ForEach(ProviderMode.allCases) { mode in
-                            Text(mode.label).tag(mode)
-                        }
                     }
-                    .pickerStyle(.segmented)
+                    .tag(ProviderPane.cliProxy)
+                }
+            }
+            .listStyle(.sidebar)
+            .frame(width: 220)
 
-                    if settings.mode(for: provider.id) != .off {
-                        Toggle(L("Show in menu bar"), isOn: Binding(
-                            get: { settings.showsInMenuBar(provider.id) },
-                            set: { settings.setShowsInMenuBar($0, for: provider.id) }
-                        ))
-                    }
+            Divider()
 
-                    ProviderCredentialSection(provider: provider, store: store)
+            detail
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onAppear {
+            if selection == nil, let first = groups.first {
+                selection = .provider(first.baseID)
+            }
+        }
+    }
 
-                    if let localName = store.localDuplicateName(of: provider) {
-                        Text(String(format: L("Hidden because %@ shows the same account. Choose On to show both."), localName))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    }
+    private func sidebarRow(for group: ProviderGroup) -> some View {
+        HStack(spacing: 8) {
+            ProviderBadge(providerID: group.baseID, shortCode: group.baseShortCode, size: 20)
+            Text(group.baseName)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            if let summary = summary(for: group) {
+                Text(summary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
 
-                    if !provider.id.contains(":"),
-                       let support = ProviderAccountSupport.support(for: provider.id) {
-                        ProviderAccountsSection(
-                            provider: provider,
-                            support: support,
-                            store: store,
-                            settings: settings
-                        )
-                    }
+    /// "Off", "3 accounts", the plan or the balance, in that order.
+    private func summary(for group: ProviderGroup) -> String? {
+        if group.members.allSatisfy({ settings.mode(for: $0.id) == .off }) {
+            return L("Off")
+        }
+        if group.members.count > 1 {
+            return String(format: L("%lld accounts"), group.members.count)
+        }
+        guard let provider = group.members.first, let usage = store.state(for: provider.id).usage else { return nil }
+        return usage.planName ?? usage.balance?.shortDisplay
+    }
 
+    @ViewBuilder
+    private var detail: some View {
+        switch selection {
+        case .cliProxy:
+            Form {
+                Section {
+                    CLIProxySection(store: store, settings: settings)
                 } header: {
-                    HStack(spacing: 6) {
-                        ProviderBadge(provider: provider, size: 18)
-                        Text(provider.displayName)
+                    paneHeader(
+                        badge: AnyView(Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.green.gradient))),
+                        title: L("CLIProxyAPI"),
+                        subtitle: nil
+                    )
+                }
+            }
+            .formStyle(.grouped)
+        case .provider(let baseID):
+            if let group = groups.first(where: { $0.baseID == baseID }) {
+                providerPage(group)
+            } else {
+                emptyDetail
+            }
+        case nil:
+            emptyDetail
+        }
+    }
+
+    private var emptyDetail: some View {
+        Text(L("No providers enabled. Open Settings to turn some on."))
+            .foregroundStyle(.secondary)
+    }
+
+    private func providerPage(_ group: ProviderGroup) -> some View {
+        Form {
+            ForEach(Array(group.members.enumerated()), id: \.element.id) { index, provider in
+                Section {
+                    providerSettings(provider)
+                } header: {
+                    VStack(alignment: .leading, spacing: 14) {
+                        if index == 0 {
+                            paneHeader(
+                                badge: AnyView(ProviderBadge(providerID: group.baseID, shortCode: group.baseShortCode, size: 34)),
+                                title: group.baseName,
+                                subtitle: group.members.count > 1
+                                    ? String(format: L("%lld accounts"), group.members.count)
+                                    : nil
+                            )
+                        }
+                        if group.members.count > 1 {
+                            HStack(spacing: 6) {
+                                ProviderBadge(provider: provider, size: 16)
+                                Text(provider.displayName)
+                            }
+                        }
                     }
                 }
             }
         }
         .formStyle(.grouped)
+        .id(group.baseID)
+    }
+
+    private func paneHeader(badge: AnyView, title: String, subtitle: String?) -> some View {
+        HStack(spacing: 10) {
+            badge.accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.primary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .textCase(nil)
+        .padding(.bottom, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    @ViewBuilder
+    private func providerSettings(_ provider: any UsageProvider) -> some View {
+        Picker(L("Mode"), selection: Binding(
+            get: { settings.mode(for: provider.id) },
+            set: { newValue in
+                settings.setMode(newValue, for: provider.id)
+                store.refresh()
+            }
+        )) {
+            ForEach(ProviderMode.allCases) { mode in
+                Text(mode.label).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+
+        if settings.mode(for: provider.id) != .off {
+            Toggle(L("Show in menu bar"), isOn: Binding(
+                get: { settings.showsInMenuBar(provider.id) },
+                set: { settings.setShowsInMenuBar($0, for: provider.id) }
+            ))
+        }
+
+        ProviderCredentialSection(provider: provider, store: store)
+
+        if let localName = store.localDuplicateName(of: provider) {
+            Text(String(format: L("Hidden because %@ shows the same account. Choose On to show both."), localName))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+
+        if !provider.id.contains(":"),
+           let support = ProviderAccountSupport.support(for: provider.id) {
+            ProviderAccountsSection(
+                provider: provider,
+                support: support,
+                store: store,
+                settings: settings
+            )
+        }
     }
 }
 

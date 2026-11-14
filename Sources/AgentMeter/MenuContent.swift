@@ -5,6 +5,7 @@ struct MenuContent: View {
     @ObservedObject var store: UsageStore
     @ObservedObject var settings: SettingsStore
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openURL) private var openURL
     @State private var menuScreenVisibleHeight: CGFloat?
     @State private var providerContentHeight: CGFloat?
     @State private var providerContentBottom: CGFloat = 0
@@ -13,10 +14,10 @@ struct MenuContent: View {
 
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             usageView
         }
-        .padding(14)
+        .padding(GlassStyle.inset)
         .frame(width: 360)
         .fixedSize(horizontal: false, vertical: true)
         .background {
@@ -32,10 +33,10 @@ struct MenuContent: View {
     }
 
     private var usageView: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 12) {
-                    ProviderUsageSections(store: store, settings: settings)
+                VStack(alignment: .leading, spacing: GlassStyle.inset) {
+                    ProviderUsageSections(store: store, settings: settings, layout: .dropdown)
                 }
                 .background {
                     GeometryReader { proxy in
@@ -50,7 +51,9 @@ struct MenuContent: View {
                     }
                 }
             }
+            .scrollIndicators(.automatic)
             .frame(height: providerViewportHeight, alignment: .top)
+            .clipShape(RoundedRectangle(cornerRadius: GlassStyle.platterRadius, style: .continuous))
             .coordinateSpace(name: "providerViewport")
             .onPreferenceChange(ProviderContentHeightKey.self) { height in
                 guard providerContentHeight != height else { return }
@@ -61,24 +64,17 @@ struct MenuContent: View {
             }
             .overlay(alignment: .bottom) {
                 if providerContentBottom > providerViewportHeight + 1 {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .mask {
-                            LinearGradient(colors: [.clear, .black],
-                                           startPoint: .top, endPoint: .bottom)
-                        }
-                        .frame(height: 36)
-                        .overlay(alignment: .bottom) {
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                                .padding(.bottom, 4)
-                        }
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(.regularMaterial))
+                        .overlay(Circle().strokeBorder(Color.platterEdge, lineWidth: 0.5))
+                        .padding(.bottom, 6)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }
             }
-            Divider()
             footer
         }
     }
@@ -93,72 +89,79 @@ struct MenuContent: View {
         return min(providerContentHeight, maxHeight)
     }
 
+    /// The refresh time and four round buttons. Less frequent commands live
+    /// in the More menu, so nothing wraps.
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        HStack(spacing: 8) {
+            Group {
                 if let refreshed = store.lastRefreshed {
                     Text(L("Updated \(refreshed.formatted(date: .omitted, time: .shortened))"))
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.secondary)
+                } else {
+                    Text(L("Loading…"))
                 }
-                Spacer()
-                Button {
-                    store.refresh(forceRefresh: true)
-                } label: {
-                    Label(L("Refresh"), systemImage: "arrow.clockwise")
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.plain)
-                .font(.callout.weight(.medium))
-                .help(L("Refresh"))
-                .accessibilityLabel(L("Refresh"))
             }
-            HStack {
-                Button {
-                    openUsageDetails()
-                } label: {
-                    Text(L("Usage Details"))
-                }
-                .buttonStyle(.plain)
-                .font(.callout.weight(.medium))
-                .keyboardShortcut("d", modifiers: [.command])
-                .help(L("Usage Details"))
-                .accessibilityLabel(L("Usage Details"))
-                SettingsLink {
-                    Text(L("Settings…"))
-                }
-                .buttonStyle(.plain)
-                .font(.callout.weight(.medium))
-                .help(L("Settings…"))
-                .accessibilityLabel(L("Settings…"))
-                .simultaneousGesture(TapGesture().onEnded {
-                    NSApp.activate(ignoringOtherApps: true)
-                    Self.closeMenuBarWindow()
-                })
-                Spacer()
-                Button(L("Check for Updates…")) {
-                    Self.closeMenuBarWindow()
-                    Updater.shared.checkForUpdates()
-                }
-                .buttonStyle(.plain)
-                .font(.callout.weight(.medium))
-                .help(L("Check for Updates…"))
-                .accessibilityLabel(L("Check for Updates…"))
-                Spacer()
-                Link(destination: tipJarURL) {
-                    Text(L("Support ♥"))
-                }
-                .font(.callout.weight(.medium))
-                .help(L("Support ♥"))
-                .accessibilityLabel(L("Support ♥"))
-                Spacer()
-                Button(L("Quit")) { NSApp.terminate(nil) }
-                    .buttonStyle(.plain)
-                    .font(.callout.weight(.medium))
-                    .help(L("Quit"))
-                    .accessibilityLabel(L("Quit"))
+            .font(.system(size: 12, weight: .medium))
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            Spacer(minLength: 4)
+            Button {
+                store.refresh(forceRefresh: true)
+            } label: {
+                Image(systemName: "arrow.clockwise")
             }
+            .help(L("Refresh"))
+            .accessibilityLabel(L("Refresh"))
+            Button {
+                openUsageDetails()
+            } label: {
+                Image(systemName: "macwindow")
+            }
+            .keyboardShortcut("d", modifiers: [.command])
+            .help(L("Usage Details"))
+            .accessibilityLabel(L("Usage Details"))
+            SettingsLink {
+                Image(systemName: "gearshape")
+            }
+            .help(L("Settings…"))
+            .accessibilityLabel(L("Settings…"))
+            .simultaneousGesture(TapGesture().onEnded {
+                NSApp.activate(ignoringOtherApps: true)
+                Self.closeMenuBarWindow()
+            })
+            moreMenu
         }
+        .buttonStyle(CircleIconButtonStyle())
+        .padding(.top, GlassStyle.inset)
+        .padding(.horizontal, 4)
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Button(L("Check for Updates…")) {
+                Self.closeMenuBarWindow()
+                Updater.shared.checkForUpdates()
+            }
+            Button(L("About Allowance Bar")) {
+                Self.closeMenuBarWindow()
+                openWindow(id: "about")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            Button(L("Support ♥")) {
+                Self.closeMenuBarWindow()
+                openURL(tipJarURL)
+            }
+            Divider()
+            Button(L("Quit")) { NSApp.terminate(nil) }
+                .keyboardShortcut("q", modifiers: [.command])
+        } label: {
+            Image(systemName: "ellipsis")
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(L("More"))
+        .accessibilityLabel(L("More"))
     }
 
     private func openUsageDetails() {

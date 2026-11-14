@@ -16,6 +16,30 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
   docs/MULTIPLE_ACCOUNTS.md. API keys and pay-as-you-go accounts show a
   message instead of numbers, because Meta has no balance API.
 
+### Changed
+- A new look built on Liquid Glass (macOS 26 and later) for every part of
+  the app. The dropdown shows each provider as a module: a platter with its
+  badge, plan and limits. Several accounts of one provider share one module,
+  and each limit takes two lines instead of three: its name, a short reset
+  time and the value, then the bar. Two limits share a row when they fit.
+- Healthy limits are quieter, warnings are orange instead of yellow, and
+  critical limits are red. Both keep their symbol, also in the menu bar, so
+  color is never the only signal. Values use rounded, fixed-width digits.
+- Reset times are short ("in 2h 10m", or "Fri 21:41" with exact times); the
+  full date shows on hover and VoiceOver reads it. One "Updated" time
+  replaces the "Data as of" line under every provider; a provider whose data
+  is more than six minutes old still shows its own time.
+- The dropdown's footer is the update time and four round buttons: Refresh,
+  Usage Details, Settings and More. More holds Check for Updates, About,
+  Support and Quit, so nothing wraps anymore.
+- The Usage Details window lays modules out in two columns. Its toolbar
+  switches between the full, mini and nano views and adds Refresh. The mini
+  window is a rounded glass panel with one aligned row per limit and the
+  account name of providers with several accounts. The nano window is a
+  glass capsule with a dot in each provider's color.
+- Settings has an Agents pane for agent and command-line access, and the
+  Providers pane lists the providers beside one page per provider.
+
 ### Fixed
 - Claude accounts in CLIProxyAPI hit Anthropic's rate limit much less
   often. CLIProxyAPI keeps the 5-hour and weekly limits that Anthropic sends

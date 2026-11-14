@@ -1,6 +1,56 @@
 import AppKit
 import SwiftUI
 
+/// The Usage Details window's three sizes.
+enum UsageDetailsMode: CaseIterable {
+    case full, mini, nano
+
+    var title: String {
+        switch self {
+        case .full: L("Full View")
+        case .mini: L("Compact View")
+        case .nano: L("Nano View")
+        }
+    }
+
+    var help: String {
+        switch self {
+        case .full: L("Show every provider's limits, reset times and plans.")
+        case .mini: L("Collapse into a small panel with each provider's limits.")
+        case .nano: L("Shrink into a tiny panel with only the menu bar text.")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .full: "list.bullet.rectangle"
+        case .mini: "rectangle.compress.vertical"
+        case .nano: "capsule"
+        }
+    }
+}
+
+extension SettingsStore {
+    var usageDetailsMode: UsageDetailsMode {
+        get {
+            if usageDetailsNano { return .nano }
+            return usageDetailsCompact ? .mini : .full
+        }
+        set {
+            switch newValue {
+            case .full:
+                usageDetailsNano = false
+                usageDetailsCompact = false
+            case .mini:
+                usageDetailsNano = false
+                usageDetailsCompact = true
+            case .nano:
+                usageDetailsNano = true
+            }
+        }
+    }
+}
+
 struct UsageDetailsView: View {
     @ObservedObject var store: UsageStore
     @ObservedObject var settings: SettingsStore
@@ -11,7 +61,8 @@ struct UsageDetailsView: View {
 
     var body: some View {
         Group {
-            if settings.usageDetailsNano {
+            switch settings.usageDetailsMode {
+            case .nano:
                 // Pace arrows depend on the time, not only on refreshes, so
                 // redraw every 30 seconds like the meters.
                 TimelineView(.periodic(from: .now, by: 30)) { _ in
@@ -24,9 +75,10 @@ struct UsageDetailsView: View {
                     )
                 }
                 .padding(.bottom, -titleBarInset)
-            } else if settings.usageDetailsCompact {
+            case .mini:
                 CompactUsageView(
                     entries: store.compactEntries,
+                    accountNames: accountNames,
                     settings: settings,
                     isPointerInside: isPointerInside,
                     close: { dismissWindow(id: "usage-details") }
@@ -34,14 +86,17 @@ struct UsageDetailsView: View {
                 // Give back the title bar space reserved while compact so
                 // the window hugs its rows.
                 .padding(.bottom, -titleBarInset)
-            } else {
+            case .full:
                 expandedContent
             }
         }
-        // Standard material provides a stable window capture appearance.
+        // Liquid Glass behind the content, following the window's corners.
         // Only the background extends under the expanded window's title bar;
         // its content stays in the normal safe area.
-        .background(MenuMaterialBackground(opacity: settings.usageDetailsBackgroundOpacity).ignoresSafeArea())
+        .background(WindowGlassBackground(
+            opacity: settings.usageDetailsBackgroundOpacity,
+            shape: glassShape
+        ).ignoresSafeArea())
         .background(WindowLevelSetter(alwaysOnTop: settings.usageDetailsAlwaysOnTop,
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
@@ -52,10 +107,44 @@ struct UsageDetailsView: View {
         // hover controls replace the toolbar.
         .toolbar(settings.usageDetailsChromeless ? .hidden : .visible, for: .windowToolbar)
         .toolbar { windowOptions }
+        .navigationSubtitle(updatedText)
     }
 
-    /// The window option buttons. On macOS 26 and later they share one Liquid
-    /// Glass background, like a floating toolbar.
+    private var glassShape: WindowGlassBackground.Shape {
+        switch settings.usageDetailsMode {
+        case .full: .window
+        case .mini: .rounded(GlassStyle.panelRadius)
+        case .nano: .capsule
+        }
+    }
+
+    private var updatedText: String {
+        guard let refreshed = store.lastRefreshed else { return "" }
+        return L("Updated \(refreshed.formatted(date: .omitted, time: .shortened))")
+    }
+
+    /// Names of accounts that share a provider, e.g. "Main", so the compact
+    /// panel can tell three Claude rows apart.
+    private var accountNames: [String: String] {
+        var names: [String: String] = [:]
+        for group in ProviderGroup.groups(store.visibleProviders) where group.members.count > 1 {
+            let emails = group.members.reduce(into: [String: String]()) { result, provider in
+                if let email = store.state(for: provider.id).usage?.accountEmail
+                    ?? (provider as? CodexProvider)?.accountEmail {
+                    result[provider.id] = email
+                }
+            }
+            for (id, label) in group.accountLabels(emails: emails) {
+                // An email names the default account; its first part is
+                // enough to tell rows apart in the small panel.
+                names[id] = label.name.split(separator: "@").first.map(String.init) ?? label.name
+            }
+        }
+        return names
+    }
+
+    /// The view switcher and the window options. On macOS 26 and later each
+    /// group shares one Liquid Glass capsule, like a floating toolbar.
     @ToolbarContentBuilder
     private var windowOptions: some ToolbarContent {
         if #available(macOS 26, *) {
@@ -66,9 +155,29 @@ struct UsageDetailsView: View {
     }
 
     /// The window's transparent title bar keeps the system from drawing its
-    /// own toolbar glass, so the buttons carry their own glass capsule.
+    /// own toolbar glass, so each group carries its own glass capsule.
     @available(macOS 26, *)
+    @ToolbarContentBuilder
     private var floatingToolbar: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            HStack(spacing: 2) {
+                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                    CompactControlButton(
+                        title: mode.title,
+                        symbol: mode.symbol,
+                        isOn: settings.usageDetailsMode == mode,
+                        help: mode.help,
+                        large: true,
+                        showsSelection: true
+                    ) { settings.usageDetailsMode = mode }
+                }
+            }
+            .padding(3)
+            .glassEffect(.regular.interactive(), in: Capsule())
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel(L("View"))
+        }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarItem(placement: .primaryAction) {
             HStack(spacing: 2) {
                 CompactControlButton(
@@ -76,7 +185,8 @@ struct UsageDetailsView: View {
                     symbol: settings.usageDetailsAlwaysOnTop ? "pin.fill" : "pin",
                     isOn: settings.usageDetailsAlwaysOnTop,
                     help: L("Keep this window above other windows, even when you switch apps."),
-                    large: true
+                    large: true,
+                    showsSelection: true
                 ) { settings.usageDetailsAlwaysOnTop.toggle() }
                 CompactControlButton(
                     title: L("Show on All Desktops"),
@@ -84,7 +194,8 @@ struct UsageDetailsView: View {
                         ? "rectangle.fill.on.rectangle.fill" : "rectangle.on.rectangle",
                     isOn: settings.usageDetailsOnAllSpaces,
                     help: L("Also show this window on every desktop and over full-screen apps. Requires Keep on Top."),
-                    large: true
+                    large: true,
+                    showsSelection: true
                 ) { settings.usageDetailsOnAllSpaces.toggle() }
                 .disabled(!settings.usageDetailsAlwaysOnTop)
                 BackgroundButton(
@@ -93,25 +204,16 @@ struct UsageDetailsView: View {
                     large: true
                 )
                 CompactControlButton(
-                    title: L("Compact View"),
-                    symbol: "rectangle.compress.vertical",
+                    title: L("Refresh"),
+                    symbol: "arrow.clockwise",
                     isOn: false,
-                    help: L("Collapse into a small panel with each provider's limits."),
                     large: true
-                ) { settings.usageDetailsCompact = true }
-                CompactControlButton(
-                    title: L("Nano View"),
-                    symbol: "arrow.down.right.and.arrow.up.left",
-                    isOn: false,
-                    help: L("Shrink into a tiny panel with only the menu bar text."),
-                    large: true
-                ) { settings.usageDetailsNano = true }
+                ) { store.refresh(forceRefresh: true) }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
+            .padding(3)
             .glassEffect(.regular.interactive(), in: Capsule())
-            // One toolbar item hosts all five buttons; without its own label
-            // the item's first label ("Keep on Top") was read for every button.
+            // One toolbar item hosts several buttons; without its own label
+            // the item's first label was read for every button.
             .accessibilityElement(children: .contain)
             .accessibilityLabel(L("Window Options"))
         }
@@ -120,6 +222,17 @@ struct UsageDetailsView: View {
 
     private var windowOptionsGroup: some ToolbarContent {
         ToolbarItemGroup(placement: .primaryAction) {
+            Picker(L("View"), selection: Binding(
+                get: { settings.usageDetailsMode },
+                set: { settings.usageDetailsMode = $0 }
+            )) {
+                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                    Label(mode.title, systemImage: mode.symbol).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .help(L("View"))
+
             WindowOptionButton(
                 title: L("Keep on Top"),
                 help: L("Keep this window above other windows, even when you switch apps."),
@@ -142,30 +255,23 @@ struct UsageDetailsView: View {
                 compact: false
             )
 
-            WindowOptionButton(
-                title: L("Compact View"),
-                help: L("Collapse into a small panel with each provider's limits."),
-                offSymbol: "rectangle.compress.vertical",
-                onSymbol: "rectangle.compress.vertical",
-                isOn: $settings.usageDetailsCompact
-            )
-
-            WindowOptionButton(
-                title: L("Nano View"),
-                help: L("Shrink into a tiny panel with only the menu bar text."),
-                offSymbol: "arrow.down.right.and.arrow.up.left",
-                onSymbol: "arrow.down.right.and.arrow.up.left",
-                isOn: $settings.usageDetailsNano
-            )
+            Button {
+                store.refresh(forceRefresh: true)
+            } label: {
+                Label(L("Refresh"), systemImage: "arrow.clockwise")
+            }
+            .help(L("Refresh"))
         }
     }
 
     private var expandedContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                ProviderUsageSections(store: store, settings: settings)
+            VStack(alignment: .leading, spacing: 10) {
+                ProviderUsageSections(store: store, settings: settings, layout: .window)
             }
-            .padding(14)
+            .padding(.horizontal, 14)
+            .padding(.top, 4)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
                 GeometryReader { proxy in
@@ -179,17 +285,20 @@ struct UsageDetailsView: View {
         }
         // The window fits its content (see `windowResizability(.contentSize)`)
         // and scrolls only when the content is taller than the screen allows.
-        // Wide enough for the title and all toolbar buttons without overflow.
-        .frame(minWidth: 480, idealWidth: 480, maxWidth: .infinity)
+        // Wide enough for two columns of modules and the toolbar.
+        .frame(minWidth: 620, idealWidth: 660, maxWidth: .infinity)
         .frame(height: min(contentHeight ?? 500, Self.maxHeight))
     }
 }
 
-/// The collapsed Usage Details window: a chrome-free panel with one row per
-/// limit window (e.g. 5h and weekly) for each provider. Window controls appear
-/// while the pointer is over the panel, or always with VoiceOver.
+/// The collapsed Usage Details window: a chrome-free glass panel with one
+/// aligned row per limit window (e.g. 5h and weekly) for each provider.
+/// Window controls appear while the pointer is over the panel, or always
+/// with VoiceOver.
 private struct CompactUsageView: View {
     let entries: [CompactUsageEntry]
+    /// Account names for providers with several accounts, by provider ID.
+    let accountNames: [String: String]
     @ObservedObject var settings: SettingsStore
     let isPointerInside: Bool
     let close: () -> Void
@@ -202,14 +311,14 @@ private struct CompactUsageView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             // Rows line up, so all of them get the place column when one has it.
             let showsPriority = entries.contains { $0.priority != nil }
             ForEach(entries) { entry in
                 CompactProviderRow(
                     entry: entry,
-                    countDirection: settings.countDirection,
-                    showsPace: settings.showsPace,
+                    accountName: accountNames[entry.provider.id],
+                    settings: settings,
                     showsPriority: showsPriority,
                     labelWidth: labelWidth
                 )
@@ -221,9 +330,9 @@ private struct CompactUsageView: View {
             guard width > 0, labelWidth != width else { return }
             labelWidth = width
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.top, 12)
-        .padding(.bottom, 10)
+        .padding(.bottom, 12)
         .frame(minWidth: 300, alignment: .leading)
         .fixedSize()
         .overlay(alignment: .topTrailing) {
@@ -243,10 +352,11 @@ private struct CompactUsageView: View {
 }
 
 /// The smallest Usage Details panel: only the menu bar text, e.g.
-/// "Cx 50% · Cl 30%". While the pointer is over it, or always with VoiceOver,
-/// the window controls appear above the text. Dragging anywhere else moves it.
+/// "Cx 50% · Cl 30%", each entry after a dot in its provider's color. While
+/// the pointer is over it, or always with VoiceOver, the window controls
+/// appear above the text. Dragging anywhere else moves it.
 private struct NanoUsageView: View {
-    let entries: [(text: String, severity: MenuBarSeverity)]
+    let entries: [MenuBarEntry]
     let accessibilityDescription: String
     @ObservedObject var settings: SettingsStore
     let isPointerInside: Bool
@@ -269,8 +379,8 @@ private struct NanoUsageView: View {
             title
         }
         // Room around the text to grab the panel and drag it.
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
         .fixedSize()
         // The panel has no title bar, so it sits flush with the window edges.
         .ignoresSafeArea()
@@ -281,32 +391,60 @@ private struct NanoUsageView: View {
             .controlSize(.small)
     }
 
-    /// Same text as the menu bar title. Warning and critical entries sit in a
-    /// severity-colored pill; severity is never shown by color alone, so
-    /// warning, critical and stale entries also get a symbol.
+    /// Same text as the menu bar title. Warning and critical entries take
+    /// their severity color and symbol; severity is never shown by color alone.
     private var title: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
                 if index > 0 {
-                    Text(verbatim: " · ").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                    Text(verbatim: "·").foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 }
-                SeverityValueLabel(
-                    text: entry.text,
-                    symbolName: entry.severity.symbolName,
-                    badge: entry.severity.badgeStyle,
-                    plainColor: Color(nsColor: MenuBarTitleRenderer.nsColor(for: entry.severity)),
-                    font: .system(size: 12).monospacedDigit(),
-                    symbolFont: .system(size: 12)
-                )
+                HStack(spacing: 4) {
+                    if let providerID = entry.providerID {
+                        Circle()
+                            .fill(dotColor(for: entry, providerID: providerID))
+                            .frame(width: 7, height: 7)
+                    }
+                    // The provider code stays plain; only the value takes
+                    // the severity color, e.g. "Cl" then "18%↗".
+                    let parts = Self.split(entry.text, hasProvider: entry.providerID != nil)
+                    if let code = parts.code {
+                        Text(verbatim: code)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(entry.severity == .stale ? .secondary : .primary)
+                    }
+                    SeverityValueLabel(
+                        text: parts.value,
+                        symbolName: entry.severity.symbolName,
+                        tint: entry.severity.textColor,
+                        plainColor: entry.severity == .stale ? .secondary : .primary,
+                        font: .system(size: 12, weight: entry.severity.isEmphasized ? .semibold : .regular).monospacedDigit(),
+                        symbolFont: .system(size: 10.5, weight: .semibold)
+                    )
+                }
                 // Entries never truncate; the panel grows to fit them.
                 .fixedSize()
             }
         }
-        .font(.system(size: 12).monospacedDigit())
         .lineLimit(1)
-        .padding(.horizontal, 2)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityDescription)
+    }
+
+    /// "Cl 18%↗ #1" → code "Cl", value "18%↗ #1". Entries without a
+    /// provider (the app name) stay whole.
+    static func split(_ text: String, hasProvider: Bool) -> (code: String?, value: String) {
+        guard hasProvider, let space = text.firstIndex(of: " ") else { return (nil, text) }
+        return (String(text[..<space]), String(text[text.index(after: space)...]))
+    }
+
+    private func dotColor(for entry: MenuBarEntry, providerID: String) -> Color {
+        switch entry.severity {
+        case .warning: Color(nsColor: .systemOrange)
+        case .critical: Color(nsColor: .systemRed)
+        case .stale: Color.secondary
+        case .normal: ProviderBadge.color(for: providerID)
+        }
     }
 }
 
@@ -318,7 +456,7 @@ private struct PanelControls: View {
     @Environment(\.controlSize) private var controlSize
 
     var body: some View {
-        HStack(spacing: 2) {
+        let buttons = HStack(spacing: 2) {
             CompactControlButton(title: L("Close"), symbol: "xmark", isOn: false, action: close)
             CompactControlButton(
                 title: L("Keep on Top"),
@@ -340,9 +478,9 @@ private struct PanelControls: View {
             if !settings.usageDetailsNano {
                 CompactControlButton(
                     title: L("Nano View"),
-                    symbol: "arrow.down.right.and.arrow.up.left",
+                    symbol: UsageDetailsMode.nano.symbol,
                     isOn: false
-                ) { settings.usageDetailsNano = true }
+                ) { settings.usageDetailsMode = .nano }
             }
             CompactControlButton(
                 title: L("Expand"),
@@ -350,16 +488,15 @@ private struct PanelControls: View {
                 isOn: false
             ) {
                 // The nano panel expands one step, to the compact panel.
-                if settings.usageDetailsNano {
-                    settings.usageDetailsCompact = true
-                    settings.usageDetailsNano = false
-                } else {
-                    settings.usageDetailsCompact = false
-                }
+                settings.usageDetailsMode = settings.usageDetailsNano ? .mini : .full
             }
         }
         .padding(controlSize == .small ? 2 : 3)
-        .background(.regularMaterial, in: Capsule())
+        if #available(macOS 26, *) {
+            buttons.glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            buttons.background(.regularMaterial, in: Capsule())
+        }
     }
 }
 
@@ -371,6 +508,8 @@ private struct CompactControlButton: View {
     var help: String?
     /// Larger symbols for the expanded window's floating toolbar.
     var large = false
+    /// Marks the "on" state with a filled capsule behind the symbol.
+    var showsSelection = false
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
     /// `.small` in the nano panel.
@@ -381,8 +520,13 @@ private struct CompactControlButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: large ? 15 : small ? 10 : 12, weight: .semibold))
-                .frame(width: large ? 30 : small ? 17 : 20, height: large ? 28 : small ? 17 : 20)
+                .font(.system(size: large ? 14 : small ? 10 : 12, weight: .semibold))
+                .frame(width: large ? 32 : small ? 17 : 20, height: large ? 28 : small ? 17 : 20)
+                .background {
+                    if showsSelection, isOn, isEnabled {
+                        Capsule().fill(Color.primary.opacity(0.12))
+                    }
+                }
                 .contentShape(Rectangle())
                 .foregroundStyle(isOn && isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
         }
@@ -395,27 +539,28 @@ private struct CompactControlButton: View {
 
 private struct CompactProviderRow: View {
     let entry: CompactUsageEntry
-    let countDirection: CountDirection
-    let showsPace: Bool
+    let accountName: String?
+    @ObservedObject var settings: SettingsStore
     let showsPriority: Bool
     let labelWidth: CGFloat?
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            ProviderBadge(provider: entry.provider, size: 18)
+            ProviderBadge(provider: entry.provider, size: 16)
+                .padding(.top, 2)
             if showsPriority {
                 priorityColumn
             }
             if entry.windows.isEmpty {
                 summary
             } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(entry.windows.enumerated()), id: \.offset) { _, window in
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(entry.windows.enumerated()), id: \.offset) { index, window in
                         CompactWindowMeter(
                             providerName: entry.provider.displayName,
+                            accountName: index == 0 ? accountName : nil,
                             window: window,
-                            countDirection: countDirection,
-                            showsPace: showsPace,
+                            settings: settings,
                             labelWidth: labelWidth
                         )
                     }
@@ -430,7 +575,7 @@ private struct CompactProviderRow: View {
             Color.clear
             if let priority = entry.priority {
                 Text(verbatim: priority.shortLabel)
-                    .font(.callout.weight(.semibold).monospacedDigit())
+                    .font(.system(size: 11.5, weight: .semibold).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .help(priority.explanation)
                     .accessibilityLabel(String(format: L("%@, %@"), entry.provider.displayName, L("CLIProxyAPI order")))
@@ -440,21 +585,28 @@ private struct CompactProviderRow: View {
         .frame(width: 24, height: 20)
     }
 
+    /// Providers without limit windows: their name, then the balance or status.
     private var summary: some View {
-        SeverityValueLabel(
-            text: entry.summary,
-            symbolName: entry.severity.symbolName,
-            badge: entry.severity.badgeStyle,
-            plainColor: Color(nsColor: MenuBarTitleRenderer.nsColor(for: entry.severity))
-        )
-        .frame(height: 20)
+        HStack(spacing: 8) {
+            Text(accountName ?? entry.provider.displayName)
+                .font(.system(size: 12, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 12)
+            SeverityValueLabel(
+                text: entry.summary,
+                symbolName: entry.severity.symbolName,
+                tint: entry.severity.textColor,
+                plainColor: entry.severity == .stale ? .secondary : .primary
+            )
+        }
+        .frame(maxWidth: .infinity, minHeight: 20)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(entry.accessibilityLabel)
     }
-
 }
 
-private extension MenuBarSeverity {
+extension MenuBarSeverity {
     var symbolName: String? {
         switch self {
         case .normal: nil
@@ -464,23 +616,28 @@ private extension MenuBarSeverity {
         }
     }
 
-    var badgeStyle: SeverityBadgeStyle? {
+    var textColor: Color? {
         switch self {
         case .normal, .stale: nil
-        case .warning: UsageMeterSeverity.warning.badgeStyle
-        case .critical: UsageMeterSeverity.critical.badgeStyle
+        case .warning: .warningText
+        case .critical: .criticalText
         }
+    }
+
+    var isEmphasized: Bool {
+        self == .warning || self == .critical
     }
 }
 
 private struct CompactWindowMeter: View {
     let providerName: String
+    /// Shown before the first limit of an account that shares its provider.
+    let accountName: String?
     let window: UsageWindow
-    let countDirection: CountDirection
-    let showsPace: Bool
+    @ObservedObject var settings: SettingsStore
     let labelWidth: CGFloat?
 
-    private static let barWidth: CGFloat = 80
+    private static let barWidth: CGFloat = 84
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -490,64 +647,88 @@ private struct CompactWindowMeter: View {
 
     private func meter(at now: Date) -> some View {
         let severity = UsageMeterSeverity.forUsedPercent(window.usedPercent)
-        let pace = showsPace ? window.pace(now: now) : nil
+        let countDirection = settings.countDirection
+        let pace = settings.showsPace ? window.pace(now: now) : nil
         return HStack(spacing: 8) {
-            HStack(spacing: 5) {
-                Text(window.label)
-                    .foregroundStyle(.secondary)
-                if let remaining = window.shortRemainingDescription(now: now) {
-                    Text(verbatim: "(\(remaining))")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+            label
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: CompactLabelWidthKey.self, value: proxy.size.width)
+                    }
                 }
-            }
-            .font(.callout.weight(.medium))
-            .lineLimit(1)
-            .fixedSize()
-            .background {
-                GeometryReader { proxy in
-                    Color.clear.preference(key: CompactLabelWidthKey.self, value: proxy.size.width)
-                }
-            }
-            .frame(width: labelWidth, alignment: .leading)
+                .frame(width: labelWidth, alignment: .leading)
             UsageMeterBar(
                 percent: countDirection.displayPercent(window.usedPercent),
                 severity: severity,
-                paceMarkerPercent: showsPace ? countDirection.paceMarkerPercent(for: window, now: now) : nil
+                paceMarkerPercent: settings.showsPace ? countDirection.paceMarkerPercent(for: window, now: now) : nil,
+                height: 5
             )
-                .frame(width: Self.barWidth)
+            .frame(width: Self.barWidth)
             // Severity is never shown by color alone.
             SeverityValueLabel(
                 text: countDirection.percentLabel(window.usedPercent, menuBar: true),
                 symbolName: severity.symbolName,
-                badge: severity.badgeStyle,
-                symbolFont: .system(size: 11, weight: .semibold)
+                tint: severity.textColor,
+                font: .meterValue(size: 12)
             )
-            .frame(width: 72, alignment: .trailing)
-            // Its own 14-point column (the widest arrow is 13), so a full
-            // critical badge keeps its 72 points,
-            // and rows without a pace stay aligned with the others.
-            if showsPace {
+            .frame(width: 56, alignment: .trailing)
+            // Its own column, so rows without a pace stay aligned.
+            if settings.showsPace {
                 ZStack(alignment: .leading) {
                     Color.clear
                     if let pace {
                         Image(systemName: pace.symbolName)
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.secondary)
                     }
                 }
-                .frame(width: 14)
+                .frame(width: 10)
             }
+            Text(verbatim: window.compactReset(style: settings.resetTimeStyle, prefixed: false, now: now) ?? "")
+                .font(.system(size: 11, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize()
+                .frame(minWidth: 44, alignment: .leading)
         }
         .frame(height: 20)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(String(format: L("%@, %@"), providerName, window.label))
         .accessibilityValue(accessibilityValue(severity: severity, pace: pace, now: now))
-        .help(pace.map { PaceDescription.tooltip(pace: $0, window: window, direction: countDirection, now: now) } ?? "")
+        .help(tooltip(pace: pace, now: now))
+    }
+
+    /// "Main · 5h" on an account's first row, "Week" below it.
+    private var label: some View {
+        HStack(spacing: 0) {
+            if let accountName {
+                Text(accountName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .truncationMode(.middle)
+                    .frame(maxWidth: 110, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: " · ").foregroundStyle(.tertiary)
+            }
+            Text(window.shortLabel)
+                .font(.system(size: 12, weight: accountName == nil ? .semibold : .medium))
+                .foregroundStyle(accountName == nil ? .primary : .secondary)
+        }
+        .font(.system(size: 12))
+        .lineLimit(1)
+        .fixedSize()
+    }
+
+    private func tooltip(pace: UsagePace?, now: Date) -> String {
+        let parts = [
+            window.resetDescription(style: .absolute, now: now),
+            pace.map { PaceDescription.tooltip(pace: $0, window: window, direction: settings.countDirection, now: now) },
+        ]
+        return parts.compactMap { $0 }.joined(separator: "\n")
     }
 
     private func accessibilityValue(severity: UsageMeterSeverity, pace: UsagePace?, now: Date) -> String {
-        var value = countDirection.accessibilityPercentPhrase(window.usedPercent)
+        var value = settings.countDirection.accessibilityPercentPhrase(window.usedPercent)
         if let reset = window.resetDescription(style: .relative, now: now) {
             value = "\(value), \(reset)"
         }
@@ -607,7 +788,7 @@ private struct UsageDetailsContentHeightKey: PreferenceKey {
 }
 
 /// Adjusts the window background opacity. The toolbar and the compact panel's
-/// hover controls each show one; content stays opaque as the material fades.
+/// hover controls each show one; content stays opaque as the glass fades.
 private struct BackgroundButton: View {
     @Binding var opacity: Double
     let compact: Bool
@@ -667,7 +848,7 @@ private struct OpacitySlider: View {
             HStack {
                 Text(L("Background opacity")).font(.callout.weight(.medium))
                 Spacer()
-                Text(percent).font(.callout.monospacedDigit().weight(.semibold)).foregroundStyle(.secondary)
+                Text(percent).font(.meterValue(size: 12)).foregroundStyle(.secondary)
             }
             .accessibilityHidden(true)
             Slider(value: $opacity, in: 0...1, step: 0.05)
@@ -676,26 +857,6 @@ private struct OpacitySlider: View {
         }
         .padding(12)
         .frame(width: 220)
-    }
-}
-
-/// The translucent material of the menu bar dropdown, kept active while the
-/// app is in the background so a floating window keeps the same look. Its
-/// opacity is adjustable; content drawn on top stays fully opaque.
-private struct MenuMaterialBackground: NSViewRepresentable {
-    let opacity: Double
-
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = .menu
-        view.blendingMode = .behindWindow
-        view.state = .active
-        view.alphaValue = opacity
-        return view
-    }
-
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.alphaValue = opacity
     }
 }
 
