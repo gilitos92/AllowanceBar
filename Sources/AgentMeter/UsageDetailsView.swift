@@ -301,6 +301,7 @@ private struct CompactUsageView: View {
     let close: () -> Void
     @State private var isAdjustingOpacity = false
     @State private var labelWidth: CGFloat?
+    @State private var nameWidth: CGFloat?
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
 
     private var showsControls: Bool {
@@ -308,24 +309,34 @@ private struct CompactUsageView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Rows line up, so all of them get the place column when one has it.
-            let showsPriority = entries.contains { $0.priority != nil }
-            ForEach(entries) { entry in
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                // A hairline between accounts, so one account's rows don't
+                // run into the next.
+                if index > 0 {
+                    Divider()
+                        .padding(.leading, 24)
+                        .padding(.vertical, 5)
+                        .accessibilityHidden(true)
+                }
                 CompactProviderRow(
                     entry: entry,
                     accountName: accountNames[entry.provider.id],
                     settings: settings,
-                    showsPriority: showsPriority,
-                    labelWidth: labelWidth
+                    labelWidth: labelWidth,
+                    nameWidth: nameWidth
                 )
             }
         }
-        // Size the label column to the widest label so bars sit close to it
-        // and stay aligned across rows.
+        // Size the name and label columns to their widest entry so bars sit
+        // close to them and stay aligned across rows.
         .onPreferenceChange(CompactLabelWidthKey.self) { width in
             guard width > 0, labelWidth != width else { return }
             labelWidth = width
+        }
+        .onPreferenceChange(CompactNameWidthKey.self) { width in
+            guard width > 0, nameWidth != width else { return }
+            nameWidth = width
         }
         .padding(.horizontal, 14)
         .padding(.top, 12)
@@ -548,24 +559,25 @@ private struct CompactProviderRow: View {
     let entry: CompactUsageEntry
     let accountName: String?
     @ObservedObject var settings: SettingsStore
-    let showsPriority: Bool
     let labelWidth: CGFloat?
+    let nameWidth: CGFloat?
+
+    /// The account's name for providers with several accounts, the
+    /// provider's name otherwise.
+    private var name: String { accountName ?? entry.provider.displayName }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             ProviderBadge(provider: entry.provider, size: 16)
                 .padding(.top, 2)
-            if showsPriority {
-                priorityColumn
-            }
+            nameColumn
             if entry.windows.isEmpty {
                 summary
             } else {
                 VStack(alignment: .leading, spacing: 2) {
-                    ForEach(Array(entry.windows.enumerated()), id: \.offset) { index, window in
+                    ForEach(Array(entry.windows.enumerated()), id: \.offset) { _, window in
                         CompactWindowMeter(
                             providerName: entry.provider.displayName,
-                            accountName: index == 0 ? accountName : nil,
                             window: window,
                             settings: settings,
                             labelWidth: labelWidth
@@ -576,29 +588,57 @@ private struct CompactProviderRow: View {
         }
     }
 
-    /// The place in CLIProxyAPI's order, e.g. "#1"; blank for rows without one.
-    private var priorityColumn: some View {
-        ZStack(alignment: .leading) {
-            Color.clear
-            if let priority = entry.priority {
-                Text(verbatim: priority.shortLabel)
-                    .font(.system(size: 11.5, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .help(priority.explanation)
-                    .accessibilityLabel(String(format: L("%@, %@"), entry.provider.displayName, L("CLIProxyAPI order")))
-                    .accessibilityValue(priority.phrase)
+    /// The name, and the place in CLIProxyAPI's order (e.g. "#1") under it,
+    /// or beside it when the account has a single row. The plan shows on hover.
+    private var nameColumn: some View {
+        Group {
+            if entry.windows.count > 1 {
+                VStack(alignment: .leading, spacing: 2) {
+                    nameText.frame(height: 20)
+                    priorityText.frame(height: 20)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    nameText
+                    priorityText
+                }
+                .frame(height: 20)
             }
         }
-        .frame(width: 24, height: 20)
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(key: CompactNameWidthKey.self, value: proxy.size.width)
+            }
+        }
+        .frame(width: nameWidth, alignment: .leading)
+        .help(entry.plan.map { "\(name) · \($0)" } ?? name)
     }
 
-    /// Providers without limit windows: their name, then the balance or status.
+    private var nameText: some View {
+        Text(name)
+            .font(.system(size: 12, weight: .semibold))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            // As wide as the name, up to 110 pt; longer names truncate.
+            .frame(maxWidth: 110, alignment: .leading)
+            .fixedSize()
+    }
+
+    @ViewBuilder
+    private var priorityText: some View {
+        if let priority = entry.priority {
+            Text(verbatim: priority.shortLabel)
+                .font(.system(size: 11.5, weight: .semibold).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .help(priority.explanation)
+                .accessibilityLabel(String(format: L("%@, %@"), entry.provider.displayName, L("CLIProxyAPI order")))
+                .accessibilityValue(priority.phrase)
+        }
+    }
+
+    /// Providers without limit windows: the balance or status after the name.
     private var summary: some View {
         HStack(spacing: 8) {
-            Text(accountName ?? entry.provider.displayName)
-                .font(.system(size: 12, weight: .semibold))
-                .lineLimit(1)
-                .truncationMode(.middle)
             Spacer(minLength: 12)
             SeverityValueLabel(
                 text: entry.summary,
@@ -638,8 +678,6 @@ extension MenuBarSeverity {
 
 private struct CompactWindowMeter: View {
     let providerName: String
-    /// Shown before the first limit of an account that shares its provider.
-    let accountName: String?
     let window: UsageWindow
     @ObservedObject var settings: SettingsStore
     let labelWidth: CGFloat?
@@ -706,24 +744,13 @@ private struct CompactWindowMeter: View {
         .help(tooltip(pace: pace, now: now))
     }
 
-    /// "Main · 5h" on an account's first row, "Week" below it.
+    /// The limit's short name, e.g. "5h" or "Week"; the account's name has
+    /// its own column.
     private var label: some View {
-        HStack(spacing: 0) {
-            if let accountName {
-                Text(accountName)
-                    .font(.system(size: 12, weight: .semibold))
-                    .truncationMode(.middle)
-                    .frame(maxWidth: 110, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(verbatim: " · ").foregroundStyle(.tertiary)
-            }
-            Text(window.shortLabel)
-                .font(.system(size: 12, weight: accountName == nil ? .semibold : .medium))
-                .foregroundStyle(accountName == nil ? .primary : .secondary)
-        }
-        .font(.system(size: 12))
-        .lineLimit(1)
-        .fixedSize()
+        Text(window.shortLabel)
+            .font(.system(size: 12, weight: .semibold))
+            .lineLimit(1)
+            .fixedSize()
     }
 
     private func tooltip(pace: UsagePace?, now: Date) -> String {
@@ -746,6 +773,13 @@ private struct CompactWindowMeter: View {
             value = "\(value), \(pace.phrase)"
         }
         return value
+    }
+}
+
+private struct CompactNameWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

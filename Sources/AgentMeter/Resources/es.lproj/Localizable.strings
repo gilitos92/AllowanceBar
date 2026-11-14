@@ -58,10 +58,16 @@
 	<string>%lld%% restante</string>
 	<key>%lld%% used</key>
 	<string>%lld%% usado</string>
+	<key>%lldd</key>
+	<string>%lld d</string>
 	<key>%lldd limit</key>
 	<string>Límite de %lld d</string>
+	<key>%lldh</key>
+	<string>%lld h</string>
 	<key>%lldh limit</key>
 	<string>Límite de %lld h</string>
+	<key>%lldm</key>
+	<string>%lld min</string>
 	<key>%lldm limit</key>
 	<string>Límite de %lld m</string>
 	<key>(confirmed)</key>

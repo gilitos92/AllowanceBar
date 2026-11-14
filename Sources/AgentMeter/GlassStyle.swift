@@ -148,7 +148,16 @@ extension UsageWindow {
         switch label {
         case L("5h limit"): return L("5h")
         case L("Weekly limit"): return L("Week")
-        default: return label
+        default:
+            // Codex's other windows, e.g. "30d limit" → "30d", through the
+            // same localized formats that built them.
+            let digits = label.drop { !$0.isASCII || !$0.isNumber }.prefix { $0.isASCII && $0.isNumber }
+            if let number = Int(digits) {
+                if label == L("\(number)d limit") { return L("\(number)d") }
+                if label == L("\(number)h limit") { return L("\(number)h") }
+                if label == L("\(number)m limit") { return L("\(number)m") }
+            }
+            return label
         }
     }
 

@@ -467,7 +467,8 @@ final class UsageStore: ObservableObject {
                     state: providerState,
                     countDirection: settings.countDirection,
                     balanceThreshold: settings.balanceNotificationThreshold
-                )
+                ),
+                plan: providerState.usage?.planName
             )
         }
     }
@@ -673,6 +674,8 @@ struct CompactUsageEntry: Identifiable {
     let summary: String
     let severity: MenuBarSeverity
     let accessibilityLabel: String
+    /// The plan, e.g. "Pro", shown on hover in the mini window.
+    var plan: String? = nil
 
     var id: String { provider.id }
 }
