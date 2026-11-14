@@ -89,21 +89,32 @@ struct MenuContent: View {
         return min(providerContentHeight, maxHeight)
     }
 
-    /// The refresh time and five round buttons. Less frequent commands live
-    /// in the More menu, so nothing wraps.
+    /// The refresh time, the Usage Details views and round buttons. Less
+    /// frequent commands live in the More menu, so nothing wraps.
     private var footer: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
+            // Two short lines, so the time stays whole next to the buttons.
             Group {
                 if let refreshed = store.lastRefreshed {
-                    Text(L("Updated \(refreshed.formatted(date: .omitted, time: .shortened))"))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(L("Updated"))
+                            .font(.system(size: 10.5, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                        Text(refreshed.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(L("Updated \(refreshed.formatted(date: .omitted, time: .shortened))"))
                 } else {
                     Text(L("Loading…"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .font(.system(size: 12, weight: .medium))
             .monospacedDigit()
-            .foregroundStyle(.secondary)
             .lineLimit(1)
+            .fixedSize()
             Spacer(minLength: 4)
             Button {
                 store.refresh(forceRefresh: true)
@@ -112,14 +123,10 @@ struct MenuContent: View {
             }
             .help(L("Refresh"))
             .accessibilityLabel(L("Refresh"))
-            Button {
+            ViewModeButtons(current: settings.usageDetailsMode) { mode in
+                settings.usageDetailsMode = mode
                 openUsageDetails()
-            } label: {
-                Image(systemName: "macwindow")
             }
-            .keyboardShortcut("d", modifiers: [.command])
-            .help(L("Usage Details"))
-            .accessibilityLabel(L("Usage Details"))
             SettingsLink {
                 Image(systemName: "gearshape")
             }
@@ -301,5 +308,69 @@ private struct MenuWindowScreenReader: NSViewRepresentable {
             NotificationCenter.default.removeObserver(self)
             observedWindow = nil
         }
+    }
+}
+
+/// The Usage Details window's three views on one capsule, like the window's
+/// own view switcher. Each opens the window in that view; the highlighted one
+/// is the view ⌘D opens.
+private struct ViewModeButtons: View {
+    let current: UsageDetailsMode
+    let open: (UsageDetailsMode) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                let button = Button { open(mode) } label: {
+                    Image(systemName: mode.symbol)
+                }
+                .buttonStyle(ViewModeButtonStyle(isSelected: mode == current))
+                .help(mode.help)
+                .accessibilityLabel(mode.title)
+                .accessibilityAddTraits(mode == current ? .isSelected : [])
+                if mode == current {
+                    button.keyboardShortcut("d", modifiers: [.command])
+                } else {
+                    button
+                }
+            }
+        }
+        .padding(2)
+        .background(Capsule().fill(Color.platterFill))
+        .overlay(Capsule().strokeBorder(Color.platterEdge, lineWidth: 0.5))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(L("Usage Details"))
+    }
+}
+
+private struct ViewModeButtonStyle: ButtonStyle {
+    let isSelected: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        ViewModeButtonBody(configuration: configuration, isSelected: isSelected)
+    }
+}
+
+private struct ViewModeButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    let isSelected: Bool
+    @State private var isHovering = false
+
+    var body: some View {
+        configuration.label
+            .font(.system(size: 12.5, weight: .medium))
+            .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            .frame(width: 30, height: 26)
+            .background(Capsule().fill(fill))
+            .contentShape(Capsule())
+            .onHover { isHovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+    }
+
+    private var fill: Color {
+        if configuration.isPressed { return Color.primary.opacity(0.18) }
+        if isSelected { return Color.primary.opacity(0.13) }
+        if isHovering { return Color.primary.opacity(0.08) }
+        return .clear
     }
 }

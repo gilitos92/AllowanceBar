@@ -742,6 +742,8 @@
 	<string>Respuesta inesperada de cursor.com</string>
 	<key>Update Muse Code — this version can't report usage</key>
 	<string>Actualiza Muse Code — esta versión no puede informar el uso</string>
+	<key>Updated</key>
+	<string>Actualizado</string>
 	<key>Updated %@</key>
 	<string>Actualizado %@</string>
 	<key>Usage</key>

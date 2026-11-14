@@ -5702,6 +5702,16 @@
           }
         }
       }
+    },
+    "Updated": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizado"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
