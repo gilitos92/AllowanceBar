@@ -25,7 +25,7 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 - Healthy limits are quieter, warnings are orange instead of yellow, and
   critical limits are red. Both keep their symbol, also in the menu bar, so
   color is never the only signal. Values use rounded, fixed-width digits.
-- Reset times are short ("in 2h 10m", or "Fri 21:41" with exact times); the
+- Reset times are short ("2h 10m", or "Fri 21:41" with exact times); the
   full date shows on hover and VoiceOver reads it. One "Updated" time
   replaces the "Data as of" line under every provider; a provider whose data
   is more than six minutes old still shows its own time.
