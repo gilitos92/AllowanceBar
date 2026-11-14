@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.10.0] — 2026-11-14
+
 ### Added
 - Muse Code, Meta's coding agent. Allowance Bar shows a Muse Code
   subscription's 5-hour and weekly limits and its plan. It reads them
