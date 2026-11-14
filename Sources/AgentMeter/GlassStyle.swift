@@ -10,8 +10,6 @@ enum GlassStyle {
     /// Corner radius of a platter: the surface's radius minus the inset,
     /// so platter and surface corners stay concentric.
     static let platterRadius: CGFloat = 12
-    /// Corner radius of the mini panel's glass.
-    static let panelRadius: CGFloat = 18
 }
 
 extension Color {
@@ -179,18 +177,12 @@ extension UsageWindow {
 }
 
 /// Liquid Glass behind a floating window's content on macOS 26 and later,
-/// and the menu material before that. The opacity setting fades only the
+/// and the menu material before that. It fills the window, whose own corners
+/// and outline shape it: a glass shape of its own would not line up with the
+/// outline macOS draws around the window. The opacity setting fades only the
 /// background; content drawn on top stays fully opaque.
 struct WindowGlassBackground: NSViewRepresentable {
-    enum Shape: Equatable {
-        /// Fills the window; the window's own corners shape it.
-        case window
-        case rounded(CGFloat)
-        case capsule
-    }
-
     let opacity: Double
-    var shape: Shape = .window
 
     func makeNSView(context: Context) -> GlassBackgroundView {
         GlassBackgroundView()
@@ -198,7 +190,6 @@ struct WindowGlassBackground: NSViewRepresentable {
 
     func updateNSView(_ nsView: GlassBackgroundView, context: Context) {
         nsView.opacity = opacity
-        nsView.shape = shape
     }
 }
 
@@ -209,17 +200,11 @@ final class GlassBackgroundView: NSView {
         didSet { effectView.alphaValue = opacity }
     }
 
-    var shape: WindowGlassBackground.Shape = .window {
-        didSet {
-            guard shape != oldValue else { return }
-            needsLayout = true
-        }
-    }
-
     init() {
         if #available(macOS 26, *) {
             let glass = NSGlassEffectView()
             glass.style = .regular
+            glass.cornerRadius = 0
             effectView = glass
         } else {
             let material = NSVisualEffectView()
@@ -241,11 +226,5 @@ final class GlassBackgroundView: NSView {
     override func layout() {
         super.layout()
         effectView.frame = bounds
-        guard #available(macOS 26, *), let glass = effectView as? NSGlassEffectView else { return }
-        switch shape {
-        case .window: glass.cornerRadius = 0
-        case .rounded(let radius): glass.cornerRadius = radius
-        case .capsule: glass.cornerRadius = bounds.height / 2
-        }
     }
 }

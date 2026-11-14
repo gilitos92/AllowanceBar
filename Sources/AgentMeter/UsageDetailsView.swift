@@ -90,13 +90,16 @@ struct UsageDetailsView: View {
                 expandedContent
             }
         }
-        // Liquid Glass behind the content, following the window's corners.
-        // Only the background extends under the expanded window's title bar;
-        // its content stays in the normal safe area.
+        // Liquid Glass behind the content. It fills the window, so the
+        // window's own corners and outline shape every view, also the mini
+        // and nano panels. Only the background extends under the expanded
+        // window's title bar; its content stays in the normal safe area. The
+        // window can be a little taller than the nano panel's content (its
+        // minimum height), so the glass also reaches past the content's
+        // bottom edge; the window clips it.
         .background(WindowGlassBackground(
-            opacity: settings.usageDetailsBackgroundOpacity,
-            shape: glassShape
-        ).ignoresSafeArea())
+            opacity: settings.usageDetailsBackgroundOpacity
+        ).padding(.bottom, -8).ignoresSafeArea())
         .background(WindowLevelSetter(alwaysOnTop: settings.usageDetailsAlwaysOnTop,
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
@@ -108,14 +111,6 @@ struct UsageDetailsView: View {
         .toolbar(settings.usageDetailsChromeless ? .hidden : .visible, for: .windowToolbar)
         .toolbar { windowOptions }
         .navigationSubtitle(updatedText)
-    }
-
-    private var glassShape: WindowGlassBackground.Shape {
-        switch settings.usageDetailsMode {
-        case .full: .window
-        case .mini: .rounded(GlassStyle.panelRadius)
-        case .nano: .capsule
-        }
     }
 
     private var updatedText: String {
