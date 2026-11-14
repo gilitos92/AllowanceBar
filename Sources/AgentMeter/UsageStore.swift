@@ -96,7 +96,7 @@ final class UsageStore: ObservableObject {
     ) -> [any UsageProvider] {
         let bases: [any UsageProvider] = [
             CodexProvider(), CursorProvider(), ClaudeProvider(), ClaudeAPIProvider(), GeminiProvider(),
-            OpenRouterProvider(), DeepSeekProvider(), MoonshotProvider(),
+            MuseCodeProvider(), OpenRouterProvider(), DeepSeekProvider(), MoonshotProvider(),
             ZaiProvider(), VeniceProvider(),
         ]
         func proxyRows(_ baseID: String) -> [any UsageProvider] {
@@ -133,6 +133,7 @@ final class UsageStore: ObservableObject {
         for removed in oldIDs.subtracting(newIDs) {
             states.removeValue(forKey: removed)
             CodexAccountCache.shared.clear(providerID: removed)
+            MuseUsageCache.shared.clear(providerID: removed)
         }
         for added in newIDs.subtracting(oldIDs) {
             states[added] = .loading
@@ -400,7 +401,7 @@ final class UsageStore: ObservableObject {
     }
 
     /// Colored menu bar segments with per-provider severity.
-    var menuBarEntries: [(text: String, severity: MenuBarSeverity)] {
+    var menuBarEntries: [MenuBarEntry] {
         menuBarEntries(allWindows: settings.menuBarShowsAllLimits)
     }
 
@@ -408,10 +409,10 @@ final class UsageStore: ObservableObject {
         allWindows: Bool,
         showsPace: Bool = false,
         showsPriority: Bool = false
-    ) -> [(text: String, severity: MenuBarSeverity)] {
+    ) -> [MenuBarEntry] {
         let providers = titleProviders
-        guard !providers.isEmpty else { return [("Allowance Bar", .normal)] }
-        func entry(_ provider: any UsageProvider) -> (text: String, severity: MenuBarSeverity) {
+        guard !providers.isEmpty else { return [("Allowance Bar", .normal, nil)] }
+        func entry(_ provider: any UsageProvider) -> MenuBarEntry {
             providerMenuBarEntry(for: provider, allWindows: allWindows, showsPace: showsPace, showsPriority: showsPriority)
         }
 
@@ -431,7 +432,7 @@ final class UsageStore: ObservableObject {
     /// The menu bar text for the nano Usage Details panel, with its own
     /// all-limits setting. With the icon-only menu bar style it falls back to
     /// every menu bar provider, since a lone icon would tell nothing.
-    var nanoEntries: [(text: String, severity: MenuBarSeverity)] {
+    var nanoEntries: [MenuBarEntry] {
         let allWindows = settings.nanoShowsAllLimits
         let showsPace = settings.nanoShowsPace
         let showsPriority = settings.nanoShowsProxyPriority
@@ -439,7 +440,7 @@ final class UsageStore: ObservableObject {
             return menuBarEntries(allWindows: allWindows, showsPace: showsPace, showsPriority: showsPriority)
         }
         let providers = titleProviders
-        guard !providers.isEmpty else { return [("Allowance Bar", .normal)] }
+        guard !providers.isEmpty else { return [("Allowance Bar", .normal, nil)] }
         return providers.map {
             providerMenuBarEntry(for: $0, allWindows: allWindows, showsPace: showsPace, showsPriority: showsPriority)
         }
@@ -466,7 +467,8 @@ final class UsageStore: ObservableObject {
                     state: providerState,
                     countDirection: settings.countDirection,
                     balanceThreshold: settings.balanceNotificationThreshold
-                )
+                ),
+                plan: providerState.usage?.planName
             )
         }
     }
@@ -546,7 +548,7 @@ final class UsageStore: ObservableObject {
         allWindows: Bool,
         showsPace: Bool = false,
         showsPriority: Bool = false
-    ) -> (text: String, severity: MenuBarSeverity) {
+    ) -> MenuBarEntry {
         let providerState = state(for: provider.id)
         var text = "\(provider.shortCode) \(providerSummaryText(for: providerState, allWindows: allWindows, showsPace: showsPace))"
         if showsPriority, let priority = proxyPriority(for: provider) {
@@ -557,7 +559,8 @@ final class UsageStore: ObservableObject {
             MenuBarTitleRenderer.severity(
                 for: providerState,
                 balanceThreshold: settings.balanceNotificationThreshold
-            )
+            ),
+            provider.id
         )
     }
 
@@ -656,6 +659,10 @@ final class UsageStore: ObservableObject {
     }
 }
 
+/// One segment of the menu bar text, e.g. "Cx 42%", with its severity and
+/// the provider it describes (nil for the app-name placeholder).
+typealias MenuBarEntry = (text: String, severity: MenuBarSeverity, providerID: String?)
+
 /// A provider's limit windows plus its menu-bar-style summary, e.g. "42%",
 /// for the compact Usage Details window. The summary is shown for providers
 /// without limit windows (balances, loading, errors).
@@ -667,6 +674,8 @@ struct CompactUsageEntry: Identifiable {
     let summary: String
     let severity: MenuBarSeverity
     let accessibilityLabel: String
+    /// The plan, e.g. "Pro", shown on hover in the mini window.
+    var plan: String? = nil
 
     var id: String { provider.id }
 }

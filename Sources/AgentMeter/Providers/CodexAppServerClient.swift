@@ -68,9 +68,6 @@ enum CodexAppServerError: LocalizedError, Equatable {
 enum CodexAppServerClient {
     nonisolated static let pollInterval: TimeInterval = 300
 
-    private nonisolated static let executableCacheLock = NSLock()
-    private nonisolated(unsafe) static var resolvedExecutableCache: URL??
-
     // MARK: - Public API
 
     nonisolated static func readAccount(
@@ -234,71 +231,16 @@ enum CodexAppServerClient {
     // MARK: - Binary resolution
 
     nonisolated static func candidatePaths(home: String, pathEnv: String?) -> [String] {
-        var paths = [
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-            "\(home)/.local/bin/codex",
-        ]
-        if let pathEnv {
-            for entry in pathEnv.split(separator: ":") {
-                let trimmed = entry.trimmingCharacters(in: .whitespaces)
-                guard !trimmed.isEmpty else { continue }
-                paths.append("\(trimmed)/codex")
-            }
-        }
-        return paths
+        CommandLocator.candidatePaths(command: "codex", home: home, pathEnv: pathEnv)
     }
 
     nonisolated static func resolveCodexExecutable() -> URL? {
-        executableCacheLock.withLock {
-            if let cached = resolvedExecutableCache {
-                return cached
-            }
-            let home = FileManager.default.homeDirectoryForCurrentUser.path
-            let pathEnv = ProcessInfo.processInfo.environment["PATH"]
-            for candidate in candidatePaths(home: home, pathEnv: pathEnv) {
-                if FileManager.default.isExecutableFile(atPath: candidate) {
-                    let url = URL(fileURLWithPath: candidate)
-                    resolvedExecutableCache = url
-                    return url
-                }
-            }
-
-            let resolved = resolveCodexViaShell()
-            resolvedExecutableCache = resolved
-            return resolved
-        }
+        CommandLocator.resolve("codex")
     }
 
     /// Resets the shell-resolution cache (testing only).
     nonisolated static func resetExecutableCache() {
-        executableCacheLock.withLock {
-            resolvedExecutableCache = nil
-        }
-    }
-
-    nonisolated private static func resolveCodexViaShell() -> URL? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", "command -v codex"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0 else { return nil }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            guard let path = String(data: data, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !path.isEmpty,
-                  FileManager.default.isExecutableFile(atPath: path) else {
-                return nil
-            }
-            return URL(fileURLWithPath: path)
-        } catch {
-            return nil
-        }
+        CommandLocator.resetCache(for: "codex")
     }
 
     // MARK: - Protocol I/O

@@ -1,6 +1,6 @@
 ---
 name: allowancebar
-description: Check remaining AI coding usage limits and API balances (Codex, Cursor, Claude Code, Gemini, Antigravity, OpenRouter, DeepSeek, Kimi, Z.ai, Venice) through the local Allowance Bar menu bar app before starting large or long-running tasks. Use when planning work that will consume significant model quota, when choosing between providers, when a rate-limit or quota error occurs, or when the user asks how much usage they have left.
+description: Check remaining AI coding usage limits and API balances (Codex, Cursor, Claude Code, Gemini, Antigravity, Muse Code, OpenRouter, DeepSeek, Kimi, Z.ai, Venice) through the local Allowance Bar menu bar app before starting large or long-running tasks. Use when planning work that will consume significant model quota, when choosing between providers, when a rate-limit or quota error occurs, or when the user asks how much usage they have left.
 ---
 
 # Allowance Bar usage check

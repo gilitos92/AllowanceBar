@@ -152,6 +152,13 @@ struct CLIProxyAccountProvider: UsageProvider {
         var usage: ProviderUsage
         switch account.kind {
         case .claude:
+            if let quota = account.claudeQuota, quota.isFresh(now: now) {
+                // The proxy saw these limits on a recent message: nothing
+                // goes to Anthropic's usage endpoint.
+                let plan = await client.plan(for: account, cache: planCache)
+                usage = quota.usage(plan: plan, now: now)
+                break
+            }
             // The plan waits for the usage answer: two requests at once from
             // one login can trip Anthropic's rate limit.
             let response = try await client.claudeUsage(account)

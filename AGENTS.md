@@ -1,7 +1,7 @@
 # Allowance Bar — Agent Context
 
 macOS menu bar app (SwiftUI, Swift Package, macOS 14+) showing AI coding usage
-limits for Codex, Cursor, Claude Code, Gemini, Claude API reporting (multiple accounts each),
+limits for Codex, Cursor, Claude Code, Gemini, Muse Code, Claude API reporting (multiple accounts each),
 every CLIProxyAPI login (Claude, Codex, Antigravity, Gemini), and
 pay-as-you-go balances for OpenRouter, DeepSeek, Kimi, Z.ai, and Venice.
 Public repo: https://github.com/gilitos92/AllowanceBar, a fork of
@@ -45,16 +45,25 @@ announcement drafts, environment specifics) and complements this file.
   and still mirrored to the Codex-only `codexExtraAccounts` key so
   downgrades keep Codex accounts), `subscriptionRenewals`
   (`[providerID: SubscriptionRenewal]`, JSON).
-- UI: `MenuContent` (dropdown with a display-bounded scrolling provider list
-  and a fixed footer; short lists shrink to their content; provider sections live in
-  `ProviderUsageSections.swift` and are shared with `UsageDetailsView`, the
-  ⌘D / `allowancebar://details` window; `ProviderGroup` puts a provider's
-  accounts under one header via `ProviderGroupSection`, single accounts keep
-  `ProviderSection`), `SettingsWindow` (native tabbed
-  Settings: General / Providers / Display / Alerts; includes
-  `CodexAccountsSection` with auto-discovery of `~/.codex-*` homes and
-  `CodexSubscriptionSettings`), `AboutWindow`. Menu bar title is a rendered
-  `NSImage` (`MenuBarTitleRenderer`) with an `accessibilityDescription`.
+- UI ("Glass Modules" design, shared styles in `GlassStyle.swift`):
+  `MenuContent` (dropdown with a display-bounded scrolling provider list
+  and a fixed footer; short lists shrink to their content); provider
+  modules live in `ProviderUsageSections.swift` (`ProviderModule`; a
+  provider's accounts share one module via `ProviderGroup`) and are shared
+  with `UsageDetailsView`, the ⌘D / `allowancebar://details` window with
+  full, mini and nano views (`UsageDetailsMode`). `SettingsWindow` (tabbed
+  Settings: General / Providers / Display / Alerts / Agents) draws its own
+  cards with `SettingsCards.swift` instead of grouped forms; the Providers
+  pane lists providers beside one page per provider, with account sheets
+  and account discovery (`~/.<tool>-*` homes). `AboutWindow`. Menu bar
+  title is a rendered `NSImage` (`MenuBarTitleRenderer`) with an
+  `accessibilityDescription`.
+- macOS 26+ layout gotchas: a `.sidebar` List in Settings becomes the
+  window's sidebar, and on macOS 27.2 panes run under the translucent title
+  bar, where each scroll view's top edge effect shows on toolbar hover, so
+  the Providers pane uses one full-width scroll view with the list floating
+  over it. A titled window with a toolbar can't be shorter than 52 pt, so
+  the nano view detaches the toolbar.
 - Cross-cutting: `CredentialAssessment` (key-type detection + plain-language
   explainers), `UsageMeterSeverity` (shared 60/85% thresholds, symbols,
   spoken qualifiers), `NotificationManager` (`ThresholdTracker`,
@@ -187,6 +196,20 @@ announcement drafts, environment specifics) and complements this file.
   known; never when several proxy logins fit one local account; remembered in defaults
   `cliProxyLocalAccountEmails` for the loading phase; a local error, or
   stale for over 10 min (`localFailureGrace`), shows the proxy row.
+  Proxy numbers first (`ClaudeProxyQuota`): `auth-files` carries each Claude
+  login's `quota{observed_at, signals}` — the `anthropic-ratelimit-unified-
+  {5h,7d}-{utilization (0..1), reset (epoch s), status}` headers of its last
+  proxied message, kept in the proxy's memory only (lost on restart; none
+  until a message passes). Younger than 15 min (`maxAge`), they replace the
+  usage request for proxy rows AND for local Claude rows whose login is on
+  the proxy (`ClaudeProvider.proxyNumbers`, which waits at most 3 s for the
+  list via `Deadline`, then falls through to the local token). `asOf` =
+  `observed_at`; `rejected` = 100%; a passed reset = 0% and no reset. No
+  Opus window from headers. `api-call` itself has no cache: every relayed
+  request reaches Anthropic and counts toward the account's limit. A local
+  Claude row that falls back to the proxy keeps its answer in
+  `CLIProxyUsageCache` (2 min, key `<identity>|local|<id>|<auth_index>`)
+  unless forced, like proxy rows.
 - **Claude API** (`claude-api`, v1.12.0): separate from subscription Claude.
   Keychain API key must have organization reporting access. Read-only GET
   `/v1/organizations/cost_report` and `/v1/organizations/usage_report/messages`
@@ -213,6 +236,35 @@ announcement drafts, environment specifics) and complements this file.
   `modelId`, `remainingFraction` (0..1 remaining, invert for used), `resetTime`.
   Extra accounts: `GEMINI_CLI_HOME=<dir>` moves the whole `.gemini` folder to
   `<dir>/.gemini/oauth_creds.json` (gemini-cli `packages/core/src/utils/paths.ts`).
+- **Muse Code** (`muse`, Meta): `MuseServeClient` spawns `muse serve
+  --no-session-log` (resolved via `CommandLocator`, like Codex) with cwd in
+  the temp folder and speaks MSP, newline-delimited JSON-RPC 2.0 (schema:
+  github.com/meta-models/muse-code-sdk `schema/msp`). The host REJECTS
+  requests sent before `initialize` is answered (no pipelining), and
+  `clientInfo.name` must match `^[a-z0-9_]+$`. `initialize` asks
+  `capabilities.experimentalApi`; then `initialized`, experimental
+  `account/read` (`state` loggedOut/apiKey/envKey/accountLogin, `label`)
+  and experimental `usage/refresh` (`{usage{observedAtMs, tier,
+  window{usedPercent, resetsAtMs, windowDurationMins}, weekly{usedPercent,
+  resetsAtMs}}, tierName, subscriptionActive}`; error kinds
+  `usageRefreshUnavailable` -32081 = no Meta-account login,
+  `usageRefreshRateLimited` -32080 with `retryAfterMs`, one refresh per
+  host per 60 s, `usageRefreshFailed` -32082 whose `data.failureKind`
+  (credential_rejected, payment_subscription_required, onboarding,
+  age_requirement, transient, terminal) is the branch point, never
+  `message`). Stable `usage/read` is useless here: a new host returns
+  `{}`. No prompt is spent. Polled every 5 min, cached in `MuseUsageCache`;
+  failures are remembered too (`MuseServeClient.retryInterval`: 5 min for
+  states only the user can change, else 1 min) so an API-key login does
+  not start `muse serve` on every refresh.
+  `META_API_KEY` is removed from the child's environment. Detection:
+  `~/.config/muse/auth.json` (the login itself is in Keychain item
+  `ai.meta.dev.credentials`, account `meta`, read only by Muse Code).
+  Extra accounts: folder = `XDG_CONFIG_HOME`, PLUS
+  `TBH_CREDENTIAL_BACKEND=file` (undocumented): the Keychain item is shared
+  by every folder, and `muse` run without that variable MOVES a folder's
+  file login into it, replacing the default login. `MuseServeClient.
+  environment` sets both. Pay-as-you-go API keys have no balance endpoint.
 
 ## Ground rules (project's core promise — do not violate)
 
@@ -241,6 +293,11 @@ scripts/bundle.sh [--install]   # builds "Allowance Bar.app"; Developer ID signe
                                 # that identity is in the keychain, else ad-hoc
 ```
 
+- `bundle.sh` passes the SDK version to the linker (`-platform_version macos
+  14.0 <SDK>`). Without it SwiftPM records SDK 14.0, and macOS runs the app
+  in compatibility mode with the pre-macOS 26 controls. Check with
+  `otool -l "Allowance Bar.app/Contents/MacOS/AllowanceBar" | grep -A4
+  LC_BUILD_VERSION` (`sdk` should match `xcrun --show-sdk-version`).
 - There is no GitHub Actions CI. Before merging, run `swift build` and
   `swift test` locally; nothing else checks that a pushed branch builds.
 - There is no release workflow: releases are cut LOCALLY (see runbook below).
@@ -259,22 +316,22 @@ scripts/bundle.sh [--install]   # builds "Allowance Bar.app"; Developer ID signe
 
 Releases are cut locally. Full detail in [docs/RELEASING.md](docs/RELEASING.md).
 
-Release machine: Gil's MacBook (it holds every key below; 2.9.0–2.9.2 were
-built on the Mac mini, which has only GGV).
+This repo is public: never write where credentials or their backups are
+kept (vaults, item names, keychain accounts, profile names, which machine
+holds them) into tracked files, commits, PRs or release notes. That belongs
+in `HANDOFF.md` (gitignored) or the maintainer's private notes.
 
 Credentials (do NOT prompt for them; never print them):
-- Signing identity: "Developer ID Application: … (GC28C3K5G9)" in the login
-  keychain; `scripts/signing-identity.sh` finds it by team. `release.sh`
-  refuses any other identity.
-- Notarization: notarytool keychain profile `AllowanceBar` (App Store
-  Connect API key, Developer role; reuse it, don't create another).
-- Sparkle EdDSA key: login keychain, account `AllowanceBar`
-  (`generate_keys --account AllowanceBar`). NEVER change it together with
-  the signing certificate: Sparkle accepts an update when either the EdDSA
-  signature or the code signature matches the installed app.
-- Backups, 1Password vault Personal (plain `op`, never the Automation
-  vault): the Developer ID `.p12` + password, the API key `.p8`, and
-  "Allowance Bar Release Keys" (Sparkle keys, old `GGV.p12`).
+- Signing identity: the Developer ID Application identity of team
+  `GC28C3K5G9`; `scripts/signing-identity.sh` finds it by team.
+  `release.sh` refuses any other identity.
+- Notarization: a notarytool keychain profile (App Store Connect API key,
+  Developer role); reuse the existing one, don't create another.
+- Sparkle EdDSA key: in the release Mac's keychain. NEVER change it together
+  with the signing certificate: Sparkle accepts an update when either the
+  EdDSA signature or the code signature matches the installed app.
+- `release.sh` reads `NOTARY_PROFILE` and `SPARKLE_ACCOUNT` from the
+  environment or `~/.config/allowancebar/release.env` (outside the repo).
 - Never sign public builds with the Apple Development certificate: it is
   for testing, not distribution.
 

@@ -4,23 +4,56 @@
 # See docs/RELEASING.md.
 #
 # Environment:
-#   ALLOWANCEBAR_VERSION  e.g. 2.9.3 (defaults to 2.9.3)
+#   ALLOWANCEBAR_VERSION  e.g. 2.10.0 (defaults to 2.10.0)
 #   SIGN_IDENTITY         code-signing identity (SHA-1 or certificate name);
 #                         defaults to the project's "Developer ID Application"
 #                         identity (team GC28C3K5G9) in the keychain. It must
 #                         be a Developer ID identity.
-#   NOTARY_PROFILE        notarytool keychain profile; defaults to
-#                         "AllowanceBar". Alternatively set all of
-#                         APPLE_API_KEY_ID / APPLE_API_ISSUER / APPLE_API_KEY
-#                         (path to the .p8).
+#   NOTARY_PROFILE        notarytool keychain profile. Alternatively set all
+#                         of APPLE_API_KEY_ID / APPLE_API_ISSUER /
+#                         APPLE_API_KEY (path to the .p8).
+#   SPARKLE_ACCOUNT       Keychain account of the Sparkle EdDSA private key
+#                         (generate_appcast --account).
 #
-# The appcast is signed with the Sparkle EdDSA key stored in the login
-# keychain under account "AllowanceBar" (backup in 1Password, vault Personal,
-# item "Allowance Bar Release Keys").
+# NOTARY_PROFILE and SPARKLE_ACCOUNT are machine-local, so they are not in
+# this public repo: set them in the environment or in the settings file
+# ALLOWANCEBAR_RELEASE_ENV (default ~/.config/allowancebar/release.env),
+# which this script sources when it exists. Environment values win:
+# SPARKLE_ACCOUNT on its own, and the notarization settings (NOTARY_PROFILE,
+# APPLE_API_*) as one set, so a one-off profile or key never mixes with the
+# file's.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 source scripts/signing-identity.sh
+
+RELEASE_ENV="${ALLOWANCEBAR_RELEASE_ENV:-$HOME/.config/allowancebar/release.env}"
+NOTARY_VARS=(NOTARY_PROFILE APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_API_KEY)
+if [[ -f "$RELEASE_ENV" ]]; then
+    ENV_SPARKLE_ACCOUNT="${SPARKLE_ACCOUNT:-}"
+    typeset -A ENV_NOTARY
+    for var in $NOTARY_VARS; do ENV_NOTARY[$var]="${(P)var:-}"; done
+    source "$RELEASE_ENV"
+    SPARKLE_ACCOUNT="${ENV_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT:-}}"
+    if [[ -n "${ENV_NOTARY[NOTARY_PROFILE]}${ENV_NOTARY[APPLE_API_KEY_ID]}" ]]; then
+        for var in $NOTARY_VARS; do typeset -g "$var=${ENV_NOTARY[$var]}"; done
+    fi
+fi
+if [[ -z "${SPARKLE_ACCOUNT:-}" ]]; then
+    echo "error: set SPARKLE_ACCOUNT (the Sparkle EdDSA key's Keychain account)" >&2
+    echo "       in the environment or in $RELEASE_ENV." >&2
+    exit 1
+fi
+if [[ -z "${NOTARY_PROFILE:-}" && -z "${APPLE_API_KEY_ID:-}" ]]; then
+    echo "error: set NOTARY_PROFILE (a notarytool keychain profile), or" >&2
+    echo "       APPLE_API_KEY_ID/APPLE_API_ISSUER/APPLE_API_KEY, in the environment" >&2
+    echo "       or in $RELEASE_ENV." >&2
+    exit 1
+fi
+if [[ -n "${APPLE_API_KEY_ID:-}" ]]; then
+    : "${APPLE_API_ISSUER:?Set APPLE_API_ISSUER}"
+    : "${APPLE_API_KEY:?Set APPLE_API_KEY (path to .p8)}"
+fi
 
 if [[ -z "${SIGN_IDENTITY:-}" ]]; then
     SIGN_IDENTITY="$(find_developer_id_identity)"
@@ -28,11 +61,10 @@ fi
 if ! is_developer_id_identity "$SIGN_IDENTITY"; then
     echo "error: no valid Developer ID Application identity for team ${ALLOWANCEBAR_TEAM_ID}" >&2
     echo "       (SIGN_IDENTITY='${SIGN_IDENTITY}'). Releases must be Developer ID signed" >&2
-    echo "       and notarized; see docs/RELEASING.md to restore the certificate." >&2
+    echo "       and notarized; see docs/RELEASING.md." >&2
     exit 1
 fi
-VERSION="${ALLOWANCEBAR_VERSION:-2.9.3}"
-SPARKLE_ACCOUNT="AllowanceBar"
+VERSION="${ALLOWANCEBAR_VERSION:-2.10.0}"
 REPO="gilitos92/AllowanceBar"
 
 APP="Allowance Bar.app"
@@ -50,11 +82,9 @@ rm -f "$ZIP"
 #    keeps a non-zero exit from stopping the script before the log is shown.
 NOTARY_ARGS=()
 if [[ -n "${APPLE_API_KEY_ID:-}" ]]; then
-    : "${APPLE_API_ISSUER:?Set APPLE_API_ISSUER}"
-    : "${APPLE_API_KEY:?Set APPLE_API_KEY (path to .p8)}"
     NOTARY_ARGS=(--key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER")
 else
-    NOTARY_ARGS=(--keychain-profile "${NOTARY_PROFILE:-AllowanceBar}")
+    NOTARY_ARGS=(--keychain-profile "$NOTARY_PROFILE")
 fi
 echo "Submitting $ZIP for notarization (usually a few minutes)..."
 NOTARY_JSON=$(xcrun notarytool submit "$ZIP" "${NOTARY_ARGS[@]}" --wait --output-format json) || true

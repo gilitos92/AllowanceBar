@@ -1,8 +1,19 @@
 import SwiftUI
 
+/// Where provider modules are shown. Both pack an account's limits two per
+/// row; the dropdown stacks the modules, and the main window lays them out in
+/// two columns.
+enum ProviderModuleLayout {
+    case dropdown
+    case window
+}
+
+/// Every shown provider as a module: a platter with its badge, plan and
+/// limits. Several accounts of one provider share one module.
 struct ProviderUsageSections: View {
     @ObservedObject var store: UsageStore
     @ObservedObject var settings: SettingsStore
+    var layout: ProviderModuleLayout = .dropdown
 
     var body: some View {
         let visible = store.visibleProviders
@@ -10,105 +21,67 @@ struct ProviderUsageSections: View {
             Text(L("No providers enabled. Open Settings to turn some on."))
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.secondary)
+                .platter()
         } else {
-            // Several accounts of one provider share one header, like one
-            // account's several limits do.
-            ForEach(Array(ProviderGroup.groups(visible).enumerated()), id: \.element.id) { index, group in
-                if index > 0 { Divider() }
-                if group.members.count == 1, let provider = group.members.first {
-                    ProviderSection(
-                        provider: provider,
-                        state: store.state(for: provider.id),
-                        settings: settings,
-                        priority: priority(for: provider)
-                    )
-                } else {
-                    ProviderGroupSection(
-                        group: group,
-                        states: Dictionary(uniqueKeysWithValues: group.members.map { ($0.id, store.state(for: $0.id)) }),
-                        priorities: group.members.reduce(into: [:]) { result, provider in
-                            result[provider.id] = priority(for: provider)
-                        },
-                        settings: settings
-                    )
+            let groups = ProviderGroup.groups(visible)
+            switch layout {
+            case .dropdown:
+                VStack(spacing: GlassStyle.inset) {
+                    ForEach(groups) { module(for: $0) }
+                }
+            case .window:
+                let columns = Self.columns(for: groups, states: store)
+                HStack(alignment: .top, spacing: 10) {
+                    ForEach(columns.indices, id: \.self) { index in
+                        VStack(spacing: 10) {
+                            ForEach(columns[index]) { module(for: $0) }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                    }
                 }
             }
         }
+    }
+
+    private func module(for group: ProviderGroup) -> some View {
+        ProviderModule(
+            group: group,
+            states: Dictionary(uniqueKeysWithValues: group.members.map { ($0.id, store.state(for: $0.id)) }),
+            priorities: group.members.reduce(into: [:]) { result, provider in
+                result[provider.id] = priority(for: provider)
+            },
+            settings: settings
+        )
     }
 
     private func priority(for provider: any UsageProvider) -> ProxyPriority? {
         settings.showsProxyPriority ? store.proxyPriority(for: provider) : nil
     }
-}
 
-struct ProviderSection: View {
-    let provider: any UsageProvider
-    let state: ProviderState
-    @ObservedObject var settings: SettingsStore
-    /// Place in CLIProxyAPI's order of use; nil when hidden or unknown.
-    var priority: ProxyPriority? = nil
-    @Environment(\.openURL) private var openURL
-
-    var body: some View {
-        sectionContent
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(provider.displayName)
-            .modifier(ProviderSectionAccessibilityValue(value: sectionAccessibilityValue))
-    }
-
-    @ViewBuilder
-    private var sectionContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        ProviderBadge(provider: provider, size: 18)
-                        if let url = provider.dashboardURL {
-                            // A plain button rather than a Link, so the title
-                            // reads as text instead of an accent-colored link.
-                            Button {
-                                openURL(url)
-                            } label: {
-                                Text(provider.displayName)
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityAddTraits(.isLink)
-                        } else {
-                            Text(provider.displayName).font(.headline)
-                        }
-                    }
-                    if let codex = provider as? CodexProvider,
-                       !codex.isPrimary,
-                       let email = codex.accountEmail {
-                        Text(email)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                if let priority {
-                    ProxyPriorityCapsule(priority: priority)
-                }
-                if let usage = state.usage, let plan = usage.planName {
-                    PlanCapsule(plan: plan)
-                }
+    /// Splits modules into two columns of similar height, keeping their order
+    /// within each column. Height is estimated from the rows each one shows.
+    @MainActor
+    static func columns(for groups: [ProviderGroup], states store: UsageStore) -> [[ProviderGroup]] {
+        var columns: [[ProviderGroup]] = [[], []]
+        var heights: [Int] = [0, 0]
+        for group in groups {
+            let rows = group.members.reduce(1) { total, provider in
+                let usage = store.state(for: provider.id).usage
+                // Two limits per row.
+                let lines = max(1, ((usage?.windows.count ?? 1) + 1) / 2) + (usage?.balance != nil ? 1 : 0)
+                return total + lines + (group.members.count > 1 ? 1 : 0)
             }
-
-            ProviderStateContent(provider: provider, state: state, settings: settings)
+            let target = heights[0] <= heights[1] ? 0 : 1
+            columns[target].append(group)
+            heights[target] += rows
         }
-    }
-
-    private var sectionAccessibilityValue: String? {
-        state.sectionAccessibilityValue
+        return columns.filter { !$0.isEmpty }
     }
 }
 
-/// Several accounts of one provider under one header, e.g. three Claude
-/// logins: the badge, name, shared plan and "Data as of" line appear once,
-/// and each account adds only its name and its limits.
-struct ProviderGroupSection: View {
+/// One provider's platter. A single account shows its limits under the
+/// header; several accounts each add their name and limits.
+struct ProviderModule: View {
     let group: ProviderGroup
     let states: [String: ProviderState]
     let priorities: [String: ProxyPriority]
@@ -116,36 +89,80 @@ struct ProviderGroupSection: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
+        Group {
+            if group.members.count == 1, let provider = group.members.first {
+                singleAccount(provider)
+            } else {
+                severalAccounts
+            }
+        }
+        .platter()
+    }
+
+    // MARK: Single account
+
+    private func singleAccount(_ provider: any UsageProvider) -> some View {
+        let state = state(for: provider)
+        return VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .center, spacing: 8) {
+                ProviderBadge(provider: provider, size: 20)
+                VStack(alignment: .leading, spacing: 1) {
+                    title(provider.displayName, url: provider.dashboardURL)
+                    if let codex = provider as? CodexProvider,
+                       !codex.isPrimary,
+                       let email = codex.accountEmail {
+                        Text(email)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                Spacer(minLength: 4)
+                if let priority = priorities[provider.id] {
+                    ProxyPriorityCapsule(priority: priority)
+                }
+                if let plan = state.usage?.planName {
+                    InfoChip(text: plan)
+                }
+            }
+            ProviderStateContent(provider: provider, state: state, settings: settings)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(provider.displayName)
+        .modifier(OptionalAccessibilityValue(value: state.sectionAccessibilityValue))
+    }
+
+    // MARK: Several accounts
+
+    private var severalAccounts: some View {
         let usages = group.members.map { state(for: $0).usage }
         let sharedPlan = ProviderGroup.sharedPlan(of: usages)
         let labels = group.accountLabels(emails: emails)
-        VStack(alignment: .leading, spacing: 10) {
-            header(plan: sharedPlan)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                ProviderBadge(providerID: group.baseID, shortCode: group.baseShortCode, size: 20)
+                title(group.baseName, url: group.members.lazy.compactMap(\.dashboardURL).first)
+                Spacer(minLength: 4)
+                if let sharedPlan {
+                    InfoChip(text: sharedPlan)
+                }
+            }
             ForEach(group.members, id: \.id) { provider in
-                let state = state(for: provider)
                 let label = labels[provider.id]
-                GroupedAccountView(
+                AccountBlock(
                     provider: provider,
                     name: label?.name ?? provider.displayName,
                     detail: label?.detail,
-                    state: state,
-                    plan: sharedPlan == nil ? state.usage?.planName : nil,
+                    state: state(for: provider),
+                    plan: sharedPlan == nil ? state(for: provider).usage?.planName : nil,
                     priority: priorities[provider.id],
                     settings: settings
                 )
             }
-            if let asOf = sharedAsOf {
-                Text(L("Data as of \(asOf.formatted(date: .omitted, time: .shortened))"))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(group.baseName)
-    }
-
-    private func state(for provider: any UsageProvider) -> ProviderState {
-        states[provider.id] ?? .loading
     }
 
     /// Each account's signed-in email. Codex remembers its last one, so an
@@ -158,43 +175,33 @@ struct ProviderGroupSection: View {
         }
     }
 
-    /// The oldest data among accounts that show limits or balances, shown
-    /// once for the group. Stale accounts and API reports keep their own line.
-    private var sharedAsOf: Date? {
-        group.members.compactMap { provider -> Date? in
-            guard case .ready(let usage) = state(for: provider), usage.apiUsage == nil else { return nil }
-            return usage.asOf
-        }.min()
+    // MARK: Shared
+
+    private func state(for provider: any UsageProvider) -> ProviderState {
+        states[provider.id] ?? .loading
     }
 
-    private func header(plan: String?) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            HStack(spacing: 6) {
-                ProviderBadge(providerID: group.baseID, shortCode: group.baseShortCode, size: 18)
-                if let url = group.members.lazy.compactMap(\.dashboardURL).first {
-                    Button {
-                        openURL(url)
-                    } label: {
-                        Text(group.baseName)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(.isLink)
-                } else {
-                    Text(group.baseName).font(.headline)
-                }
-            }
-            Spacer()
-            if let plan {
-                PlanCapsule(plan: plan)
-            }
+    /// The provider name. With a dashboard it is a plain button rather than a
+    /// Link, so it reads as a title instead of an accent-colored link.
+    @ViewBuilder
+    private func title(_ name: String, url: URL?) -> some View {
+        let text = Text(name)
+            .font(.system(size: 13.5, weight: .semibold))
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+        if let url {
+            Button { openURL(url) } label: { text }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(.isLink)
+                .help(url.host() ?? url.absoluteString)
+        } else {
+            text
         }
     }
 }
 
-/// One account inside a `ProviderGroupSection`: its name, then its limits.
-private struct GroupedAccountView: View {
+/// One account inside a provider's module: its name, then its limits.
+private struct AccountBlock: View {
     let provider: any UsageProvider
     let name: String
     let detail: String?
@@ -205,15 +212,19 @@ private struct GroupedAccountView: View {
     @ObservedObject var settings: SettingsStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(name)
-                    .font(.callout.weight(.semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .layoutPriority(1)
+                if let plan {
+                    InfoChip(text: plan)
+                }
                 if let detail {
                     Text(detail)
-                        .font(.subheadline.weight(.medium))
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -222,25 +233,12 @@ private struct GroupedAccountView: View {
                 if let priority {
                     ProxyPriorityCapsule(priority: priority)
                 }
-                if let plan {
-                    PlanCapsule(plan: plan)
-                }
             }
-            // A thin rule ties an account's limits to its name.
-            VStack(alignment: .leading, spacing: 8) {
-                ProviderStateContent(provider: provider, state: state, settings: settings, inGroup: true)
-            }
-            .padding(.leading, 10)
-            .overlay(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(.quaternary)
-                    .frame(width: 2)
-                    .accessibilityHidden(true)
-            }
+            ProviderStateContent(provider: provider, state: state, settings: settings)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(provider.displayName)
-        .modifier(ProviderSectionAccessibilityValue(value: state.sectionAccessibilityValue))
+        .modifier(OptionalAccessibilityValue(value: state.sectionAccessibilityValue))
     }
 }
 
@@ -249,43 +247,39 @@ private struct ProviderStateContent: View {
     let provider: any UsageProvider
     let state: ProviderState
     @ObservedObject var settings: SettingsStore
-    /// Inside a group, the group shows one "Data as of" line for all accounts.
-    var inGroup = false
 
     var body: some View {
         switch state {
         case .loading:
-            Text(L("Loading…")).font(.callout.weight(.medium)).foregroundStyle(.secondary)
-        case .error(let message):
-            Label(message, systemImage: "exclamationmark.triangle")
+            Text(L("Loading…"))
                 .font(.callout.weight(.medium))
-                .foregroundStyle(.orange)
+                .foregroundStyle(.secondary)
+        case .error(let message):
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .font(.callout.weight(.medium))
+                .foregroundStyle(Color.warningText)
+                .fixedSize(horizontal: false, vertical: true)
         case .ready(let usage):
-            UsageMetersView(
-                providerName: provider.displayName,
-                usage: usage,
-                settings: settings,
-                showsAsOf: !inGroup || usage.apiUsage != nil
-            )
-            subscriptionRenewalRow
+            VStack(alignment: .leading, spacing: 8) {
+                UsageMetersView(providerName: provider.displayName, usage: usage, settings: settings)
+                subscriptionRenewalRow
+            }
         case .stale(let usage, let error, let since):
-            // "Stale since" is when fetching started to fail, not how old
-            // the numbers are, so a stale account keeps its own data time
-            // even inside a group.
-            UsageMetersView(
-                providerName: provider.displayName,
-                usage: usage,
-                settings: settings
-            )
-            .opacity(0.55)
-            subscriptionRenewalRow
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L("Stale since \(since.formatted(date: .omitted, time: .shortened))"))
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.orange)
-                Text(error)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                UsageMetersView(providerName: provider.displayName, usage: usage, settings: settings)
+                    .opacity(0.55)
+                subscriptionRenewalRow
+                VStack(alignment: .leading, spacing: 2) {
+                    // "Stale since" is when fetching started to fail, not how
+                    // old the numbers are.
+                    Label(L("Stale since \(since.formatted(date: .omitted, time: .shortened))"), systemImage: "clock")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(Color.warningText)
+                    Text(error)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -299,36 +293,6 @@ private struct ProviderStateContent: View {
     }
 }
 
-struct PlanCapsule: View {
-    let plan: String
-
-    var body: some View {
-        // Plan names come from the providers (e.g. Google's "Google AI Pro"),
-        // so a long one stays on one line and shows in full on hover.
-        Text(plan)
-            .font(.callout.weight(.medium))
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .help(plan)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(.quaternary, in: Capsule())
-    }
-}
-
-private extension ProviderState {
-    var sectionAccessibilityValue: String? {
-        switch self {
-        case .stale:
-            return L("data is stale")
-        case .error:
-            return L("error")
-        case .loading, .ready:
-            return nil
-        }
-    }
-}
-
 /// The account's place in CLIProxyAPI's order of use, e.g. "Proxy #1".
 struct ProxyPriorityCapsule: View {
     let priority: ProxyPriority
@@ -336,12 +300,14 @@ struct ProxyPriorityCapsule: View {
     var body: some View {
         Label(priority.label, systemImage: "arrow.triangle.branch")
             .labelStyle(.titleAndIcon)
-            .font(.callout.weight(.medium))
+            .font(.system(size: 11, weight: .semibold))
             .monospacedDigit()
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 6)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 7)
             .padding(.vertical, 2)
-            .overlay(Capsule().strokeBorder(.quaternary))
+            .overlay(Capsule().strokeBorder(Color.platterEdge, lineWidth: 1))
             .help(priority.explanation)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L("CLIProxyAPI order"))
@@ -357,19 +323,17 @@ struct SubscriptionRenewalRow: View {
         let dateText = next.formatted(date: .abbreviated, time: .omitted)
         let statusText = renewal.needsReconfirmation ? L("(expected)") : L("(confirmed)")
 
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
             Image(systemName: "calendar")
-                .font(.subheadline.weight(.medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(String(format: L("Renews %@"), dateText))
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Text("\(renewal.platform.displayName) \(statusText)")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
+            Text(String(format: L("Renews %@"), dateText))
+                .font(.system(size: 12, weight: .medium))
+            Text("\(renewal.platform.displayName) \(statusText)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L("Subscription renewal"))
@@ -377,7 +341,7 @@ struct SubscriptionRenewalRow: View {
     }
 }
 
-private struct ProviderSectionAccessibilityValue: ViewModifier {
+struct OptionalAccessibilityValue: ViewModifier {
     let value: String?
 
     func body(content: Content) -> some View {
@@ -389,39 +353,82 @@ private struct ProviderSectionAccessibilityValue: ViewModifier {
     }
 }
 
+extension ProviderState {
+    var sectionAccessibilityValue: String? {
+        switch self {
+        case .stale:
+            return L("data is stale")
+        case .error:
+            return L("error")
+        case .loading, .ready:
+            return nil
+        }
+    }
+}
+
 struct UsageMetersView: View {
     let providerName: String
     let usage: ProviderUsage
     @ObservedObject var settings: SettingsStore
-    var showsAsOf = true
+
+    /// Data older than this gets its own "Data as of" line, e.g. limits
+    /// CLIProxyAPI saw several minutes ago. Fresher data, including Codex's
+    /// five-minute cache, is covered by the surface's single "Updated" time.
+    static let asOfThreshold: TimeInterval = 6 * 60
 
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 8) {
             if usage.windows.isEmpty && usage.balance == nil && usage.apiUsage == nil {
-                Text(L("No usage data")).font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                Text(L("No usage data"))
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
-            ForEach(usage.windows, id: \.label) { window in
-                WindowMeter(
-                    providerName: providerName,
-                    window: window,
-                    settings: settings
-                )
+            if !usage.windows.isEmpty {
+                limits
             }
             if let apiUsage = usage.apiUsage {
                 APIUsageRows(summary: apiUsage)
             } else if let balance = usage.balance {
-                BalanceRow(
-                    providerName: providerName,
-                    balance: balance,
-                    settings: settings
-                )
+                BalanceRow(providerName: providerName, balance: balance, settings: settings)
             }
-            if showsAsOf, let asOf = usage.asOf {
+            if let asOf = usage.asOf, Date().timeIntervalSince(asOf) > Self.asOfThreshold {
                 Text(usage.apiUsage == nil
                      ? L("Data as of \(asOf.formatted(date: .omitted, time: .shortened))")
                      : L("Last checked \(asOf.formatted(date: .omitted, time: .shortened))"))
-                    .font(.subheadline.weight(.medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var limits: some View {
+        let meters = ForEach(usage.windows, id: \.label) { window in
+            WindowMeter(providerName: providerName, window: window, settings: settings)
+        }
+        if usage.windows.count > 1 {
+            // Two limits per row when they fit; one per row otherwise, e.g.
+            // for long model names.
+            ViewThatFits(in: .horizontal) {
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 9) {
+                    ForEach(Array(stride(from: 0, to: usage.windows.count, by: 2)), id: \.self) { start in
+                        GridRow(alignment: .top) {
+                            WindowMeter(providerName: providerName, window: usage.windows[start], settings: settings)
+                            if start + 1 < usage.windows.count {
+                                WindowMeter(providerName: providerName, window: usage.windows[start + 1], settings: settings)
+                            } else {
+                                Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                            }
+                        }
+                    }
+                }
+                VStack(alignment: .leading, spacing: 9) { meters }
+            }
+        } else {
+            // A single limit keeps half the width, like its neighbors.
+            HStack(spacing: 14) {
+                meters
+                Color.clear.frame(height: 1)
             }
         }
     }
@@ -437,44 +444,44 @@ private struct APIUsageRows: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(L("Month to date (UTC)"))
-                .font(.subheadline.weight(.medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
-            valueRow(label: L("API spending"), value: summary.costUSD.formatted(.currency(code: "USD")))
+            valueRow(label: L("API spending"), value: summary.costUSD.formatted(.currency(code: "USD")), prominent: true)
             valueRow(label: L("Input tokens"), value: summary.inputTokens.formatted())
             valueRow(label: L("Output tokens"), value: summary.outputTokens.formatted())
             valueRow(label: L("Cache read tokens"), value: summary.cacheReadTokens.formatted())
             valueRow(label: L("Cache creation tokens"), value: summary.cacheCreationTokens.formatted())
             if summary.isAwaitingCurrentDay() {
                 Text(L("Today's totals are not yet fully reported by Anthropic."))
-                    .font(.callout.weight(.medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityElement(children: .combine)
             }
             Text(L("Reports before \(summary.periodEnd.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, timeZone: TimeZone(secondsFromGMT: 0)!))) UTC"))
-                .font(.subheadline.weight(.medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             valueRow(label: L("Prepaid credits"), value: L("Unavailable via API"))
             Link(L("View prepaid credits"), destination: Self.prepaidCreditsURL)
-                .font(.callout.weight(.medium))
+                .font(.system(size: 12, weight: .medium))
                 .fixedSize(horizontal: false, vertical: true)
             Text(L("Reporting may lag the Anthropic website. Priority Tier costs excluded."))
-                .font(.subheadline.weight(.medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func valueRow(label: String, value: String) -> some View {
+    private func valueRow(label: String, value: String, prominent: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label)
-                .font(.callout.weight(.medium))
+                .font(.system(size: 12, weight: prominent ? .semibold : .medium))
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
             Text(value)
-                .font(.callout.monospacedDigit().weight(.semibold))
+                .font(.meterValue(size: prominent ? 15 : 12.5))
                 .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -495,19 +502,21 @@ private struct BalanceRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(balance.kind == .remaining ? L("Balance") : L("Usage")).font(.callout.weight(.medium))
+            HStack(alignment: .firstTextBaseline) {
+                Text(balance.kind == .remaining ? L("Balance") : L("Usage"))
+                    .font(.system(size: 12.5, weight: .semibold))
                 Spacer()
                 SeverityValueLabel(
                     text: balance.display,
-                    symbolName: isLowBalance ? "exclamationmark.triangle.fill" : nil,
-                    badge: isLowBalance ? UsageMeterSeverity.warning.badgeStyle : nil,
-                    plainColor: balance.kind == .spent ? .secondary : .primary
+                    symbolName: isLowBalance ? UsageMeterSeverity.warning.symbolName : nil,
+                    tint: isLowBalance ? Color.warningText : nil,
+                    plainColor: balance.kind == .spent ? .secondary : .primary,
+                    font: .meterValue(size: 15)
                 )
             }
             if balance.kind == .remaining, let used = balance.used {
                 Text(L("\(balance.currencySymbol)\(BalanceInfo.format(used)) used all-time"))
-                    .font(.subheadline.weight(.medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
             }
         }
@@ -529,6 +538,7 @@ private struct BalanceRow: View {
     }
 }
 
+/// One limit: its name, reset and value on one line, the bar below.
 private struct WindowMeter: View {
     let providerName: String
     let window: UsageWindow
@@ -542,21 +552,37 @@ private struct WindowMeter: View {
 
     private func meter(at now: Date) -> some View {
         let pace = settings.showsPace ? window.pace(now: now) : nil
-        return VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(window.label).font(.callout.weight(.medium))
-                Spacer()
-                SeverityValueLabel(
-                    text: settings.countDirection.percentLabel(window.usedPercent),
-                    symbolName: severity.symbolName,
-                    badge: severity.badgeStyle
-                )
-                if let pace {
-                    Image(systemName: pace.symbolName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
+        let reset = window.compactReset(style: settings.resetTimeStyle, prefixed: false, now: now)
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(window.shortLabel)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .lineLimit(1)
+                    .fixedSize()
+                if reset != nil || pace != nil {
+                    HStack(spacing: 3) {
+                        if let reset {
+                            Text(reset)
+                                .font(.system(size: 11, weight: .medium))
+                                .monospacedDigit()
+                        }
+                        if let pace {
+                            Image(systemName: pace.symbolName)
+                                .font(.system(size: 8.5, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
                 }
+                Spacer(minLength: 4)
+                SeverityValueLabel(
+                    // "% left" or "% used" comes from the Display setting and
+                    // is spoken; the bare percent keeps two limits per row.
+                    text: settings.countDirection.percentLabel(window.usedPercent, menuBar: true),
+                    symbolName: severity.symbolName,
+                    tint: severity.textColor
+                )
             }
             UsageMeterBar(
                 percent: progressValue,
@@ -565,17 +591,11 @@ private struct WindowMeter: View {
                     ? settings.countDirection.paceMarkerPercent(for: window, now: now)
                     : nil
             )
-            if let reset = window.resetDescription(style: settings.resetTimeStyle, now: now) {
-                Text(reset)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(meterAccessibilityLabel)
         .accessibilityValue(meterAccessibilityValue(at: now))
-        .help(pace.map { PaceDescription.tooltip(pace: $0, window: window, direction: settings.countDirection, now: now) } ?? "")
+        .help(tooltip(pace: pace, now: now))
     }
 
     private var progressValue: Double {
@@ -588,6 +608,15 @@ private struct WindowMeter: View {
 
     private var meterAccessibilityLabel: String {
         String(format: L("%@, %@"), providerName, window.label)
+    }
+
+    /// The full reset sentence and, with pace on, how the limit is pacing.
+    private func tooltip(pace: UsagePace?, now: Date) -> String {
+        let parts = [
+            window.resetDescription(style: .absolute, now: now),
+            pace.map { PaceDescription.tooltip(pace: $0, window: window, direction: settings.countDirection, now: now) },
+        ]
+        return parts.compactMap { $0 }.joined(separator: "\n")
     }
 
     private func meterAccessibilityValue(at now: Date) -> String {

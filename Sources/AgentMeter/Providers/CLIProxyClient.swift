@@ -155,6 +155,8 @@ struct CLIProxyClient: Sendable {
         /// The proxy sends new requests to the highest priority first.
         /// Logins without one count as 0, as in CLIProxyAPI.
         let priority: Int
+        /// Claude: the limits the proxy saw on this login's last message.
+        let claudeQuota: ClaudeProxyQuota?
 
         init(
             kind: CLIProxyLoginKind = .claude,
@@ -164,7 +166,8 @@ struct CLIProxyClient: Sendable {
             chatgptAccountID: String? = nil,
             projectID: String? = nil,
             planType: String? = nil,
-            priority: Int = 0
+            priority: Int = 0,
+            claudeQuota: ClaudeProxyQuota? = nil
         ) {
             self.kind = kind
             self.authIndex = authIndex
@@ -174,6 +177,7 @@ struct CLIProxyClient: Sendable {
             self.projectID = projectID
             self.planType = planType
             self.priority = priority
+            self.claudeQuota = claudeQuota
         }
     }
 
@@ -211,7 +215,10 @@ struct CLIProxyClient: Sendable {
                 chatgptAccountID: (file.idToken?.chatgptAccountID).nonEmpty,
                 projectID: file.projectID.nonEmpty,
                 planType: (file.idToken?.planType).nonEmpty,
-                priority: file.priority?.value ?? 0
+                priority: file.priority?.value ?? 0,
+                claudeQuota: kind == .claude ? file.quota.flatMap {
+                    ClaudeProxyQuota(signals: $0.signals ?? [:], observedAt: $0.observedAt)
+                } : nil
             )
         }
     }
@@ -468,12 +475,14 @@ struct CLIProxyClient: Sendable {
         /// token. Ignored when it isn't an object.
         let idToken: IDTokenClaims?
         let priority: FlexibleInt?
+        /// Claude: the rate-limit headers of the login's last answer.
+        let quota: Quota?
 
         enum CodingKeys: String, CodingKey {
             case authIndex = "auth_index"
             case projectID = "project_id"
             case idToken = "id_token"
-            case type, provider, email, disabled, priority
+            case type, provider, email, disabled, priority, quota
         }
 
         init(from decoder: Decoder) throws {
@@ -486,6 +495,43 @@ struct CLIProxyClient: Sendable {
             projectID = try? container.decodeIfPresent(String.self, forKey: .projectID)
             idToken = try? container.decodeIfPresent(IDTokenClaims.self, forKey: .idToken)
             priority = try? container.decodeIfPresent(FlexibleInt.self, forKey: .priority)
+            quota = try? container.decodeIfPresent(Quota.self, forKey: .quota)
+        }
+    }
+
+    /// `quota` in the login list. Values that aren't text are skipped.
+    private struct Quota: Decodable {
+        let observedAt: String?
+        let signals: [String: String]?
+
+        enum CodingKeys: String, CodingKey {
+            case observedAt = "observed_at"
+            case signals
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            observedAt = try? container.decodeIfPresent(String.self, forKey: .observedAt)
+            if let raw = try? container.decodeIfPresent([String: FlexibleText].self, forKey: .signals) {
+                signals = raw.compactMapValues(\.value)
+            } else {
+                signals = nil
+            }
+        }
+    }
+
+    /// A header value: text, or a number some proxies may write as one.
+    private struct FlexibleText: Decodable {
+        let value: String?
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let string = try? container.decode(String.self) {
+                value = string
+            } else if let number = try? container.decode(Double.self) {
+                value = String(number)
+            } else {
+                value = nil
+            }
         }
     }
 

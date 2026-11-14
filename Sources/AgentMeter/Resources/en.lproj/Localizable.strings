@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>%@ accounts</key>
-	<string>%@ accounts</string>
 	<key>%@ balance</key>
 	<string>%@ balance</string>
 	<key>%@ proxy login</key>
@@ -72,6 +70,8 @@
 	<string>Allowance Bar could not reach the provider to check this key. That is usually a network issue or a temporary API change. Your saved key was not removed.</string>
 	<key>Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.</key>
 	<string>Allowance Bar shows every Claude, Codex, Antigravity and Gemini login on your CLIProxyAPI server. A login that matches an account on this Mac shows once. Your tokens stay on the proxy.</string>
+	<key>Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ.</key>
+	<string>Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ.</string>
 	<key>Also show this window on every desktop and over full-screen apps. Requires Keep on Top.</key>
 	<string>Also show this window on every desktop and over full-screen apps. Requires Keep on Top.</string>
 	<key>An Admin key can see billing details and manage other keys. Allowance Bar only reads your balance; it cannot spend credits or change settings. An Inference key is safer and also works with Allowance Bar.</key>
@@ -186,22 +186,20 @@
 	<string>Couldn't check key</string>
 	<key>Couldn't install the command-line tool: %@</key>
 	<string>Couldn't install the command-line tool: %@</string>
-	<key>Default (%@)</key>
-	<string>Default (%@)</string>
 	<key>Diagnostics copied</key>
 	<string>Diagnostics copied</string>
-	<key>Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.</key>
-	<string>Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.</string>
 	<key>Enable agent &amp; CLI access</key>
 	<string>Enable agent &amp; CLI access</string>
 	<key>Enable notifications to change this.</key>
 	<string>Enable notifications to change this.</string>
 	<key>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</key>
 	<string>Enter a valid server address. A proxy on another Mac needs https or a Tailscale name ending in .ts.net.</string>
-	<key>Expand</key>
-	<string>Expand</string>
 	<key>Failed to parse Venice response: %@</key>
 	<string>Failed to parse Venice response: %@</string>
+	<key>Finish setting up this Meta account: run muse with the same variables as the login command in Settings</key>
+	<string>Finish setting up this Meta account: run muse with the same variables as the login command in Settings</string>
+	<key>Finish setting up your Meta account: run muse in Terminal</key>
+	<string>Finish setting up your Meta account: run muse in Terminal</string>
 	<key>Folder</key>
 	<string>Folder</string>
 	<key>Folder is required</key>
@@ -246,8 +244,6 @@
 	<string>Key not working</string>
 	<key>Key type: %@. %@</key>
 	<string>Key type: %@. %@</string>
-	<key>Label</key>
-	<string>Label</string>
 	<key>Label is required</key>
 	<string>Label is required</string>
 	<key>Last checked %@</key>
@@ -272,14 +268,32 @@
 	<string>Marks today as the date you verified this renewal on your billing platform.</string>
 	<key>Menu bar monitor for AI coding usage limits.</key>
 	<string>Menu bar monitor for AI coding usage limits.</string>
+	<key>Meta couldn't report Muse Code usage right now</key>
+	<string>Meta couldn't report Muse Code usage right now</string>
 	<key>Month to date (UTC)</key>
 	<string>Month to date (UTC)</string>
+	<key>Muse Code CLI not found</key>
+	<string>Muse Code CLI not found</string>
+	<key>Muse Code asked to wait before checking usage again</key>
+	<string>Muse Code asked to wait before checking usage again</string>
+	<key>Muse Code exited unexpectedly</key>
+	<string>Muse Code exited unexpectedly</string>
+	<key>Muse Code has no usage data yet. It appears after your first prompt in a new window.</key>
+	<string>Muse Code has no usage data yet. It appears after your first prompt in a new window.</string>
+	<key>Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits.</key>
+	<string>Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits.</string>
+	<key>Muse Code protocol error</key>
+	<string>Muse Code protocol error</string>
+	<key>Muse Code timed out</key>
+	<string>Muse Code timed out</string>
 	<key>Nano View</key>
 	<string>Nano View</string>
 	<key>Not confirmed yet — check the platform that bills you.</key>
 	<string>Not confirmed yet — check the platform that bills you.</string>
 	<key>Not signed in</key>
 	<string>Not signed in</string>
+	<key>Not signed in — run muse login in Terminal</key>
+	<string>Not signed in — run muse login in Terminal</string>
 	<key>Not signed in — run the login command in Settings</key>
 	<string>Not signed in — run the login command in Settings</string>
 	<key>Opacity</key>
@@ -318,10 +332,6 @@
 	<string>Remind me</string>
 	<key>Removing only forgets the path; it does not sign out.</key>
 	<string>Removing only forgets the path; it does not sign out.</string>
-	<key>Rename</key>
-	<string>Rename</string>
-	<key>Rename %@</key>
-	<string>Rename %@</string>
 	<key>Renamed to %@</key>
 	<string>Renamed to %@</string>
 	<key>Renews %@</key>
@@ -384,8 +394,12 @@
 	<string>This API key lets apps use your OpenRouter credits. Allowance Bar only reads usage; it cannot spend money or change your account. If you used Connect, OpenRouter created a dedicated key just for Allowance Bar that you can revoke anytime.</string>
 	<key>This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.</key>
 	<string>This CLIProxyAPI login is signed out. Sign in again in CLIProxyAPI.</string>
+	<key>This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.</key>
+	<string>This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.</string>
 	<key>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</key>
 	<string>This account comes from CLIProxyAPI. Turn it off or remove it there to hide it here.</string>
+	<key>This account uses an API key. Sign it in with your Meta account (the login command in Settings) to show subscription limits.</key>
+	<string>This account uses an API key. Sign it in with your Meta account (the login command in Settings) to show subscription limits.</string>
 	<key>This folder is already added</key>
 	<string>This folder is already added</string>
 	<key>This key is tied to a GLM Coding Plan subscription. Allowance Bar reads your time and token quotas (they reset every few hours). It cannot spend money, call models, or change your account.</key>
@@ -404,6 +418,8 @@
 	<string>Unexpected Claude API report</string>
 	<key>Unexpected response from CLIProxyAPI</key>
 	<string>Unexpected response from CLIProxyAPI</string>
+	<key>Update Muse Code — this version can't report usage</key>
+	<string>Update Muse Code — this version can't report usage</string>
 	<key>Usage</key>
 	<string>Usage</string>
 	<key>Usage Details</key>
@@ -428,8 +444,6 @@
 	<string>Waiting for browser authorization…</string>
 	<key>Website &amp; source code</key>
 	<string>Website &amp; source code</string>
-	<key>When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.</key>
-	<string>When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.</string>
 	<key>Window Options</key>
 	<string>Window Options</string>
 	<key>Works for usage monitoring.</key>

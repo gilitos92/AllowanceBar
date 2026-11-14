@@ -35,7 +35,7 @@ Top-level object:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | `String` | Provider id: `codex`, `cursor`, `claude`, `gemini`, `openrouter`, `deepseek`, `moonshot`, `zai`, `venice`. Extra accounts are `<id>:<uuid>`, e.g. `codex:<uuid>` or `claude:<uuid>` (stable per account for as long as it is configured; any provider since 2.4.0, Codex only before). |
+| `id` | `String` | Provider id: `codex`, `cursor`, `claude`, `gemini`, `muse`, `openrouter`, `deepseek`, `moonshot`, `zai`, `venice`. Extra accounts are `<id>:<uuid>`, e.g. `codex:<uuid>` or `claude:<uuid>` (stable per account for as long as it is configured; any provider since 2.4.0, Codex only before). |
 | `displayName` | `String` | Human label (extra accounts: `<Provider> — <label>`, e.g. `Codex — work`) |
 | `state` | `String` | `ready`, `stale`, `error`, or `loading` |
 | `windows` | `[WindowStatus]` | Rate-limit windows |

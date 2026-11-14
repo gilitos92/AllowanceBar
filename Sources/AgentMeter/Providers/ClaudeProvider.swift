@@ -27,6 +27,9 @@ struct ClaudeProvider: AccountConfigurableProvider {
     var proxyAccountCache: CLIProxyAccountCache = .shared
     var proxyPlanCache: CLIProxyPlanCache = .shared
     var rateLimits: ClaudeRateLimitGate = .shared
+    /// Answers read through the proxy, kept for two minutes like the
+    /// proxy's own rows.
+    var proxyUsageCache: CLIProxyUsageCache = .shared
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     /// The account profile Claude Code reads; it names the login's plan.
@@ -45,6 +48,13 @@ struct ClaudeProvider: AccountConfigurableProvider {
     }
 
     func fetch() async throws -> ProviderUsage {
+        try await fetch(forceRefresh: false)
+    }
+
+    /// `forceRefresh` (the Refresh button) skips the two-minute cache of
+    /// answers read through the proxy; recent proxy numbers still come first.
+    func fetch(forceRefresh: Bool) async throws -> ProviderUsage {
+        if let usage = await proxyNumbers() { return usage }
         var plan: String?
         let localError: ClaudeError
         do {
@@ -69,6 +79,12 @@ struct ClaudeProvider: AccountConfigurableProvider {
         guard let config = proxyConfig() else { throw localError }
         let client = CLIProxyClient(config: config, session: session, claudeRateLimits: rateLimits)
         let account = try await proxyLogin(client)
+        // Like the proxy's own rows: one usage request per account every two
+        // minutes, so a short refresh interval doesn't trip Anthropic's limit.
+        let cacheKey = config.identity + "|local|" + id + "|" + account.authIndex
+        if !forceRefresh, let cached = await proxyUsageCache.usage(for: cacheKey) {
+            return cached
+        }
         // The local plan describes the proxy login only if it is the same
         // account. Otherwise ask the proxy login's own profile, next to its usage.
         let localEmail = Self.accountEmail(atPath: accountInfoPath)
@@ -80,10 +96,42 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let proxyPlan = localPlan == nil ? await client.plan(for: account, cache: proxyPlanCache) : nil
         var usage = Self.usage(from: response, plan: localPlan ?? proxyPlan, now: Date())
         usage.accountEmail = account.email
+        await proxyUsageCache.store(usage, for: cacheKey)
         return usage
     }
 
     // MARK: - CLIProxyAPI
+
+    /// How long a local account waits for the proxy's login list before it
+    /// reads its usage the usual way.
+    static let proxyNumbersWait: TimeInterval = 3
+
+    /// The limits CLIProxyAPI saw on this account's last message, when they
+    /// are recent (`ClaudeProxyQuota`). They cost Anthropic nothing, so they
+    /// come before this Mac's login and the proxy's usage request. Nil
+    /// without a proxy, a matching login or recent numbers, and when the
+    /// proxy answers slowly or fails: then the usual sources follow.
+    func proxyNumbers(now: Date = Date()) async -> ProviderUsage? {
+        guard let config = proxyConfig() else { return nil }
+        let client = CLIProxyClient(config: config, session: session, claudeRateLimits: rateLimits)
+        let provider = self
+        guard let account = await Deadline.value(within: Self.proxyNumbersWait, {
+            try? await provider.proxyLogin(client)
+        }), let quota = account.claudeQuota, quota.isFresh(now: now) else {
+            return nil
+        }
+        // Claude Code's saved plan describes the proxy login only when it is
+        // the same account; otherwise the login's profile names it.
+        let localEmail = Self.accountEmail(atPath: accountInfoPath)
+        let sameAccount = localEmail.map { $0.caseInsensitiveCompare(account.email) == .orderedSame } ?? false
+        var plan = sameAccount ? (try? await loadCredentials())?.subscriptionType : nil
+        if plan == nil {
+            plan = await client.plan(for: account, cache: proxyPlanCache)
+        }
+        var usage = quota.usage(plan: plan, now: now)
+        usage.accountEmail = account.email
+        return usage
+    }
 
     /// The proxy login that matches this account.
     func proxyLogin(_ client: CLIProxyClient) async throws -> CLIProxyClient.Account {

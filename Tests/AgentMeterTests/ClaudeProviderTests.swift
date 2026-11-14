@@ -163,7 +163,8 @@ final class ClaudeProviderTests: XCTestCase {
         let provider = ClaudeProvider(
             credentialsPath: credentials.file.path,
             session: session,
-            keychainReader: { await reader.read(service: $0) }
+            keychainReader: { await reader.read(service: $0) },
+            proxyConfig: { nil }
         )
 
         let usage = try await provider.fetch()
@@ -191,7 +192,8 @@ final class ClaudeProviderTests: XCTestCase {
             credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
             keychainService: "test-service",
             session: session,
-            keychainReader: { await reader.read(service: $0) }
+            keychainReader: { await reader.read(service: $0) },
+            proxyConfig: { nil }
         )
 
         let initialUsage = try await provider.fetch()
@@ -232,7 +234,8 @@ final class ClaudeProviderTests: XCTestCase {
         for data in [nil, Data("invalid credential document".utf8)] as [Data?] {
             let provider = ClaudeProvider(
                 credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
-                keychainReader: { _ in data }
+                keychainReader: { _ in data },
+                proxyConfig: { nil }
             )
             do {
                 _ = try await provider.loadCredentials()
@@ -246,7 +249,8 @@ final class ClaudeProviderTests: XCTestCase {
     func testKeychainReaderFailureIsNotReportedAsSignedOut() async throws {
         let provider = ClaudeProvider(
             credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
-            keychainReader: { _ in throw URLError(.timedOut) }
+            keychainReader: { _ in throw URLError(.timedOut) },
+            proxyConfig: { nil }
         )
         do {
             _ = try await provider.loadCredentials()
@@ -259,7 +263,8 @@ final class ClaudeProviderTests: XCTestCase {
     func testCancelledKeychainReadPropagatesCancellation() async throws {
         let provider = ClaudeProvider(
             credentialsPath: "/missing-claude-credentials-\(UUID().uuidString)",
-            keychainReader: { _ in throw CancellationError() }
+            keychainReader: { _ in throw CancellationError() },
+            proxyConfig: { nil }
         )
         do {
             _ = try await provider.loadCredentials()

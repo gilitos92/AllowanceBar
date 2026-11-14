@@ -7,6 +7,66 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.10.0] — 2026-11-14
+
+### Added
+- Muse Code, Meta's coding agent. Allowance Bar shows a Muse Code
+  subscription's 5-hour and weekly limits and its plan. It reads them
+  through your own Muse Code CLI (`muse serve`), which checks the usage
+  without spending a prompt; Allowance Bar never sees your Meta login. Sign
+  in with `muse login` first. Extra accounts each use their own folder; see
+  docs/MULTIPLE_ACCOUNTS.md. API keys and pay-as-you-go accounts show a
+  message instead of numbers, because Meta has no balance API.
+
+### Changed
+- A new look built on Liquid Glass (macOS 26 and later) for every part of
+  the app. The dropdown shows each provider as a module: a platter with its
+  badge, plan and limits. Several accounts of one provider share one module,
+  and each limit takes two lines instead of three: its name, a short reset
+  time and the value, then the bar. Two limits share a row when they fit.
+- Healthy limits are quieter, warnings are orange instead of yellow, and
+  critical limits are red. Both keep their symbol, also in the menu bar, so
+  color is never the only signal. Values use rounded, fixed-width digits.
+- Reset times are short ("2h 10m", or "Fri 21:41" with exact times); the
+  full date shows on hover and VoiceOver reads it. One "Updated" time
+  replaces the "Data as of" line under every provider; a provider whose data
+  is more than six minutes old still shows its own time.
+- The dropdown's footer is the update time, then Refresh, the Full, Compact
+  and Nano views of Usage Details (each opens the window in that view;
+  the current one is highlighted while the window is open), Settings,
+  Support and More. More holds Check for Updates, About and Quit.
+- The Usage Details window lays modules out in two columns, with two limits
+  per row like the dropdown. Its toolbar has the window options and, at the
+  far right, the view switcher. The mini window is a rounded glass panel:
+  each account's name in its own column, one aligned row per limit, and a
+  divider between accounts. The nano window is a slim capsule with a dot in
+  each provider's color. The mini and nano windows' hover controls include
+  the same view switcher.
+- Settings has an Agents pane for agent and command-line access, and the
+  Providers pane lists the providers beside one page per provider. A
+  provider with one account shows its settings on its page; a provider
+  with several lists its accounts, and each account opens its own settings.
+  Adding an account and folders found on this Mac have their own places.
+  Every Settings pane uses the same rounded cards and capsule controls.
+- The app now records the macOS SDK it is built with. Before, macOS ran it
+  in compatibility mode, so on macOS 26 and later its buttons, switches and
+  segmented controls kept the older look. The nano window stays a slim
+  capsule under the new design.
+
+### Fixed
+- Claude accounts in CLIProxyAPI hit Anthropic's rate limit much less
+  often. CLIProxyAPI keeps the 5-hour and weekly limits that Anthropic sends
+  with every Claude Code message. Allowance Bar now reads those numbers from
+  the proxy's login list, which it already downloads, and asks Anthropic's
+  usage endpoint only when an account has none from the last 15 minutes.
+  This applies to the proxy's rows and to Claude accounts on this Mac whose
+  login is also on the proxy. "Data as of" shows when the proxy saw the
+  numbers. An account that is waiting out a rate limit still shows them.
+- A Claude account on this Mac that reads its usage through CLIProxyAPI
+  (because its own login has expired) now keeps each answer for two minutes,
+  like the proxy's own rows. Before, it asked Anthropic again on every
+  refresh, up to twice a minute. The Refresh button still asks right away.
+
 ## [2.9.3] — 2026-11-07
 
 ### Changed

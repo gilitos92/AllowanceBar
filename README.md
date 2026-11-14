@@ -2,7 +2,7 @@
 
 A tiny macOS menu bar app (no Dock icon) that keeps your AI coding usage limits
 visible at a glance — Codex/ChatGPT, Cursor, Claude
-Code, and Gemini (one or several accounts each), Claude API spending and token usage, plus pay-as-you-go balances for OpenRouter, DeepSeek, Kimi,
+Code, Gemini, and Meta's Muse Code (one or several accounts each), Claude API spending and token usage, plus pay-as-you-go balances for OpenRouter, DeepSeek, Kimi,
 Z.ai, and Venice — with a dropdown showing detailed meters, reset countdowns,
 and balances. Keep every limit on screen in a floating window that stays
 above your work, full size, as a compact mini panel, or as a nano panel with
@@ -31,14 +31,16 @@ Allowance Bar's Usage Details window (⌘D, or `allowancebar://details`) keeps
 every limit visible while you work:
 
 - **Three sizes.** The full window shows every provider's meters, reset times,
-  and balances. One click collapses it into a small, chrome-free **mini
-  panel** with one meter per limit (for example 5-hour and weekly) and the
-  time until each resets. The **nano panel** is smaller still: only the menu
-  bar text, e.g. `Cx 80% (89%) · Cl 52% (58%)`. Choose **Nano View** in
-  the full window's toolbar or the mini panel's controls. Hover the nano
-  panel to show Close, Keep on Top, Show on All Desktops, Opacity, and
-  Expand above the text without moving it. Drag either panel anywhere
-  outside the buttons. Expand returns nano to mini, then mini to full.
+  and balances, two limits per row. The small, chrome-free **mini panel**
+  has one meter per limit (for example 5-hour and weekly), the time until
+  each resets, and each account's name in its own column. The **nano
+  panel** is smaller still: only the menu bar text, e.g.
+  `Cx 80% (89%) · Cl 52% (58%)`. Switch views with the Full, Compact and
+  Nano buttons at the right of the full window's toolbar, in the panels'
+  hover controls, or in the menu bar dropdown, which opens the window in
+  that view. Hover a panel to show Close, Keep on Top, Show on All
+  Desktops, Opacity and the view buttons without moving it. Drag either
+  panel anywhere outside the buttons.
 - **Choose how many limits nano shows.** In **Settings → Display**, turn on
   **Show all limits in the nano window** to show each provider's limits in
   dropdown order. For Codex and Claude, `80% (89%)` means the 5-hour limit
@@ -51,10 +53,9 @@ every limit visible while you work:
   apps.
 - **Show on All Desktops.** It follows you to every desktop (Space) and over
   full-screen apps.
-- **Made to sit on top of your work.** A standard frosted background keeps
-  text readable and captures cleanly in window screenshots. Adjust its
-  opacity without fading the text; on macOS 26 and later, the toolbar uses
-  Liquid Glass.
+- **Made to sit on top of your work.** On macOS 26 and later the window is
+  Liquid Glass (a frosted material on earlier versions), which keeps text
+  readable. Adjust its opacity without fading the text.
 
 Your choices are remembered, so the window comes back the way you left it.
 
@@ -77,6 +78,7 @@ Cx 5% · CxW 62% · Cu 20% · Cl 40% · OR $8.06
 | **Claude** (`Cl`) | `api.anthropic.com/api/oauth/usage` | Uses the Claude Code OAuth token (credentials file or Keychain via Apple's `security` tool); 5h + weekly (+Opus) windows. Can ask a [CLIProxyAPI](#cliproxyapi) server instead when that token has expired. |
 | **Claude API** (`ClA`) | Anthropic organization Usage & Cost API | Paste an organization reporting key; shows current UTC calendar-month spending and input/output/cache tokens. Prepaid credits are unavailable via the public API; a link opens Console billing. |
 | **Gemini** (`Ge`) | Cloud Code quota API | Uses the Gemini CLI OAuth token (`~/.gemini/oauth_creds.json`); Pro/Flash/Flash-Lite daily quotas. |
+| **Muse Code** (`Mu`) | Your own Muse Code CLI via its `muse serve` protocol | Meta's coding agent. Shows the subscription's 5-hour and weekly limits and plan, read every 5 minutes through a ~1-second `muse serve` call that spends no prompt. Muse Code reads its own Meta login; Allowance Bar never sees it. Only subscriptions report limits: an API key or pay-as-you-go account shows a message instead, because Meta has no balance API. |
 | **Antigravity** (`Ag…`) | Cloud Code quota summary, through [CLIProxyAPI](#cliproxyapi) | Only for Antigravity logins on a CLIProxyAPI server; 5-hour and weekly limits for each model group. |
 | **OpenRouter** (`OR`) | `openrouter.ai/api/v1/credits` + `/api/v1/key` | Connect via OAuth (provisions a dedicated, revocable key) or paste a key; shows account credits when permitted, otherwise the key's limit/remaining balance or current-month spend. |
 | **DeepSeek** (`DS`) | `api.deepseek.com/user/balance` | Paste an API key; shows prepaid balance. |

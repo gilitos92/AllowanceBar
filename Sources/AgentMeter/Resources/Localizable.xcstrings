@@ -2039,22 +2039,6 @@
         }
       }
     },
-    "Label": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Label"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Etiqueta"
-          }
-        }
-      }
-    },
     "Label is required": {
       "localizations": {
         "en": {
@@ -2239,16 +2223,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Muestra todos los límites en el orden del menú, p. ej., “Cx 8% (35%)” para los límites de 5 horas y semanal de Codex."
-          }
-        }
-      }
-    },
-    "Mode": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Modo"
           }
         }
       }
@@ -3349,22 +3323,6 @@
         }
       }
     },
-    "Expand": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expand"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expandir"
-          }
-        }
-      }
-    },
     "Opacity": {
       "localizations": {
         "en": {
@@ -4171,22 +4129,6 @@
         }
       }
     },
-    "%@ accounts": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ accounts"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cuentas de %@"
-          }
-        }
-      }
-    },
     "%@ removed": {
       "localizations": {
         "en": {
@@ -4247,38 +4189,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copia el comando de Terminal para iniciar sesión en esta cuenta de %@"
-          }
-        }
-      }
-    },
-    "Default (%@)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Default (%@)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Predeterminada (%@)"
-          }
-        }
-      }
-    },
-    "Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Each account gets its own section below for its key. Removing an account deletes its saved key from Allowance Bar."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cada cuenta tiene su propia sección abajo para su clave. Quitar una cuenta elimina su clave guardada en Allowance Bar."
           }
         }
       }
@@ -4359,38 +4269,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Esta carpeta ya está agregada"
-          }
-        }
-      }
-    },
-    "Rename": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cambiar nombre"
-          }
-        }
-      }
-    },
-    "Rename %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rename %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cambiar nombre de %@"
           }
         }
       }
@@ -5051,18 +4929,18 @@
         }
       }
     },
-    "When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ.": {
+    "Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When a Claude Code login on this Mac expires, Allowance Bar reads it through the proxy login with the same email. Choose another login here if the emails differ."
+            "value": "Allowance Bar uses the proxy login with the same email for each Claude Code login on this Mac: it shows the limits the proxy saw on recent messages, and reads through the proxy when the login on this Mac expires. Choose another login here if the emails differ."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cuando expira un inicio de sesión de Claude Code en esta Mac, Allowance Bar lo lee a través del inicio de sesión del proxy con el mismo correo. Elige otro aquí si los correos son distintos."
+            "value": "Allowance Bar usa el inicio de sesión del proxy con el mismo correo para cada inicio de sesión de Claude Code en esta Mac: muestra los límites que el proxy vio en mensajes recientes y lee a través del proxy cuando expira el inicio de sesión en esta Mac. Elige otro aquí si los correos son distintos."
           }
         }
       }
@@ -5207,6 +5085,660 @@
           "stringUnit": {
             "state": "translated",
             "value": "Muestra el puesto de cada cuenta entre los inicios de sesión de su proveedor en el orden de uso de CLIProxyAPI, p. ej. “Proxy #1”, según las prioridades. El proxy envía las solicitudes nuevas primero a la prioridad más alta. Aparece cuando el proxy tiene más de un inicio de sesión de un proveedor con prioridades distintas. La ventana nano muestra solo “#1”, después de cada entrada."
+          }
+        }
+      }
+    },
+    "Muse Code CLI not found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code CLI not found"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontró la CLI de Muse Code"
+          }
+        }
+      }
+    },
+    "Not signed in — run muse login in Terminal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not signed in — run muse login in Terminal"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No has iniciado sesión — ejecuta muse login en Terminal"
+          }
+        }
+      }
+    },
+    "Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code is using an API key. Sign in with your Meta account (muse login) to show subscription limits."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code está usando una clave API. Inicia sesión con tu cuenta de Meta (muse login) para ver los límites de tu suscripción."
+          }
+        }
+      }
+    },
+    "This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Meta account has no Muse Code subscription. Allowance Bar can only show subscription limits."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta cuenta de Meta no tiene suscripción a Muse Code. Allowance Bar solo puede mostrar límites de suscripción."
+          }
+        }
+      }
+    },
+    "Muse Code has no usage data yet. It appears after your first prompt in a new window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code has no usage data yet. It appears after your first prompt in a new window."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code aún no tiene datos de uso. Aparecen después de tu primer prompt en una ventana nueva."
+          }
+        }
+      }
+    },
+    "Muse Code asked to wait before checking usage again": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code asked to wait before checking usage again"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code pidió esperar antes de volver a consultar el uso"
+          }
+        }
+      }
+    },
+    "Update Muse Code — this version can't report usage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Muse Code — this version can't report usage"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualiza Muse Code — esta versión no puede informar el uso"
+          }
+        }
+      }
+    },
+    "Muse Code timed out": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code timed out"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se agotó el tiempo de espera de Muse Code"
+          }
+        }
+      }
+    },
+    "Muse Code protocol error": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code protocol error"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error de protocolo de Muse Code"
+          }
+        }
+      }
+    },
+    "Muse Code exited unexpectedly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code exited unexpectedly"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muse Code se cerró inesperadamente"
+          }
+        }
+      }
+    },
+    "Finish setting up your Meta account: run muse in Terminal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish setting up your Meta account: run muse in Terminal"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termina de configurar tu cuenta de Meta: ejecuta muse en Terminal"
+          }
+        }
+      }
+    },
+    "Meta couldn't report Muse Code usage right now": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meta couldn't report Muse Code usage right now"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meta no pudo informar el uso de Muse Code en este momento"
+          }
+        }
+      }
+    },
+    "This account uses an API key. Sign it in with your Meta account (the login command in Settings) to show subscription limits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account uses an API key. Sign it in with your Meta account (the login command in Settings) to show subscription limits."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta cuenta usa una clave API. Inicia sesión con tu cuenta de Meta (el comando de inicio de sesión en Configuración) para ver los límites de la suscripción."
+          }
+        }
+      }
+    },
+    "Finish setting up this Meta account: run muse with the same variables as the login command in Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish setting up this Meta account: run muse with the same variables as the login command in Settings"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termina de configurar esta cuenta de Meta: ejecuta muse con las mismas variables que el comando de inicio de sesión en Configuración"
+          }
+        }
+      }
+    },
+    "5h": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 h"
+          }
+        }
+      }
+    },
+    "Week": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Semana"
+          }
+        }
+      }
+    },
+    "in %@": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en %@"
+          }
+        }
+      }
+    },
+    "Full View": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista completa"
+          }
+        }
+      }
+    },
+    "Show every provider's limits, reset times and plans.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muestra los límites, los reinicios y los planes de cada proveedor."
+          }
+        }
+      }
+    },
+    "View": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista"
+          }
+        }
+      }
+    },
+    "More": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Más"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agentes"
+          }
+        }
+      }
+    },
+    "%lld accounts": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld cuentas"
+          }
+        }
+      }
+    },
+    "%@ added": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ se agregó"
+          }
+        }
+      }
+    },
+    "1 account found": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se encontró 1 cuenta"
+          }
+        }
+      }
+    },
+    "%lld accounts found": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se encontraron %lld cuentas"
+          }
+        }
+      }
+    },
+    "Accounts": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuentas"
+          }
+        }
+      }
+    },
+    "Add Account…": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agregar cuenta…"
+          }
+        }
+      }
+    },
+    "After adding it, open the account to save its key.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Después de agregarla, abre la cuenta para guardar su clave."
+          }
+        }
+      }
+    },
+    "Auto shows this account when Allowance Bar finds it on this Mac.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático muestra esta cuenta cuando Allowance Bar la encuentra en esta Mac."
+          }
+        }
+      }
+    },
+    "Claude, Codex, Gemini and Antigravity logins from your proxy": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicios de sesión de Claude, Codex, Gemini y Antigravity de tu proxy"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listo"
+          }
+        }
+      }
+    },
+    "Find Accounts": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar cuentas"
+          }
+        }
+      }
+    },
+    "Found on this Mac": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encontradas en esta Mac"
+          }
+        }
+      }
+    },
+    "Looks for other signed-in folders of this tool in your home folder.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Busca otras carpetas con sesión iniciada de esta herramienta en tu carpeta de inicio."
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nombre"
+          }
+        }
+      }
+    },
+    "No other accounts found.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontraron otras cuentas."
+          }
+        }
+      }
+    },
+    "Opens this account's settings": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre los ajustes de esta cuenta"
+          }
+        }
+      }
+    },
+    "Organization spend from the Claude API": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gasto de la organización desde la API de Claude"
+          }
+        }
+      }
+    },
+    "Pay-as-you-go balance": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saldo de prepago"
+          }
+        }
+      }
+    },
+    "Plan usage from the Cursor app": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uso del plan desde la app de Cursor"
+          }
+        }
+      }
+    },
+    "Quotas from the Gemini CLI": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuotas desde la CLI de Gemini"
+          }
+        }
+      }
+    },
+    "Quotas from your CLIProxyAPI logins": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuotas de tus inicios de sesión en CLIProxyAPI"
+          }
+        }
+      }
+    },
+    "Remove Account": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar cuenta"
+          }
+        }
+      }
+    },
+    "Removing deletes this account's saved key from Allowance Bar.": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al quitarla se borra la clave guardada de esta cuenta en Allowance Bar."
+          }
+        }
+      }
+    },
+    "Show": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar"
+          }
+        }
+      }
+    },
+    "Sign-in command": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comando de inicio de sesión"
+          }
+        }
+      }
+    },
+    "Subscription limits from Claude Code": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Límites de la suscripción desde Claude Code"
+          }
+        }
+      }
+    },
+    "Subscription limits from the Codex CLI": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Límites de la suscripción desde la CLI de Codex"
+          }
+        }
+      }
+    },
+    "Subscription limits from the Muse Code CLI": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Límites de la suscripción desde la CLI de Muse Code"
+          }
+        }
+      }
+    },
+    "Account": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuenta"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnóstico"
+          }
+        }
+      }
+    },
+    "Support Allowance Bar": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apoyar a Allowance Bar"
+          }
+        }
+      }
+    },
+    "Updated": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualizado"
+          }
+        }
+      }
+    },
+    "%lldd": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld d"
+          }
+        }
+      }
+    },
+    "%lldh": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld h"
+          }
+        }
+      }
+    },
+    "%lldm": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld min"
           }
         }
       }

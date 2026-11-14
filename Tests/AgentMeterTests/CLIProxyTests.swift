@@ -15,6 +15,8 @@ private final class MockCLIProxyServer {
     var claudeUsageStatus: Int?
     /// Headers of every upstream answer the proxy passes on.
     var upstreamHeader: [String: [String]] = [:]
+    /// `quota` of the Main@Example.com Claude login, as JSON; empty for none.
+    var mainQuota = ""
 
     func reset() {
         lock.lock()
@@ -26,6 +28,7 @@ private final class MockCLIProxyServer {
         planStatus = nil
         claudeUsageStatus = nil
         upstreamHeader = [:]
+        mainQuota = ""
     }
 
     func requestLog() -> [String] {
@@ -67,7 +70,7 @@ private final class MockCLIProxyServer {
             guard authFilesStatus == 200 else { return (authFilesStatus, Data(authFilesBody.utf8)) }
             return (200, Data("""
             {"files":[
-              {"auth_index":"idx-main","type":"claude","provider":"claude","email":"Main@Example.com","disabled":false},
+              {"auth_index":"idx-main","type":"claude","provider":"claude","email":"Main@Example.com","disabled":false\(mainQuota.isEmpty ? "" : ",\"quota\":" + mainQuota)},
               {"auth_index":"idx-off","type":"claude","provider":"claude","email":"off@example.com","disabled":true},
               {"auth_index":"idx-codex","type":"codex","provider":"codex","email":"main@example.com","disabled":false,
                "id_token":{"chatgpt_account_id":"acct-123","plan_type":"plus"}},
@@ -134,6 +137,13 @@ private final class MockCLIProxyServer {
 }
 
 private extension URLRequest {
+    /// A management request as Allowance Bar sends it, for the mock server.
+    static func management(_ path: String) -> URLRequest {
+        var request = URLRequest(url: URL(string: "http://proxy.test/v0/management/\(path)")!)
+        request.setValue("Bearer mgmt-key", forHTTPHeaderField: "Authorization")
+        return request
+    }
+
     /// URLSession moves bodies into a stream before URLProtocol sees them.
     func httpBodyStreamData() -> Data? {
         guard let stream = httpBodyStream else { return nil }
@@ -220,7 +230,8 @@ final class CLIProxyTests: XCTestCase {
             proxyConfig: { config },
             proxyAccountCache: cache,
             proxyPlanCache: CLIProxyPlanCache(),
-            rateLimits: rateLimits
+            rateLimits: rateLimits,
+            proxyUsageCache: CLIProxyUsageCache()
         )
     }
 
@@ -243,14 +254,145 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(header["anthropic-beta"], ClaudeProvider.betaHeader)
     }
 
-    func testValidLocalLoginDoesNotAskTheProxy() async throws {
+    func testLocalAccountReusesItsProxyAnswerUntilAnExplicitRefresh() async throws {
+        let provider = try makeProvider(expiresAt: 1, config: config)
+
+        _ = try await provider.fetch()
+        _ = try await provider.fetch()
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 1, "One usage request in two minutes")
+
+        let usage = try await provider.fetch(forceRefresh: true)
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2, "Refresh asks again")
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [42])
+    }
+
+    func testValidLocalLoginWithoutProxyNumbersAsksAnthropicDirectly() async throws {
         let expiresAt = Date().addingTimeInterval(3_600).timeIntervalSince1970 * 1_000
         let provider = try makeProvider(expiresAt: expiresAt, config: config)
 
         let usage = try await provider.fetch()
 
         XCTAssertEqual(usage.windows.map(\.usedPercent), [7])
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), ["GET api.anthropic.com/api/oauth/usage"])
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), [
+            "GET proxy.test/v0/management/auth-files",
+            "GET api.anthropic.com/api/oauth/usage",
+        ])
+    }
+
+    // MARK: - Numbers the proxy already has
+
+    /// `quota` as CLIProxyAPI lists it: microseconds and a UTC offset.
+    private func quotaJSON(observedAgo: TimeInterval, now: Date = Date()) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: -6 * 3600)
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSxxxxx"
+        let observed = formatter.string(from: now.addingTimeInterval(-observedAgo))
+        let fiveHourReset = Int(now.addingTimeInterval(3_600).timeIntervalSince1970)
+        let weekReset = Int(now.addingTimeInterval(86_400).timeIntervalSince1970)
+        return """
+        {"observed_at":"\(observed)","signals":{
+          "Anthropic-Ratelimit-Unified-5h-Reset":"\(fiveHourReset)",
+          "Anthropic-Ratelimit-Unified-5h-Status":"allowed",
+          "Anthropic-Ratelimit-Unified-5h-Utilization":"0.56",
+          "Anthropic-Ratelimit-Unified-7d-Reset":"\(weekReset)",
+          "Anthropic-Ratelimit-Unified-7d-Status":"allowed_warning",
+          "Anthropic-Ratelimit-Unified-7d-Utilization":"0.77"}}
+        """
+    }
+
+    func testLoginListCarriesTheLimitsTheProxySaw() throws {
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+        let data = MockCLIProxyURLProtocol.server.respond(to: URLRequest.management("auth-files")).1
+
+        let logins = try CLIProxyClient.parseLogins(data)
+
+        let quota = try XCTUnwrap(logins.first { $0.authIndex == "idx-main" }?.claudeQuota)
+        XCTAssertEqual(quota.fiveHour?.usedPercent ?? 0, 56, accuracy: 0.001)
+        XCTAssertEqual(quota.sevenDay?.usedPercent ?? 0, 77, accuracy: 0.001)
+        XCTAssertTrue(quota.isFresh())
+        XCTAssertNil(logins.first { $0.authIndex == "idx-off" }?.claudeQuota, "No message, no numbers")
+    }
+
+    func testProxyRowUsesRecentProxyNumbersWithoutAskingForUsage() async throws {
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+
+        let usage = try await proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com")).fetch()
+
+        XCTAssertEqual(usage.windows.map { $0.usedPercent.rounded() }, [56, 77])
+        XCTAssertEqual(usage.planName, "Pro")
+        XCTAssertEqual(usage.asOf?.timeIntervalSinceNow ?? 0, -60, accuracy: 5, "The row shows when the proxy saw them")
+        let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
+        XCTAssertEqual(urls, [ClaudeProvider.profileURL.absoluteString], "Only the plan, never the usage endpoint")
+    }
+
+    func testProxyRowAsksAnthropicWhenTheProxyNumbersAreOld() async throws {
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: ClaudeProxyQuota.maxAge + 60)
+
+        let usage = try await proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com")).fetch()
+
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [42])
+        XCTAssertNotNil(MockCLIProxyURLProtocol.server.apiCall(to: ClaudeProvider.usageURL.absoluteString))
+    }
+
+    func testLocalAccountUsesRecentProxyNumbersBeforeItsOwnLogin() async throws {
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+        let expiresAt = Date().addingTimeInterval(3_600).timeIntervalSince1970 * 1_000
+        let provider = try makeProvider(expiresAt: expiresAt, config: config)
+
+        let usage = try await provider.fetch()
+
+        XCTAssertEqual(usage.windows.map { $0.usedPercent.rounded() }, [56, 77])
+        XCTAssertEqual(usage.planName, "Max", "Same account: Claude Code's saved plan")
+        XCTAssertEqual(usage.accountEmail, "Main@Example.com")
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), ["GET proxy.test/v0/management/auth-files"])
+    }
+
+    func testRateLimitedAccountStillShowsRecentProxyNumbers() async throws {
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+        let rateLimits = ClaudeRateLimitGate()
+        _ = await rateLimits.limited(ClaudeRateLimitGate.key(email: "main@example.com", fallback: ""), retryAfter: 600)
+        let provider = try makeProvider(expiresAt: 1, config: config, rateLimits: rateLimits)
+
+        let usage = try await provider.fetch()
+
+        XCTAssertEqual(usage.windows.map { $0.usedPercent.rounded() }, [56, 77])
+    }
+
+    func testProxyNumbersMapLikeTheUsageEndpoint() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let quota = try XCTUnwrap(ClaudeProxyQuota(
+            signals: [
+                "anthropic-ratelimit-unified-5h-utilization": "0.3",
+                "anthropic-ratelimit-unified-5h-reset": "\(Int(now.timeIntervalSince1970) - 10)",
+                "ANTHROPIC-RATELIMIT-UNIFIED-7D-STATUS": "rejected",
+                "anthropic-ratelimit-unified-7d-utilization": "0.98",
+                "anthropic-ratelimit-unified-7d-reset": "\(Int(now.timeIntervalSince1970) + 3_600)",
+            ],
+            observedAt: "2027-01-15T02:00:00Z"
+        ))
+
+        let usage = quota.usage(plan: "pro", now: now)
+
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [0, 100], "A passed reset empties the window; rejected is full")
+        XCTAssertEqual(usage.windows.map(\.resetsAt), [nil, now.addingTimeInterval(3_600)])
+        XCTAssertEqual(usage.planName, "Pro")
+        XCTAssertNil(ClaudeProxyQuota(signals: [:], observedAt: "2027-01-15T02:00:00Z"), "No headers yet")
+        XCTAssertNil(ClaudeProxyQuota(signals: ["anthropic-ratelimit-unified-5h-utilization": "0.3"], observedAt: nil))
+        XCTAssertNotNil(ClaudeProxyQuota.date(fromISO8601: "2026-11-13T12:27:21.145256-06:00"))
+        XCTAssertNotNil(ClaudeProxyQuota.date(fromISO8601: "2026-11-13T12:27:21.1452567-06:00"))
+    }
+
+    func testSlowProxyDoesNotHoldUpALocalAccount() async {
+        let start = Date()
+        let value = await Deadline.value(within: 0.1) { () async -> Int? in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            return 1
+        }
+        XCTAssertNil(value)
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2)
+        let quick = await Deadline.value(within: 5) { () async -> Int? in 2 }
+        XCTAssertEqual(quick, 2)
     }
 
     func testChosenProxyLoginOverridesEmailMatch() async throws {
@@ -476,7 +618,10 @@ final class CLIProxyTests: XCTestCase {
                 XCTAssertNotNil(retryAt)
             }
         }
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), ["GET api.anthropic.com/api/oauth/usage"])
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), [
+            "GET proxy.test/v0/management/auth-files",
+            "GET api.anthropic.com/api/oauth/usage",
+        ], "The login list has no numbers, and Anthropic is asked once")
     }
 
     func testLocalRateLimitAlsoHoldsTheSameAccountsProxyRow() async throws {
@@ -883,7 +1028,8 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(index(logins[0].providerID), index("claude") + 1)
         XCTAssertEqual(index(logins[3].providerID), index("gemini") + 1)
         XCTAssertEqual(index(logins[2].providerID), index("gemini") + 2)
-        XCTAssertEqual(index("openrouter"), index("gemini") + 3)
+        XCTAssertEqual(index("muse"), index("gemini") + 3)
+        XCTAssertEqual(index("openrouter"), index("gemini") + 4)
     }
 
     func testDuplicateNeedsTheSameProviderAndEmail() {

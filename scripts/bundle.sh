@@ -24,7 +24,7 @@ APP_NAME="Allowance Bar"
 EXECUTABLE="AllowanceBar"
 BUNDLE_ID="com.ggv.AllowanceBar"
 CLI_NAME="allowancebar"
-VERSION="${ALLOWANCEBAR_VERSION:-2.9.3}"
+VERSION="${ALLOWANCEBAR_VERSION:-2.10.0}"
 if [[ -z "${SIGN_IDENTITY:-}" ]]; then
     SIGN_IDENTITY="$(find_developer_id_identity)"
     SIGN_IDENTITY="${SIGN_IDENTITY:--}"
@@ -34,7 +34,13 @@ fi
 xcrun xcstringstool compile Sources/AgentMeter/Resources/Localizable.xcstrings \
     --output-directory Sources/AgentMeter/Resources
 
-swift build -c release
+# SwiftPM records the deployment target (14.0) as the SDK the app was built
+# with, and macOS then runs the app in compatibility mode with the previous
+# design. Record the real SDK version, so macOS 26 and later draw the app's
+# controls in the current design. The minimum macOS version stays 14.0.
+SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
+swift build -c release \
+    -Xlinker -platform_version -Xlinker macos -Xlinker 14.0 -Xlinker "$SDK_VERSION"
 
 APP="${APP_NAME}.app"
 rm -rf "$APP"
