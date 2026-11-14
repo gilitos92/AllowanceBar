@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Where provider modules are shown. The dropdown packs an account's limits
-/// into two columns; the main window gives each limit its own row and lays
-/// the modules out in two columns.
+/// Where provider modules are shown. Both pack an account's limits two per
+/// row; the dropdown stacks the modules, and the main window lays them out in
+/// two columns.
 enum ProviderModuleLayout {
     case dropdown
     case window
@@ -50,8 +50,7 @@ struct ProviderUsageSections: View {
             priorities: group.members.reduce(into: [:]) { result, provider in
                 result[provider.id] = priority(for: provider)
             },
-            settings: settings,
-            dense: layout == .dropdown
+            settings: settings
         )
     }
 
@@ -68,7 +67,8 @@ struct ProviderUsageSections: View {
         for group in groups {
             let rows = group.members.reduce(1) { total, provider in
                 let usage = store.state(for: provider.id).usage
-                let lines = max(1, usage?.windows.count ?? 1) + (usage?.balance != nil ? 1 : 0)
+                // Two limits per row.
+                let lines = max(1, ((usage?.windows.count ?? 1) + 1) / 2) + (usage?.balance != nil ? 1 : 0)
                 return total + lines + (group.members.count > 1 ? 1 : 0)
             }
             let target = heights[0] <= heights[1] ? 0 : 1
@@ -86,8 +86,6 @@ struct ProviderModule: View {
     let states: [String: ProviderState]
     let priorities: [String: ProxyPriority]
     @ObservedObject var settings: SettingsStore
-    /// Two limits per row in the dropdown; one per row in the window.
-    let dense: Bool
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -128,7 +126,7 @@ struct ProviderModule: View {
                     InfoChip(text: plan)
                 }
             }
-            ProviderStateContent(provider: provider, state: state, settings: settings, dense: dense)
+            ProviderStateContent(provider: provider, state: state, settings: settings)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(provider.displayName)
@@ -159,8 +157,7 @@ struct ProviderModule: View {
                     state: state(for: provider),
                     plan: sharedPlan == nil ? state(for: provider).usage?.planName : nil,
                     priority: priorities[provider.id],
-                    settings: settings,
-                    dense: dense
+                    settings: settings
                 )
             }
         }
@@ -213,7 +210,6 @@ private struct AccountBlock: View {
     let plan: String?
     let priority: ProxyPriority?
     @ObservedObject var settings: SettingsStore
-    let dense: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -238,7 +234,7 @@ private struct AccountBlock: View {
                     ProxyPriorityCapsule(priority: priority)
                 }
             }
-            ProviderStateContent(provider: provider, state: state, settings: settings, dense: dense)
+            ProviderStateContent(provider: provider, state: state, settings: settings)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(provider.displayName)
@@ -251,7 +247,6 @@ private struct ProviderStateContent: View {
     let provider: any UsageProvider
     let state: ProviderState
     @ObservedObject var settings: SettingsStore
-    let dense: Bool
 
     var body: some View {
         switch state {
@@ -266,12 +261,12 @@ private struct ProviderStateContent: View {
                 .fixedSize(horizontal: false, vertical: true)
         case .ready(let usage):
             VStack(alignment: .leading, spacing: 8) {
-                UsageMetersView(providerName: provider.displayName, usage: usage, settings: settings, dense: dense)
+                UsageMetersView(providerName: provider.displayName, usage: usage, settings: settings)
                 subscriptionRenewalRow
             }
         case .stale(let usage, let error, let since):
             VStack(alignment: .leading, spacing: 8) {
-                UsageMetersView(providerName: provider.displayName, usage: usage, settings: settings, dense: dense)
+                UsageMetersView(providerName: provider.displayName, usage: usage, settings: settings)
                     .opacity(0.55)
                 subscriptionRenewalRow
                 VStack(alignment: .leading, spacing: 2) {
@@ -375,7 +370,6 @@ struct UsageMetersView: View {
     let providerName: String
     let usage: ProviderUsage
     @ObservedObject var settings: SettingsStore
-    var dense = false
 
     /// Data older than this gets its own "Data as of" line, e.g. limits
     /// CLIProxyAPI saw several minutes ago. Fresher data, including Codex's
@@ -410,18 +404,18 @@ struct UsageMetersView: View {
     @ViewBuilder
     private var limits: some View {
         let meters = ForEach(usage.windows, id: \.label) { window in
-            WindowMeter(providerName: providerName, window: window, settings: settings, dense: dense)
+            WindowMeter(providerName: providerName, window: window, settings: settings)
         }
-        if dense, usage.windows.count > 1 {
+        if usage.windows.count > 1 {
             // Two limits per row when they fit; one per row otherwise, e.g.
             // for long model names.
             ViewThatFits(in: .horizontal) {
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 9) {
                     ForEach(Array(stride(from: 0, to: usage.windows.count, by: 2)), id: \.self) { start in
                         GridRow(alignment: .top) {
-                            WindowMeter(providerName: providerName, window: usage.windows[start], settings: settings, dense: true)
+                            WindowMeter(providerName: providerName, window: usage.windows[start], settings: settings)
                             if start + 1 < usage.windows.count {
-                                WindowMeter(providerName: providerName, window: usage.windows[start + 1], settings: settings, dense: true)
+                                WindowMeter(providerName: providerName, window: usage.windows[start + 1], settings: settings)
                             } else {
                                 Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                             }
@@ -430,14 +424,12 @@ struct UsageMetersView: View {
                 }
                 VStack(alignment: .leading, spacing: 9) { meters }
             }
-        } else if dense {
+        } else {
             // A single limit keeps half the width, like its neighbors.
             HStack(spacing: 14) {
                 meters
                 Color.clear.frame(height: 1)
             }
-        } else {
-            VStack(alignment: .leading, spacing: 10) { meters }
         }
     }
 }
@@ -551,7 +543,6 @@ private struct WindowMeter: View {
     let providerName: String
     let window: UsageWindow
     @ObservedObject var settings: SettingsStore
-    let dense: Bool
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -561,19 +552,15 @@ private struct WindowMeter: View {
 
     private func meter(at now: Date) -> some View {
         let pace = settings.showsPace ? window.pace(now: now) : nil
-        let reset = window.compactReset(style: settings.resetTimeStyle, prefixed: !dense, now: now)
+        let reset = window.compactReset(style: settings.resetTimeStyle, prefixed: false, now: now)
         return VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: dense ? 5 : 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(window.shortLabel)
                     .font(.system(size: 12.5, weight: .semibold))
                     .lineLimit(1)
                     .fixedSize()
                 if reset != nil || pace != nil {
                     HStack(spacing: 3) {
-                        if !dense, reset != nil {
-                            Image(systemName: "clock")
-                                .font(.system(size: 9.5, weight: .medium))
-                        }
                         if let reset {
                             Text(reset)
                                 .font(.system(size: 11, weight: .medium))

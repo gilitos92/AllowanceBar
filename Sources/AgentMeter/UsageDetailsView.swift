@@ -281,8 +281,9 @@ struct UsageDetailsView: View {
         }
         // The window fits its content (see `windowResizability(.contentSize)`)
         // and scrolls only when the content is taller than the screen allows.
-        // Wide enough for two columns of modules and the toolbar.
-        .frame(minWidth: 620, idealWidth: 660, maxWidth: .infinity)
+        // Wide enough for two columns of modules, each with two limits per
+        // row like the dropdown, and the toolbar.
+        .frame(minWidth: 720, idealWidth: 740, maxWidth: .infinity)
         .frame(height: min(contentHeight ?? 500, Self.maxHeight))
     }
 }
