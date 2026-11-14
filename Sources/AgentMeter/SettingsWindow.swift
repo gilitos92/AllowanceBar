@@ -214,10 +214,11 @@ private struct ProvidersSettingsTab: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // A SwiftUI scroll view like the page beside it, not a List: on
-            // macOS 26 and later the title bar treats a List differently from
-            // a scroll view, which split the title bar in two at the list's
-            // edge. A sidebar-style List also became the window's sidebar.
+            // A card in a scroll view, like the page beside it. On macOS 27.2
+            // the panes run up under the translucent title bar, so a
+            // full-height column background or divider showed through it and
+            // split the title bar in two. A sidebar-style List also became the
+            // window's sidebar and pushed the toolbar to the right.
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(groups) { group in
@@ -244,13 +245,13 @@ private struct ProvidersSettingsTab: View {
                         }
                     }
                 }
-                .padding(10)
+                .padding(6)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.settingsCardFill))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.settingsCardEdge, lineWidth: 0.5))
+                .padding(.leading, 14)
+                .padding(.vertical, 18)
             }
-            // Only behind the list, not up under the title bar.
-            .background(Color.settingsCardFill, ignoresSafeAreaEdges: [])
-            .frame(width: 220)
-
-            Divider()
+            .frame(width: 226)
 
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
