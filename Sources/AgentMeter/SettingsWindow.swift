@@ -213,52 +213,70 @@ private struct ProvidersSettingsTab: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // A card in a scroll view, like the page beside it. On macOS 27.2
-            // the panes run up under the translucent title bar, so a
-            // full-height column background or divider showed through it and
-            // split the title bar in two. A sidebar-style List also became the
-            // window's sidebar and pushed the toolbar to the right.
-            ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(groups) { group in
-                        SidebarItem(isSelected: selection == .provider(group.baseID)) {
-                            selection = .provider(group.baseID)
-                        } label: { isSelected in
-                            sidebarRow(for: group, isSelected: isSelected)
-                        }
-                    }
-                    Divider()
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                    SidebarItem(isSelected: selection == .cliProxy) {
-                        selection = .cliProxy
-                    } label: { _ in
-                        HStack(spacing: 8) {
-                            CLIProxyBadge(size: 20)
-                            Text(L("CLIProxyAPI"))
-                            Spacer(minLength: 4)
-                            if CLIProxyConfig.isConfigured {
-                                Circle().fill(.green).frame(width: 7, height: 7)
-                                    .accessibilityLabel(L("Saved"))
-                            }
-                        }
-                    }
-                }
-                .padding(6)
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.settingsCardFill))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.settingsCardEdge, lineWidth: 0.5))
-                .padding(.leading, 14)
-                .padding(.vertical, 18)
-            }
-            .frame(width: 226)
-
+        // The page's scroll view spans the whole pane, with its content
+        // starting after the list, and the list card floats over its left
+        // side. On macOS 27.2 the panes run up under the translucent title
+        // bar, which shows each scroll view's top edge effect while the
+        // pointer is over the toolbar; with two scroll views side by side the
+        // title bar looked split at the list's edge. (A sidebar-style List
+        // also became the window's sidebar and pushed the toolbar aside.)
+        ZStack(alignment: .topLeading) {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .safeAreaPadding(.leading, Self.listWidth)
+            providerList
+                .frame(width: Self.listWidth, alignment: .top)
         }
         .onAppear {
             if selection == nil, let first = groups.first {
                 selection = .provider(first.baseID)
+            }
+        }
+    }
+
+    private static let listWidth: CGFloat = 226
+
+    /// The providers on a card; it scrolls only when the window is too short
+    /// for the whole list.
+    private var providerList: some View {
+        ViewThatFits(in: .vertical) {
+            listRows
+                .padding(6)
+                .modifier(ListCard())
+            ScrollView {
+                listRows.padding(6)
+            }
+            .modifier(HiddenTopScrollEdgeEffect())
+            .modifier(ListCard())
+        }
+        .padding(.leading, 14)
+        .padding(.vertical, 18)
+    }
+
+    private var listRows: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(groups) { group in
+                SidebarItem(isSelected: selection == .provider(group.baseID)) {
+                    selection = .provider(group.baseID)
+                } label: { isSelected in
+                    sidebarRow(for: group, isSelected: isSelected)
+                }
+            }
+            Divider()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+            SidebarItem(isSelected: selection == .cliProxy) {
+                selection = .cliProxy
+            } label: { _ in
+                HStack(spacing: 8) {
+                    CLIProxyBadge(size: 20)
+                    Text(L("CLIProxyAPI"))
+                    Spacer(minLength: 4)
+                    if CLIProxyConfig.isConfigured {
+                        Circle().fill(.green).frame(width: 7, height: 7)
+                            .accessibilityLabel(L("Saved"))
+                    }
+                }
             }
         }
     }
@@ -319,6 +337,29 @@ private struct ProvidersSettingsTab: View {
     private var emptyDetail: some View {
         Text(L("No providers enabled. Open Settings to turn some on."))
             .foregroundStyle(.secondary)
+    }
+}
+
+/// The Providers list's rounded card.
+private struct ListCard: ViewModifier {
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        content
+            .background(shape.fill(Color.settingsCardFill))
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(Color.settingsCardEdge, lineWidth: 0.5))
+    }
+}
+
+/// The list's own scroll view never reaches the title bar, so it draws no
+/// top edge effect of its own.
+private struct HiddenTopScrollEdgeEffect: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content.scrollEdgeEffectHidden(true, for: .top)
+        } else {
+            content
+        }
     }
 }
 
