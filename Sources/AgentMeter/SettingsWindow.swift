@@ -1495,18 +1495,16 @@ private struct DisplaySettingsTab: View {
                 .settingsSegmented()
                 .settingsRow(L("Reset times"))
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L("Menu bar style"))
-                    Picker(L("Menu bar style"), selection: $settings.menuBarStyle) {
-                        Text(L("Full")).tag(MenuBarStyle.full)
-                        Text(L("Compact (worst only)")).tag(MenuBarStyle.compact)
-                        Text(L("Icon only")).tag(MenuBarStyle.icon)
-                    }
-                    // Fills the row: its three labels don't fit at their ideal width.
-                    .pickerStyle(.segmented)
-                    .controlSize(.large)
-                    .labelsHidden()
+                // A pop-up menu: the three labels are too long for a segmented
+                // control at this width.
+                Picker(L("Menu bar style"), selection: $settings.menuBarStyle) {
+                    Text(L("Full")).tag(MenuBarStyle.full)
+                    Text(L("Compact (worst only)")).tag(MenuBarStyle.compact)
+                    Text(L("Icon only")).tag(MenuBarStyle.icon)
                 }
+                .pickerStyle(.menu)
+                .fixedSize()
+                .settingsRow(L("Menu bar style"))
 
                 Toggle(L("Show all limits in the menu bar"), isOn: $settings.menuBarShowsAllLimits)
                     .disabled(settings.menuBarStyle == .icon)
