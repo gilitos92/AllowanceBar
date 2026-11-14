@@ -219,6 +219,7 @@ private struct ProvidersSettingsTab: View {
                     ForEach(groups) { group in
                         sidebarRow(for: group)
                             .tag(ProviderPane.provider(group.baseID))
+                            .listRowSeparator(.hidden)
                     }
                 }
                 Section {
@@ -232,9 +233,16 @@ private struct ProvidersSettingsTab: View {
                         }
                     }
                     .tag(ProviderPane.cliProxy)
+                    .listRowSeparator(.hidden)
                 }
             }
-            .listStyle(.sidebar)
+            // Not `.sidebar`: on macOS 26 and later a sidebar list becomes the
+            // window's sidebar, which runs up under the title bar and pushes
+            // the Settings toolbar to the right.
+            .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            // Only behind the list, not up under the title bar.
+            .background(Color.settingsCardFill, ignoresSafeAreaEdges: [])
             .frame(width: 220)
 
             Divider()
