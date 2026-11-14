@@ -45,16 +45,25 @@ announcement drafts, environment specifics) and complements this file.
   and still mirrored to the Codex-only `codexExtraAccounts` key so
   downgrades keep Codex accounts), `subscriptionRenewals`
   (`[providerID: SubscriptionRenewal]`, JSON).
-- UI: `MenuContent` (dropdown with a display-bounded scrolling provider list
-  and a fixed footer; short lists shrink to their content; provider sections live in
-  `ProviderUsageSections.swift` and are shared with `UsageDetailsView`, the
-  ⌘D / `allowancebar://details` window; `ProviderGroup` puts a provider's
-  accounts under one header via `ProviderGroupSection`, single accounts keep
-  `ProviderSection`), `SettingsWindow` (native tabbed
-  Settings: General / Providers / Display / Alerts; includes
-  `CodexAccountsSection` with auto-discovery of `~/.codex-*` homes and
-  `CodexSubscriptionSettings`), `AboutWindow`. Menu bar title is a rendered
-  `NSImage` (`MenuBarTitleRenderer`) with an `accessibilityDescription`.
+- UI ("Glass Modules" design, shared styles in `GlassStyle.swift`):
+  `MenuContent` (dropdown with a display-bounded scrolling provider list
+  and a fixed footer; short lists shrink to their content); provider
+  modules live in `ProviderUsageSections.swift` (`ProviderModule`; a
+  provider's accounts share one module via `ProviderGroup`) and are shared
+  with `UsageDetailsView`, the ⌘D / `allowancebar://details` window with
+  full, mini and nano views (`UsageDetailsMode`). `SettingsWindow` (tabbed
+  Settings: General / Providers / Display / Alerts / Agents) draws its own
+  cards with `SettingsCards.swift` instead of grouped forms; the Providers
+  pane lists providers beside one page per provider, with account sheets
+  and account discovery (`~/.<tool>-*` homes). `AboutWindow`. Menu bar
+  title is a rendered `NSImage` (`MenuBarTitleRenderer`) with an
+  `accessibilityDescription`.
+- macOS 26+ layout gotchas: a `.sidebar` List in Settings becomes the
+  window's sidebar, and on macOS 27.2 panes run under the translucent title
+  bar, where each scroll view's top edge effect shows on toolbar hover, so
+  the Providers pane uses one full-width scroll view with the list floating
+  over it. A titled window with a toolbar can't be shorter than 52 pt, so
+  the nano view detaches the toolbar.
 - Cross-cutting: `CredentialAssessment` (key-type detection + plain-language
   explainers), `UsageMeterSeverity` (shared 60/85% thresholds, symbols,
   spoken qualifiers), `NotificationManager` (`ThresholdTracker`,

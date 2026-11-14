@@ -29,14 +29,17 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
   full date shows on hover and VoiceOver reads it. One "Updated" time
   replaces the "Data as of" line under every provider; a provider whose data
   is more than six minutes old still shows its own time.
-- The dropdown's footer is the update time and four round buttons: Refresh,
-  Usage Details, Settings and More. More holds Check for Updates, About,
-  Support and Quit, so nothing wraps anymore.
-- The Usage Details window lays modules out in two columns. Its toolbar
-  switches between the full, mini and nano views and adds Refresh. The mini
-  window is a rounded glass panel with one aligned row per limit and the
-  account name of providers with several accounts. The nano window is a
-  glass capsule with a dot in each provider's color.
+- The dropdown's footer is the update time, then Refresh, the Full, Compact
+  and Nano views of Usage Details (each opens the window in that view;
+  the current one is highlighted while the window is open), Settings,
+  Support and More. More holds Check for Updates, About and Quit.
+- The Usage Details window lays modules out in two columns, with two limits
+  per row like the dropdown. Its toolbar has the window options and, at the
+  far right, the view switcher. The mini window is a rounded glass panel:
+  each account's name in its own column, one aligned row per limit, and a
+  divider between accounts. The nano window is a slim capsule with a dot in
+  each provider's color. The mini and nano windows' hover controls include
+  the same view switcher.
 - Settings has an Agents pane for agent and command-line access, and the
   Providers pane lists the providers beside one page per provider. A
   provider with one account shows its settings on its page; a provider
