@@ -37,12 +37,22 @@ struct UsageWindow: Equatable {
     /// Full length of the window (e.g. 5 hours). Needed with `resetsAt` to
     /// know how much of the window has passed, for the pace marker.
     let duration: TimeInterval?
+    /// The name for tight layouts when it isn't derived from `label`, e.g.
+    /// "Fable" for Claude's "Weekly (Fable)".
+    let shortName: String?
 
-    init(label: String, usedPercent: Double, resetsAt: Date?, duration: TimeInterval? = nil) {
+    init(
+        label: String,
+        usedPercent: Double,
+        resetsAt: Date?,
+        duration: TimeInterval? = nil,
+        shortName: String? = nil
+    ) {
         self.label = label
         self.usedPercent = usedPercent
         self.resetsAt = resetsAt
         self.duration = duration
+        self.shortName = shortName
     }
 
     /// Share of the window that has passed, 0...1. Nil when the window's

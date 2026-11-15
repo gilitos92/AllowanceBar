@@ -784,6 +784,8 @@
 	<string>Sitio web y código fuente</string>
 	<key>Week</key>
 	<string>Semana</string>
+	<key>Weekly (%@)</key>
+	<string>Semanal (%@)</string>
 	<key>Weekly (Opus)</key>
 	<string>Semanal (Opus)</string>
 	<key>Weekly limit</key>

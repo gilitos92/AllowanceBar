@@ -30,6 +30,8 @@ struct ClaudeProvider: AccountConfigurableProvider {
     /// Answers read through the proxy, kept for two minutes like the
     /// proxy's own rows.
     var proxyUsageCache: CLIProxyUsageCache = .shared
+    /// Per-model limits (Fable) that the proxy's headers may lack.
+    var modelLimits: ClaudeModelLimitMemory = .shared
 
     static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage")!
     /// The account profile Claude Code reads; it names the login's plan.
@@ -54,7 +56,28 @@ struct ClaudeProvider: AccountConfigurableProvider {
     /// `forceRefresh` (the Refresh button) skips the two-minute cache of
     /// answers read through the proxy; recent proxy numbers still come first.
     func fetch(forceRefresh: Bool) async throws -> ProviderUsage {
-        if let usage = await proxyNumbers() { return usage }
+        let fromHeaders = await proxyNumbers()
+        if let fromHeaders, fromHeaders.isComplete { return fromHeaders.usage }
+        do {
+            var usage = try await fetchUsage(forceRefresh: forceRefresh)
+            // The proxy login's email when there is one, as with the proxy's
+            // numbers: they look the memory up with it, and the duplicate
+            // proxy row stays hidden. It may differ from Claude Code's email
+            // (`cliProxyClaudeEmails`).
+            if let email = fromHeaders?.usage.accountEmail { usage.accountEmail = email }
+            await modelLimits.remember(usage, email: usage.accountEmail)
+            return usage
+        } catch {
+            // Recent numbers from the proxy beat an error; only their
+            // per-model limits may be old.
+            guard let fromHeaders else { throw error }
+            await modelLimits.attempted(email: fromHeaders.usage.accountEmail)
+            return fromHeaders.usage
+        }
+    }
+
+    /// The usage endpoint, with this Mac's login or through the proxy.
+    private func fetchUsage(forceRefresh: Bool) async throws -> ProviderUsage {
         var plan: String?
         let localError: ClaudeError
         do {
@@ -110,8 +133,10 @@ struct ClaudeProvider: AccountConfigurableProvider {
     /// are recent (`ClaudeProxyQuota`). They cost Anthropic nothing, so they
     /// come before this Mac's login and the proxy's usage request. Nil
     /// without a proxy, a matching login or recent numbers, and when the
-    /// proxy answers slowly or fails: then the usual sources follow.
-    func proxyNumbers(now: Date = Date()) async -> ProviderUsage? {
+    /// proxy answers slowly or fails: then the usual sources follow. Not
+    /// `isComplete` when they may lack the account's Fable limit
+    /// (`ClaudeModelLimitMemory`).
+    func proxyNumbers(now: Date = Date()) async -> (usage: ProviderUsage, isComplete: Bool)? {
         guard let config = proxyConfig() else { return nil }
         let client = CLIProxyClient(config: config, session: session, claudeRateLimits: rateLimits)
         let provider = self
@@ -128,9 +153,9 @@ struct ClaudeProvider: AccountConfigurableProvider {
         if plan == nil {
             plan = await client.plan(for: account, cache: proxyPlanCache)
         }
-        var usage = quota.usage(plan: plan, now: now)
-        usage.accountEmail = account.email
-        return usage
+        var numbers = await modelLimits.complete(quota, plan: plan, email: account.email, now: now)
+        numbers.usage.accountEmail = account.email
+        return numbers
     }
 
     /// The proxy login that matches this account.
@@ -309,16 +334,60 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let fiveHour: Window?
         let sevenDay: Window?
         let sevenDayOpus: Window?
+        /// Every limit again in a newer form. Only `weekly_scoped` entries
+        /// are new: one per model with its own weekly limit (Fable).
+        var limits: [Limit]? = nil
 
         enum CodingKeys: String, CodingKey {
             case fiveHour = "five_hour"
             case sevenDay = "seven_day"
             case sevenDayOpus = "seven_day_opus"
+            case limits
+        }
+
+        /// One `limits` entry, e.g. `{"kind": "weekly_scoped", "percent":
+        /// 73, "resets_at": "…", "scope": {"model": {"display_name":
+        /// "Fable"}}}`. Decoding never fails: a field of an unexpected type
+        /// is nil, so one odd entry can't hide the other limits.
+        struct Limit: Decodable, Equatable {
+            var kind: String?
+            /// 0–100.
+            var percent: Double?
+            var resetsAt: Date?
+            var modelName: String?
+
+            init(kind: String?, percent: Double?, resetsAt: Date?, modelName: String?) {
+                self.kind = kind
+                self.percent = percent
+                self.resetsAt = resetsAt
+                self.modelName = modelName
+            }
+
+            private enum Keys: String, CodingKey {
+                case kind, percent, scope, model
+                case resetsAt = "resets_at"
+                case displayName = "display_name"
+            }
+
+            init(from decoder: Decoder) throws {
+                guard let container = try? decoder.container(keyedBy: Keys.self) else { return }
+                kind = try? container.decode(String.self, forKey: .kind)
+                percent = try? container.decode(Double.self, forKey: .percent)
+                // An ISO 8601 date, or seconds since 1970 (Claude Code reads both).
+                if let text = try? container.decode(String.self, forKey: .resetsAt) {
+                    resetsAt = ISO8601DateFormatter.flexible.date(from: text) ?? ISO8601DateFormatter.plain.date(from: text)
+                } else if let seconds = try? container.decode(Double.self, forKey: .resetsAt) {
+                    resetsAt = Date(timeIntervalSince1970: seconds)
+                }
+                let model = (try? container.nestedContainer(keyedBy: Keys.self, forKey: .scope))
+                    .flatMap { try? $0.nestedContainer(keyedBy: Keys.self, forKey: .model) }
+                modelName = model.flatMap { try? $0.decode(String.self, forKey: .displayName) }
+            }
         }
     }
 
     static func usage(from response: UsageResponse, plan: String?, now: Date) -> ProviderUsage {
-        func window(_ w: UsageResponse.Window?, _ label: String, hours: Double) -> UsageWindow? {
+        func window(_ w: UsageResponse.Window?, _ label: String, hours: Double, shortName: String? = nil) -> UsageWindow? {
             guard let w, let utilization = w.utilization else { return nil }
             let resetsAt = w.resetsAt.flatMap {
                 ISO8601DateFormatter.flexible.date(from: $0) ?? ISO8601DateFormatter.plain.date(from: $0)
@@ -327,17 +396,39 @@ struct ClaudeProvider: AccountConfigurableProvider {
                 label: label,
                 usedPercent: max(0, min(100, utilization)),
                 resetsAt: resetsAt,
-                duration: hours * 3600
+                duration: hours * 3600,
+                shortName: shortName
             )
         }
 
-        let windows = [
+        var windows = [
             window(response.fiveHour, L("5h limit"), hours: 5),
             window(response.sevenDay, L("Weekly limit"), hours: 7 * 24),
-            window(response.sevenDayOpus, L("Weekly (Opus)"), hours: 7 * 24),
+            window(response.sevenDayOpus, L("Weekly (Opus)"), hours: 7 * 24, shortName: "Opus"),
         ].compactMap { $0 }
+        for limit in response.limits ?? [] {
+            guard limit.kind == "weekly_scoped",
+                  let name = limit.modelName?.trimmingCharacters(in: .whitespaces), !name.isEmpty,
+                  let percent = limit.percent else { continue }
+            let scoped = modelWeeklyWindow(model: name, usedPercent: percent, resetsAt: limit.resetsAt)
+            // The labels are the window's identity (alerts, dropdown rows).
+            guard !windows.contains(where: { $0.label == scoped.label }) else { continue }
+            windows.append(scoped)
+        }
 
         return ProviderUsage(planName: plan?.capitalized, windows: windows, asOf: now)
+    }
+
+    /// A model's own weekly limit, e.g. "Weekly (Fable)", shown as "Fable"
+    /// where space is short.
+    static func modelWeeklyWindow(model: String, usedPercent: Double, resetsAt: Date?) -> UsageWindow {
+        UsageWindow(
+            label: L("Weekly (\(model))"),
+            usedPercent: max(0, min(100, usedPercent)),
+            resetsAt: resetsAt,
+            duration: 7 * 24 * 3600,
+            shortName: model
+        )
     }
 
     // MARK: - Keychain
