@@ -31,9 +31,10 @@ Allowance Bar's Usage Details window (⌘D, or `allowancebar://details`) keeps
 every limit visible while you work:
 
 - **Three sizes.** The full window shows every provider's meters, reset times,
-  and balances, two limits per row. The small, chrome-free **mini panel**
-  has one meter per limit (for example 5-hour and weekly), the time until
-  each resets, and each account's name in its own column. The **nano
+  and balances, two limits per row (three when a provider has three). The
+  small, chrome-free **mini panel** has one meter per limit (for example
+  5-hour and weekly), the time until each resets, and each account's name
+  in its own column. The **nano
   panel** is smaller still: only the menu bar text, e.g.
   `Cx 80% (89%) · Cl 52% (58%)`. Switch views with the Full, Compact and
   Nano buttons at the right of the full window's toolbar, in the panels'
@@ -75,7 +76,7 @@ Cx 5% · CxW 62% · Cu 20% · Cl 40% · OR $8.06
 |----------|--------|-------------------|
 | **Codex** (`Cx`, `CxW`, …) | Your own Codex CLI via its app-server protocol; session logs as offline fallback | Live limits, plan, and signed-in email, polled every 5 minutes through a ~1-second `codex app-server` call. **Multiple accounts**: sign in extra Codex homes and each gets its own meter. Optional subscription renewal-date tracking with reminders. See [docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md). |
 | **Cursor** (`Cu`) | `cursor.com/api/usage-summary` | Uses the session token Cursor stores locally; included/auto/API usage + billing reset. Team/enterprise pools supported. |
-| **Claude** (`Cl`) | `api.anthropic.com/api/oauth/usage` | Uses the Claude Code OAuth token (credentials file or Keychain via Apple's `security` tool); 5h + weekly (+Opus) windows. Can ask a [CLIProxyAPI](#cliproxyapi) server instead when that token has expired. |
+| **Claude** (`Cl`) | `api.anthropic.com/api/oauth/usage` | Uses the Claude Code OAuth token (credentials file or Keychain via Apple's `security` tool); 5h and weekly limits, plus each model's own weekly limit (Fable). Can ask a [CLIProxyAPI](#cliproxyapi) server instead when that token has expired. |
 | **Claude API** (`ClA`) | Anthropic organization Usage & Cost API | Paste an organization reporting key; shows current UTC calendar-month spending and input/output/cache tokens. Prepaid credits are unavailable via the public API; a link opens Console billing. |
 | **Gemini** (`Ge`) | Cloud Code quota API | Uses the Gemini CLI OAuth token (`~/.gemini/oauth_creds.json`); Pro/Flash/Flash-Lite daily quotas. |
 | **Muse Code** (`Mu`) | Your own Muse Code CLI via its `muse serve` protocol | Meta's coding agent. Shows the subscription's 5-hour and weekly limits and plan, read every 5 minutes through a ~1-second `muse serve` call that spends no prompt. Muse Code reads its own Meta login; Allowance Bar never sees it. Only subscriptions report limits: an API key or pay-as-you-go account shows a message instead, because Meta has no balance API. |
