@@ -216,7 +216,8 @@ announcement drafts, environment specifics) and complements this file.
   last usage answer (keyed by the proxy login's email) and adds them;
   header numbers ask the usage endpoint when that answer is missing or
   older than 15 min, and are kept if the request fails (next try in
-  15 min). The `7d_oi` window takes the remembered Fable model's name. `api-call` itself has no cache: every relayed
+  15 min; remembered limits older than 15 min date the row's `asOf` back
+  to their answer). The `7d_oi` window takes the remembered Fable model's name. `api-call` itself has no cache: every relayed
   request reaches Anthropic and counts toward the account's limit. A local
   Claude row that falls back to the proxy keeps its answer in
   `CLIProxyUsageCache` (2 min, key `<identity>|local|<id>|<auth_index>`)

@@ -422,6 +422,27 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertFalse(old.isComplete, "Old per-model limits ask the usage endpoint again, also with Fable's headers")
     }
 
+    func testFailedRequestsDateOldRememberedLimitsBack() async throws {
+        let memory = ClaudeModelLimitMemory()
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let fable = ClaudeProvider.modelWeeklyWindow(model: "Fable", usedPercent: 30, resetsAt: start.addingTimeInterval(3 * 86_400))
+        await memory.remember(ProviderUsage(planName: nil, windows: [fable], asOf: start), email: "main@example.com", now: start)
+        let later = start.addingTimeInterval(2 * 3600)
+        await memory.attempted(email: "main@example.com", now: later)
+        // Seen by the proxy just before `later + 60 s`.
+        let observed = "2027-01-15T10:00:30Z"
+        let quota = try XCTUnwrap(ClaudeProxyQuota(
+            signals: ["anthropic-ratelimit-unified-7d-utilization": "0.5"],
+            observedAt: observed
+        ))
+
+        let numbers = await memory.complete(quota, plan: nil, email: "main@example.com", now: later.addingTimeInterval(60))
+
+        XCTAssertTrue(numbers.isComplete, "The failed request waits 15 minutes")
+        XCTAssertEqual(numbers.usage.windows.map(\.shortLabel), ["Week", "Fable"])
+        XCTAssertEqual(numbers.usage.asOf, start, "Two-hour-old Fable numbers aren't shown as current")
+    }
+
     func testLocalAccountRemembersUnderTheProxyLoginsEmail() async throws {
         // Claude Code's file names another email than the chosen proxy login.
         MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
