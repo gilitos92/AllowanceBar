@@ -59,11 +59,13 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let fromHeaders = await proxyNumbers()
         if let fromHeaders, fromHeaders.isComplete { return fromHeaders.usage }
         do {
-            let usage = try await fetchUsage(forceRefresh: forceRefresh)
-            // Under the proxy login's email when there is one: the proxy's
-            // numbers look it up with that email, which may differ from
-            // Claude Code's (`cliProxyClaudeEmails`).
-            await modelLimits.remember(usage, email: fromHeaders?.usage.accountEmail ?? usage.accountEmail)
+            var usage = try await fetchUsage(forceRefresh: forceRefresh)
+            // The proxy login's email when there is one, as with the proxy's
+            // numbers: they look the memory up with it, and the duplicate
+            // proxy row stays hidden. It may differ from Claude Code's email
+            // (`cliProxyClaudeEmails`).
+            if let email = fromHeaders?.usage.accountEmail { usage.accountEmail = email }
+            await modelLimits.remember(usage, email: usage.accountEmail)
             return usage
         } catch {
             // Recent numbers from the proxy beat an error; only their

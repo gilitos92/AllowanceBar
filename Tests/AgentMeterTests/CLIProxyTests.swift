@@ -453,10 +453,12 @@ final class CLIProxyTests: XCTestCase {
             claudeEmails: ["claude": "main@example.com"]
         ))
 
-        _ = try await provider.fetch()
-        _ = try await provider.fetch()
+        let first = try await provider.fetch()
+        let second = try await provider.fetch()
 
         XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog().filter { $0.contains("oauth/usage") }.count, 1)
+        XCTAssertEqual(first.accountEmail, second.accountEmail, "Its proxy row stays hidden after each usage request")
+        XCTAssertEqual(first.accountEmail?.lowercased(), "main@example.com")
     }
 
     func testFailedUsageRequestKeepsProxyNumbersAndWaitsBeforeTheNext() async throws {
