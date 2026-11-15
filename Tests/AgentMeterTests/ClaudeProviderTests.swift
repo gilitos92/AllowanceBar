@@ -303,6 +303,54 @@ final class ClaudeProviderTests: XCTestCase {
         XCTAssertNotNil(usage.windows[0].resetsAt)
     }
 
+    func testUsageMappingAddsModelWeeklyLimits() throws {
+        // The `limits` list of Anthropic's usage endpoint, as T3 Code and
+        // Claude Code read it: Fable's own weekly limit is a `weekly_scoped`
+        // entry. Resets come as dates or as seconds since 1970.
+        let json = """
+        {
+          "five_hour": {"utilization": 62, "resets_at": "2026-11-14T20:00:00Z"},
+          "seven_day": {"utilization": 31, "resets_at": "2026-11-20T03:41:00Z"},
+          "seven_day_opus": null,
+          "limits": [
+            {"kind": "session", "group": "session", "percent": 62, "resets_at": "2026-11-14T20:00:00Z", "scope": null},
+            {"kind": "weekly_all", "group": "weekly", "percent": 31, "resets_at": "2026-11-20T03:41:00Z", "scope": null},
+            {"kind": "weekly_scoped", "percent": 73.4, "resets_at": "2026-11-20T03:41:00.123456+00:00",
+             "scope": {"model": {"display_name": "Fable"}}},
+            {"kind": "weekly_scoped", "percent": 12, "resets_at": 1795000000,
+             "scope": {"model": {"display_name": "Nova"}}},
+            {"kind": "weekly_scoped", "percent": "high", "scope": {"model": {"display_name": "Odd"}}},
+            {"kind": "weekly_scoped", "percent": 5, "scope": {"model": null}},
+            null
+          ]
+        }
+        """
+        let response = try JSONDecoder().decode(ClaudeProvider.UsageResponse.self, from: Data(json.utf8))
+        let usage = ClaudeProvider.usage(from: response, plan: "max", now: Date())
+
+        XCTAssertEqual(usage.windows.map(\.label), ["5h limit", "Weekly limit", "Weekly (Fable)", "Weekly (Nova)"])
+        XCTAssertEqual(usage.windows.map(\.shortLabel), ["5h", "Week", "Fable", "Nova"])
+        XCTAssertEqual(usage.windows[2].usedPercent, 73.4)
+        XCTAssertNotNil(usage.windows[2].resetsAt)
+        XCTAssertEqual(usage.windows[2].duration, 7 * 24 * 3600)
+        XCTAssertEqual(usage.windows[3].resetsAt, Date(timeIntervalSince1970: 1_795_000_000))
+        XCTAssertEqual(usage.worstWindow?.label, "Weekly (Fable)", "Fable counts toward the menu bar's highest limit")
+    }
+
+    func testUsageMappingKeepsOneOpusWindow() throws {
+        let json = """
+        {
+          "seven_day_opus": {"utilization": 40.0, "resets_at": "2026-07-08T00:00:00Z"},
+          "limits": [{"kind": "weekly_scoped", "percent": 41, "scope": {"model": {"display_name": "Opus"}}}]
+        }
+        """
+        let response = try JSONDecoder().decode(ClaudeProvider.UsageResponse.self, from: Data(json.utf8))
+        let usage = ClaudeProvider.usage(from: response, plan: nil, now: Date())
+        XCTAssertEqual(usage.windows.map(\.label), ["Weekly (Opus)"])
+        XCTAssertEqual(usage.windows.map(\.shortLabel), ["Opus"])
+        XCTAssertEqual(usage.windows.first?.usedPercent, 40)
+    }
+
     func testUsageMappingSkipsMissingWindows() throws {
         let json = #"{"five_hour": {"utilization": 3.0, "resets_at": "2026-07-01T20:24:41Z"}}"#
         let response = try JSONDecoder().decode(ClaudeProvider.UsageResponse.self, from: Data(json.utf8))

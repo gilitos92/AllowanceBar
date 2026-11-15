@@ -129,7 +129,11 @@ announcement drafts, environment specifics) and complements this file.
   Usage: `GET https://api.anthropic.com/api/oauth/usage` with
   `anthropic-beta: oauth-2025-04-20` and a `claude-code/x.y.z` User-Agent;
   windows `five_hour`/`seven_day`/`seven_day_opus` with `utilization` percent
-  and `resets_at` ISO8601. NEVER refresh these tokens: rotating them in memory
+  and `resets_at` ISO8601, plus `limits[]`: each `kind: "weekly_scoped"`
+  entry (`percent` 0-100, `resets_at` ISO8601 or epoch s,
+  `scope.model.display_name`) is a model's own weekly limit, shown as
+  "Weekly (Fable)" / short "Fable" (format from T3 Code's
+  `cliproxyApi.ts` and Claude Code's `/usage`). NEVER refresh these tokens: rotating them in memory
   revokes Claude Code's saved refresh token and signs the user out. When they
   have expired, show `refreshRequired` and ask the user to run Claude Code.
   Extra accounts (`CLAUDE_CONFIG_DIR=<dir>`): `<dir>/.credentials.json`, then
@@ -205,7 +209,13 @@ announcement drafts, environment specifics) and complements this file.
   the proxy (`ClaudeProvider.proxyNumbers`, which waits at most 3 s for the
   list via `Deadline`, then falls through to the local token). `asOf` =
   `observed_at`; `rejected` = 100%; a passed reset = 0% and no reset. No
-  Opus window from headers. `api-call` itself has no cache: every relayed
+  Opus window from headers. Fable's weekly limit is the `7d_oi` headers
+  (Claude Code's `seven_day_overage_included`, "Fable limit"), present
+  only on some replies (an Opus-only stretch left them out), so
+  `ClaudeModelLimitMemory` keeps each account's per-model windows from its
+  last usage answer and adds them; headers without `7d_oi` ask the usage
+  endpoint when that answer is missing or older than 15 min, and keep the
+  header numbers if the request fails. `api-call` itself has no cache: every relayed
   request reaches Anthropic and counts toward the account's limit. A local
   Claude row that falls back to the proxy keeps its answer in
   `CLIProxyUsageCache` (2 min, key `<identity>|local|<id>|<auth_index>`)

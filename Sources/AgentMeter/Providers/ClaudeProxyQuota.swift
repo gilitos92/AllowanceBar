@@ -17,6 +17,9 @@ struct ClaudeProxyQuota: Equatable, Sendable {
     var observedAt: Date
     var fiveHour: Window?
     var sevenDay: Window?
+    /// Fable's own weekly limit: the `7d_oi` ("overage included") headers,
+    /// which Claude Code calls the "Fable limit".
+    var sevenDayFable: Window?
 
     /// Older numbers ask Anthropic instead. Use that doesn't pass through
     /// the proxy (claude.ai, the Claude apps, a login used directly) changes
@@ -44,37 +47,55 @@ struct ClaudeProxyQuota: Equatable, Sendable {
         let fiveHour = window("5h")
         let sevenDay = window("7d")
         guard fiveHour != nil || sevenDay != nil else { return nil }
-        self.init(observedAt: observedAt, fiveHour: fiveHour, sevenDay: sevenDay)
+        self.init(observedAt: observedAt, fiveHour: fiveHour, sevenDay: sevenDay, sevenDayFable: window("7d_oi"))
     }
 
-    init(observedAt: Date, fiveHour: Window?, sevenDay: Window?) {
+    init(observedAt: Date, fiveHour: Window?, sevenDay: Window?, sevenDayFable: Window? = nil) {
         self.observedAt = observedAt
         self.fiveHour = fiveHour
         self.sevenDay = sevenDay
+        self.sevenDayFable = sevenDayFable
     }
 
     func isFresh(now: Date = Date()) -> Bool {
         now.timeIntervalSince(observedAt) < Self.maxAge
     }
 
-    /// The same windows as the usage endpoint's `five_hour` and `seven_day`.
-    /// A window whose reset has passed is empty: the next one starts with
-    /// the next message, as the endpoint reports it.
-    func usage(plan: String?, now: Date = Date()) -> ProviderUsage {
+    /// The same windows as the usage endpoint's `five_hour`, `seven_day`
+    /// and Fable's `weekly_scoped` entry, then `remembered` per-model limits
+    /// the headers lack. A window whose reset has passed is empty: the next
+    /// one starts with the next message, as the endpoint reports it.
+    func usage(plan: String?, now: Date = Date(), remembered: [UsageWindow] = []) -> ProviderUsage {
+        func ended(_ window: Window) -> Bool {
+            window.resetsAt.map { $0 <= now } ?? false
+        }
         func window(_ window: Window?, _ label: String, hours: Double) -> UsageWindow? {
             guard let window else { return nil }
-            let ended = window.resetsAt.map { $0 <= now } ?? false
             return UsageWindow(
                 label: label,
-                usedPercent: ended ? 0 : window.usedPercent,
-                resetsAt: ended ? nil : window.resetsAt,
+                usedPercent: ended(window) ? 0 : window.usedPercent,
+                resetsAt: ended(window) ? nil : window.resetsAt,
                 duration: hours * 3600
             )
         }
-        let windows = [
+        let fable = sevenDayFable.map {
+            ClaudeProvider.modelWeeklyWindow(
+                model: "Fable",
+                usedPercent: ended($0) ? 0 : $0.usedPercent,
+                resetsAt: ended($0) ? nil : $0.resetsAt
+            )
+        }
+        var windows = [
             window(fiveHour, L("5h limit"), hours: 5),
             window(sevenDay, L("Weekly limit"), hours: 7 * 24),
+            fable,
         ].compactMap { $0 }
+        for window in remembered where !windows.contains(where: { $0.label == window.label }) {
+            let ended = window.resetsAt.map { $0 <= now } ?? false
+            windows.append(ended
+                ? UsageWindow(label: window.label, usedPercent: 0, resetsAt: nil, duration: window.duration, shortName: window.shortName)
+                : window)
+        }
         return ProviderUsage(planName: plan?.capitalized, windows: windows, asOf: observedAt)
     }
 
@@ -91,6 +112,56 @@ struct ClaudeProxyQuota: Equatable, Sendable {
             return nil
         }
         return ISO8601DateFormatter.plain.date(from: String(value[..<dot]) + String(value[end...]))
+    }
+}
+
+/// Each Claude account's per-model weekly limits (Fable, Opus) from its last
+/// usage answer. The proxy keeps only the headers of an account's latest
+/// reply, and replies to other models can lack Fable's limit, so numbers
+/// read from headers add the remembered ones.
+actor ClaudeModelLimitMemory {
+    static let shared = ClaudeModelLimitMemory()
+    /// Older answers make headers without Fable's limit ask the usage
+    /// endpoint again: one request per account every 15 minutes at most.
+    static let maxAge: TimeInterval = ClaudeProxyQuota.maxAge
+
+    private var entries: [String: (windows: [UsageWindow], at: Date)] = [:]
+
+    /// Remembers the per-model limits of a usage answer, also when it has
+    /// none, so an account without them needs no further request.
+    func remember(_ usage: ProviderUsage, email: String?, now: Date = Date()) {
+        guard let key = Self.key(email) else { return }
+        entries[key] = (usage.windows.filter { $0.shortName != nil }, now)
+    }
+
+    /// A usage request that failed waits as long as an answer, so header
+    /// numbers don't send one on every refresh. The windows stay as they were.
+    func attempted(email: String?, now: Date = Date()) {
+        guard let key = Self.key(email) else { return }
+        entries[key] = (entries[key]?.windows ?? [], now)
+    }
+
+    /// Numbers read from headers, with the per-model limits they lack.
+    /// `isComplete` is false when the headers have no Fable limit and the
+    /// account's last usage answer is missing or older than `maxAge`: the
+    /// caller then asks the usage endpoint, and keeps these numbers if that
+    /// request fails.
+    func complete(
+        _ quota: ClaudeProxyQuota,
+        plan: String?,
+        email: String?,
+        now: Date = Date()
+    ) -> (usage: ProviderUsage, isComplete: Bool) {
+        let entry = Self.key(email).flatMap { entries[$0] }
+        let usage = quota.usage(plan: plan, now: now, remembered: entry?.windows ?? [])
+        if quota.sevenDayFable != nil { return (usage, true) }
+        guard let entry else { return (usage, false) }
+        return (usage, now.timeIntervalSince(entry.at) < Self.maxAge)
+    }
+
+    private static func key(_ email: String?) -> String? {
+        guard let email = email?.trimmingCharacters(in: .whitespaces).lowercased(), !email.isEmpty else { return nil }
+        return email
     }
 }
 

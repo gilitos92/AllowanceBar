@@ -3695,6 +3695,16 @@
         }
       }
     },
+    "Weekly (%@)": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Semanal (%@)"
+          }
+        }
+      }
+    },
     "Weekly (Opus)": {
       "localizations": {
         "es": {

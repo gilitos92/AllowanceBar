@@ -143,8 +143,10 @@ private struct CircleIconButtonBody: View {
 
 extension UsageWindow {
     /// The label for tight layouts: "5h" and "Week" for the two common limits,
-    /// the full label otherwise. Spoken labels keep the full name.
+    /// the model's name for Claude's per-model weekly limits ("Fable"), the
+    /// full label otherwise. Spoken labels keep the full name.
     var shortLabel: String {
+        if let shortName { return shortName }
         switch label {
         case L("5h limit"): return L("5h")
         case L("Weekly limit"): return L("Week")
