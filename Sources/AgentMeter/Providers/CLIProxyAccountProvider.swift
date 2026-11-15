@@ -90,6 +90,8 @@ struct CLIProxyAccountProvider: UsageProvider {
     var proxyConfig: @Sendable () -> CLIProxyConfig? = { CLIProxyConfig.current() }
     var accountCache: CLIProxyAccountCache = .shared
     var usageCache: CLIProxyUsageCache = .shared
+    /// Per-model limits (Fable) that the proxy's headers may lack.
+    var modelLimits: ClaudeModelLimitMemory = .shared
     var planCache: CLIProxyPlanCache = .shared
     var claudeRateLimits: ClaudeRateLimitGate = .shared
 
@@ -138,7 +140,7 @@ struct CLIProxyAccountProvider: UsageProvider {
         guard let account = matches.first(where: { !$0.disabled }) else {
             throw CLIProxyError.loginRemoved
         }
-        let usage = try await Self.usage(for: account, client: client, planCache: planCache, now: Date())
+        let usage = try await Self.usage(for: account, client: client, planCache: planCache, modelLimits: modelLimits, now: Date())
         await usageCache.store(usage, for: cacheKey)
         return usage
     }
@@ -147,23 +149,37 @@ struct CLIProxyAccountProvider: UsageProvider {
         for account: CLIProxyClient.Account,
         client: CLIProxyClient,
         planCache: CLIProxyPlanCache = .shared,
+        modelLimits: ClaudeModelLimitMemory = .shared,
         now: Date
     ) async throws -> ProviderUsage {
         var usage: ProviderUsage
         switch account.kind {
         case .claude:
+            var fromHeaders: ProviderUsage?
             if let quota = account.claudeQuota, quota.isFresh(now: now) {
                 // The proxy saw these limits on a recent message: nothing
-                // goes to Anthropic's usage endpoint.
+                // goes to Anthropic's usage endpoint, unless they may lack
+                // the login's Fable limit.
                 let plan = await client.plan(for: account, cache: planCache)
-                usage = quota.usage(plan: plan, now: now)
-                break
+                let numbers = await modelLimits.complete(quota, plan: plan, email: account.email, now: now)
+                fromHeaders = numbers.usage
+                if numbers.isComplete {
+                    usage = numbers.usage
+                    break
+                }
             }
-            // The plan waits for the usage answer: two requests at once from
-            // one login can trip Anthropic's rate limit.
-            let response = try await client.claudeUsage(account)
-            let plan = await client.plan(for: account, cache: planCache)
-            usage = ClaudeProvider.usage(from: response, plan: plan, now: now)
+            do {
+                // The plan waits for the usage answer: two requests at once
+                // from one login can trip Anthropic's rate limit.
+                let response = try await client.claudeUsage(account)
+                let plan = await client.plan(for: account, cache: planCache)
+                usage = ClaudeProvider.usage(from: response, plan: plan, now: now)
+                await modelLimits.remember(usage, email: account.email, now: now)
+            } catch {
+                guard let fromHeaders else { throw error }
+                await modelLimits.attempted(email: account.email, now: now)
+                usage = fromHeaders
+            }
         case .codex:
             let data = try await client.codexUsage(account)
             usage = try codexUsage(from: data, fallbackPlan: account.planType, now: now)

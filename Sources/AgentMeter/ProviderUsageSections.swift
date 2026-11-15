@@ -67,8 +67,9 @@ struct ProviderUsageSections: View {
         for group in groups {
             let rows = group.members.reduce(1) { total, provider in
                 let usage = store.state(for: provider.id).usage
-                // Two limits per row.
-                let lines = max(1, ((usage?.windows.count ?? 1) + 1) / 2) + (usage?.balance != nil ? 1 : 0)
+                // Two limits per row, or three in one row.
+                let count = usage?.windows.count ?? 1
+                let lines = (count == 3 ? 1 : max(1, (count + 1) / 2)) + (usage?.balance != nil ? 1 : 0)
                 return total + lines + (group.members.count > 1 ? 1 : 0)
             }
             let target = heights[0] <= heights[1] ? 0 : 1
@@ -407,9 +408,19 @@ struct UsageMetersView: View {
             WindowMeter(providerName: providerName, window: window, settings: settings)
         }
         if usage.windows.count > 1 {
-            // Two limits per row when they fit; one per row otherwise, e.g.
-            // for long model names.
+            // Three limits (Claude's 5h, week and Fable) share one row, with
+            // each reset under its bar. Otherwise two limits per row when
+            // they fit, and one per row for long model names.
             ViewThatFits(in: .horizontal) {
+                if usage.windows.count == 3 {
+                    Grid(alignment: .leading, horizontalSpacing: 12) {
+                        GridRow(alignment: .top) {
+                            ForEach(usage.windows, id: \.label) { window in
+                                WindowMeter(providerName: providerName, window: window, settings: settings, resetBelow: true)
+                            }
+                        }
+                    }
+                }
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 9) {
                     ForEach(Array(stride(from: 0, to: usage.windows.count, by: 2)), id: \.self) { start in
                         GridRow(alignment: .top) {
@@ -538,11 +549,13 @@ private struct BalanceRow: View {
     }
 }
 
-/// One limit: its name, reset and value on one line, the bar below.
+/// One limit: its name, reset and value on one line, the bar below. With
+/// `resetBelow`, the reset moves under the bar, so three limits fit a row.
 private struct WindowMeter: View {
     let providerName: String
     let window: UsageWindow
     @ObservedObject var settings: SettingsStore
+    var resetBelow = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -559,21 +572,8 @@ private struct WindowMeter: View {
                     .font(.system(size: 12.5, weight: .semibold))
                     .lineLimit(1)
                     .fixedSize()
-                if reset != nil || pace != nil {
-                    HStack(spacing: 3) {
-                        if let reset {
-                            Text(reset)
-                                .font(.system(size: 11, weight: .medium))
-                                .monospacedDigit()
-                        }
-                        if let pace {
-                            Image(systemName: pace.symbolName)
-                                .font(.system(size: 8.5, weight: .bold))
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .fixedSize()
+                if !resetBelow {
+                    resetAndPace(reset: reset, pace: pace)
                 }
                 Spacer(minLength: 4)
                 SeverityValueLabel(
@@ -591,11 +591,34 @@ private struct WindowMeter: View {
                     ? settings.countDirection.paceMarkerPercent(for: window, now: now)
                     : nil
             )
+            if resetBelow {
+                resetAndPace(reset: reset, pace: pace)
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(meterAccessibilityLabel)
         .accessibilityValue(meterAccessibilityValue(at: now))
         .help(tooltip(pace: pace, now: now))
+    }
+
+    @ViewBuilder
+    private func resetAndPace(reset: String?, pace: UsagePace?) -> some View {
+        if reset != nil || pace != nil {
+            HStack(spacing: 3) {
+                if let reset {
+                    Text(reset)
+                        .font(.system(size: 11, weight: .medium))
+                        .monospacedDigit()
+                }
+                if let pace {
+                    Image(systemName: pace.symbolName)
+                        .font(.system(size: 8.5, weight: .bold))
+                }
+            }
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .fixedSize()
+        }
     }
 
     private var progressValue: Double {

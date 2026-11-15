@@ -7,6 +7,16 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Added
+- Claude accounts show their Fable weekly limit next to the 5-hour and
+  weekly limits, as "Fable" in the dropdown and the compact view. It counts
+  toward the menu bar's highest limit and the usage alerts, like every
+  other limit. A provider with three limits shows them side by side, with
+  each reset time under its bar. Allowance Bar reads the limit from the
+  same usage answer as the other limits, or from the rate-limit headers
+  that CLIProxyAPI saves; those headers carry it only on some replies, so
+  each account's last answer fills the gap.
+
 ## [2.10.0] — 2026-11-14
 
 ### Added
