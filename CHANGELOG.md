@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.11.0] — 2026-11-14
+
 ### Added
 - Claude accounts show their Fable weekly limit next to the 5-hour and
   weekly limits, as "Fable" in the dropdown and the compact view. It counts
