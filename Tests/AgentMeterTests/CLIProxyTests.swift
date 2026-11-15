@@ -400,6 +400,44 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog().filter { $0.contains("oauth/usage") }.count, 1)
     }
 
+    func testHeaderFableTakesTheEndpointsNameAndOldMemoryAsksAgain() async throws {
+        let memory = ClaudeModelLimitMemory()
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let fable5 = ClaudeProvider.modelWeeklyWindow(model: "Fable 5", usedPercent: 30, resetsAt: start.addingTimeInterval(86_400))
+        await memory.remember(ProviderUsage(planName: nil, windows: [fable5], asOf: start), email: "Main@Example.com", now: start)
+        let quota = try XCTUnwrap(ClaudeProxyQuota(
+            signals: [
+                "anthropic-ratelimit-unified-7d-utilization": "0.5",
+                "anthropic-ratelimit-unified-7d_oi-utilization": "0.4",
+            ],
+            observedAt: "2027-01-15T02:00:00Z"
+        ))
+
+        let fresh = await memory.complete(quota, plan: nil, email: "main@example.com", now: start.addingTimeInterval(60))
+        let old = await memory.complete(quota, plan: nil, email: "main@example.com", now: start.addingTimeInterval(ClaudeModelLimitMemory.maxAge + 1))
+
+        XCTAssertEqual(fresh.usage.windows.map(\.shortLabel), ["Week", "Fable 5"], "One Fable row, from the headers")
+        XCTAssertEqual(fresh.usage.windows.last?.usedPercent ?? 0, 40, accuracy: 0.001)
+        XCTAssertTrue(fresh.isComplete)
+        XCTAssertFalse(old.isComplete, "Old per-model limits ask the usage endpoint again, also with Fable's headers")
+    }
+
+    func testLocalAccountRemembersUnderTheProxyLoginsEmail() async throws {
+        // Claude Code's file names another email than the chosen proxy login.
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+        let expiresAt = Date().addingTimeInterval(3_600).timeIntervalSince1970 * 1_000
+        let provider = try makeProvider(expiresAt: expiresAt, email: "other@example.com", config: CLIProxyConfig(
+            baseURL: config.baseURL,
+            managementKey: config.managementKey,
+            claudeEmails: ["claude": "main@example.com"]
+        ))
+
+        _ = try await provider.fetch()
+        _ = try await provider.fetch()
+
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog().filter { $0.contains("oauth/usage") }.count, 1)
+    }
+
     func testFailedUsageRequestKeepsProxyNumbersAndWaitsBeforeTheNext() async throws {
         MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
         MockCLIProxyURLProtocol.server.claudeUsageStatus = 500

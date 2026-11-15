@@ -60,7 +60,10 @@ struct ClaudeProvider: AccountConfigurableProvider {
         if let fromHeaders, fromHeaders.isComplete { return fromHeaders.usage }
         do {
             let usage = try await fetchUsage(forceRefresh: forceRefresh)
-            await modelLimits.remember(usage, email: usage.accountEmail)
+            // Under the proxy login's email when there is one: the proxy's
+            // numbers look it up with that email, which may differ from
+            // Claude Code's (`cliProxyClaudeEmails`).
+            await modelLimits.remember(usage, email: fromHeaders?.usage.accountEmail ?? usage.accountEmail)
             return usage
         } catch {
             // Recent numbers from the proxy beat an error; only their

@@ -213,9 +213,10 @@ announcement drafts, environment specifics) and complements this file.
   (Claude Code's `seven_day_overage_included`, "Fable limit"), present
   only on some replies (an Opus-only stretch left them out), so
   `ClaudeModelLimitMemory` keeps each account's per-model windows from its
-  last usage answer and adds them; headers without `7d_oi` ask the usage
-  endpoint when that answer is missing or older than 15 min, and keep the
-  header numbers if the request fails. `api-call` itself has no cache: every relayed
+  last usage answer (keyed by the proxy login's email) and adds them;
+  header numbers ask the usage endpoint when that answer is missing or
+  older than 15 min, and are kept if the request fails (next try in
+  15 min). The `7d_oi` window takes the remembered Fable model's name. `api-call` itself has no cache: every relayed
   request reaches Anthropic and counts toward the account's limit. A local
   Claude row that falls back to the proxy keeps its answer in
   `CLIProxyUsageCache` (2 min, key `<identity>|local|<id>|<auth_index>`)

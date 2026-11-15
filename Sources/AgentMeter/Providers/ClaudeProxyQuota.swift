@@ -62,10 +62,16 @@ struct ClaudeProxyQuota: Equatable, Sendable {
     }
 
     /// The same windows as the usage endpoint's `five_hour`, `seven_day`
-    /// and Fable's `weekly_scoped` entry, then `remembered` per-model limits
-    /// the headers lack. A window whose reset has passed is empty: the next
-    /// one starts with the next message, as the endpoint reports it.
-    func usage(plan: String?, now: Date = Date(), remembered: [UsageWindow] = []) -> ProviderUsage {
+    /// and Fable's `weekly_scoped` entry (named `fableName`, as the endpoint
+    /// named it), then `remembered` per-model limits the headers lack. A
+    /// window whose reset has passed is empty: the next one starts with the
+    /// next message, as the endpoint reports it.
+    func usage(
+        plan: String?,
+        now: Date = Date(),
+        fableName: String = "Fable",
+        remembered: [UsageWindow] = []
+    ) -> ProviderUsage {
         func ended(_ window: Window) -> Bool {
             window.resetsAt.map { $0 <= now } ?? false
         }
@@ -80,7 +86,7 @@ struct ClaudeProxyQuota: Equatable, Sendable {
         }
         let fable = sevenDayFable.map {
             ClaudeProvider.modelWeeklyWindow(
-                model: "Fable",
+                model: fableName,
                 usedPercent: ended($0) ? 0 : $0.usedPercent,
                 resetsAt: ended($0) ? nil : $0.resetsAt
             )
@@ -142,10 +148,9 @@ actor ClaudeModelLimitMemory {
     }
 
     /// Numbers read from headers, with the per-model limits they lack.
-    /// `isComplete` is false when the headers have no Fable limit and the
-    /// account's last usage answer is missing or older than `maxAge`: the
-    /// caller then asks the usage endpoint, and keeps these numbers if that
-    /// request fails.
+    /// `isComplete` is false when the account's last usage answer is missing
+    /// or older than `maxAge`: the caller then asks the usage endpoint, and
+    /// keeps these numbers if that request fails.
     func complete(
         _ quota: ClaudeProxyQuota,
         plan: String?,
@@ -153,8 +158,11 @@ actor ClaudeModelLimitMemory {
         now: Date = Date()
     ) -> (usage: ProviderUsage, isComplete: Bool) {
         let entry = Self.key(email).flatMap { entries[$0] }
-        let usage = quota.usage(plan: plan, now: now, remembered: entry?.windows ?? [])
-        if quota.sevenDayFable != nil { return (usage, true) }
+        // Claude Code names the `7d_oi` window after the endpoint's Fable
+        // model ("Fable", "Fable 5"…), so both sources fill one row.
+        let fableName = entry?.windows.lazy.compactMap(\.shortName)
+            .first { $0.lowercased().hasPrefix("fable") } ?? "Fable"
+        let usage = quota.usage(plan: plan, now: now, fableName: fableName, remembered: entry?.windows ?? [])
         guard let entry else { return (usage, false) }
         return (usage, now.timeIntervalSince(entry.at) < Self.maxAge)
     }
