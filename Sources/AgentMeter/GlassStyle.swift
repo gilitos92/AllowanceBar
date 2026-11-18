@@ -192,8 +192,12 @@ extension UsageWindow {
 /// and outline shape it: a glass shape of its own would not line up with the
 /// outline macOS draws around the window. The opacity setting fades only the
 /// background; content drawn on top stays fully opaque.
+///
+/// A window without a title bar (the nano panel) has no corners or outline of
+/// its own, so `cornerRadius` rounds the glass itself there.
 struct WindowGlassBackground: NSViewRepresentable {
     let opacity: Double
+    var cornerRadius: CGFloat = 0
 
     func makeNSView(context: Context) -> GlassBackgroundView {
         GlassBackgroundView()
@@ -201,6 +205,7 @@ struct WindowGlassBackground: NSViewRepresentable {
 
     func updateNSView(_ nsView: GlassBackgroundView, context: Context) {
         nsView.opacity = opacity
+        nsView.cornerRadius = cornerRadius
     }
 }
 
@@ -209,6 +214,26 @@ final class GlassBackgroundView: NSView {
 
     var opacity: Double = 1 {
         didSet { effectView.alphaValue = opacity }
+    }
+
+    var cornerRadius: CGFloat = 0 {
+        didSet {
+            guard cornerRadius != oldValue else { return }
+            applyCornerRadius()
+        }
+    }
+
+    private func applyCornerRadius() {
+        if #available(macOS 26, *), let glass = effectView as? NSGlassEffectView {
+            glass.cornerRadius = cornerRadius
+        } else {
+            effectView.wantsLayer = true
+            effectView.layer?.cornerRadius = cornerRadius
+            effectView.layer?.cornerCurve = .continuous
+            effectView.layer?.masksToBounds = cornerRadius > 0
+        }
+        // A window without a title bar takes its shadow from what it draws.
+        window?.invalidateShadow()
     }
 
     init() {
@@ -237,5 +262,6 @@ final class GlassBackgroundView: NSView {
     override func layout() {
         super.layout()
         effectView.frame = bounds
+        if cornerRadius > 0 { window?.invalidateShadow() }
     }
 }
