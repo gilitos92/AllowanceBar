@@ -60,8 +60,9 @@ announcement drafts, environment specifics) and complements this file.
   first steps bypass the drag monitor), and once the window is on screen,
   never earlier: a new window sits at x = 0 before it is placed). Only then
   does a drop snap flush (`snapsToSides`); other panels may stay past the
-  screen edge (2.2.2). The panel keeps the side it last docked on as its
-  resize anchor, also after leaving that edge. `SettingsWindow` (tabbed
+  screen edge (2.2.2). A dropped nano panel keeps the edge on its own
+  half of the screen in place when it resizes, so it grows toward the
+  middle; the edge is measured again after switching into nano. `SettingsWindow` (tabbed
   Settings: General / Providers / Display / Alerts / Agents) draws its own
   cards with `SettingsCards.swift` instead of grouped forms; the Providers
   pane lists providers beside one page per provider, with account sheets

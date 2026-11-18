@@ -60,10 +60,6 @@ struct UsageDetailsView: View {
     /// The screen edge the panel was last dropped against, or touched when
     /// the window came on screen.
     @State private var nanoDockedEdge: HorizontalEdge?
-    /// The nano panel keeps its left edge in place when it resizes, since it
-    /// was last docked on the left; also while it widens after leaving that
-    /// edge, so it does not grow back against it.
-    @State private var nanoAnchorsLeft = false
     /// The nano panel's layout button in automatic mode; cleared when the
     /// panel is dropped somewhere again.
     @State private var nanoVerticalOverride: Bool?
@@ -134,12 +130,10 @@ struct UsageDetailsView: View {
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
                                       anchorsBottomRight: settings.usageDetailsNano,
-                                      anchorsLeft: settings.usageDetailsNano && nanoAnchorsLeft,
                                       snapsToSides: settings.usageDetailsNano
                                           && settings.usageDetailsNanoLayout == .automatic,
                                       onDrop: { edge in
                                           nanoDockedEdge = edge
-                                          if let edge { nanoAnchorsLeft = edge == .leading }
                                           nanoVerticalOverride = nil
                                       },
                                       onPointerInsideChange: { isPointerInside = $0 },
@@ -1091,9 +1085,6 @@ struct WindowLevelSetter: NSViewRepresentable {
     /// Keeps the window's bottom and right edges in place when its size
     /// changes, so the nano panel grows upward and to the left.
     var anchorsBottomRight = false
-    /// With `anchorsBottomRight`, keeps the left edge in place instead of the
-    /// right one, for a nano panel dropped against the left screen edge.
-    var anchorsLeft = false
     /// Snaps a panel dropped against a side flush with it. Only when the
     /// nano panel stands on end there; other panels may stay partly past
     /// the screen edge where the user left them.
@@ -1121,7 +1112,6 @@ struct WindowLevelSetter: NSViewRepresentable {
         nsView.onPointerInsideChange = onPointerInsideChange
         nsView.onTitleBarHeightChange = onTitleBarHeightChange
         nsView.onDrop = onDrop
-        nsView.anchorsLeft = anchorsLeft
         nsView.snapsToSides = snapsToSides
         nsView.alwaysOnTop = alwaysOnTop
         nsView.onAllSpaces = onAllSpaces
@@ -1144,9 +1134,16 @@ struct WindowLevelSetter: NSViewRepresentable {
             didSet { applyLevel() }
         }
         var anchorsBottomRight = false {
-            didSet { if anchorsBottomRight != oldValue { applyLevel() } }
+            didSet {
+                guard anchorsBottomRight != oldValue else { return }
+                applyLevel()
+                if anchorsBottomRight { remeasureWhenSettled() }
+            }
         }
-        var anchorsLeft = false
+        /// Keeps the left edge in place instead of the right one, for a
+        /// panel last dropped in the left half of the screen, so it grows
+        /// toward the middle and never back against the edge it left.
+        private var anchorsLeft = false
         var snapsToSides = false
         var onDrop: (HorizontalEdge?) -> Void = { _ in }
         private var lastFrame: NSRect?
@@ -1172,6 +1169,7 @@ struct WindowLevelSetter: NSViewRepresentable {
             if let dragMonitor { NSEvent.removeMonitor(dragMonitor) }
             dragEndTimer?.invalidate()
             systemDropTimer?.invalidate()
+            remeasureTimer?.invalidate()
             if let pointerTrackingArea { pointerTrackingView?.removeTrackingArea(pointerTrackingArea) }
         }
 
@@ -1196,6 +1194,22 @@ struct WindowLevelSetter: NSViewRepresentable {
         }
 
         private var hasReportedPlacement = false
+        private var remeasureTimer: Timer?
+
+        /// Another view may have been moved anywhere, so the nano panel's
+        /// edge is measured again once the window stops resizing into it.
+        private func remeasureWhenSettled() {
+            guard let window, window.isVisible else { return }
+            remeasureTimer?.invalidate()
+            let timer = Timer(timeInterval: 0.3, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.remeasureTimer = nil
+                    self?.reportDrop(snaps: false)
+                }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            remeasureTimer = timer
+        }
 
         private func reportPlacementOnceVisible() {
             guard !hasReportedPlacement, let window, window.occlusionState.contains(.visible) else { return }
@@ -1209,6 +1223,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         private func reportDrop(snaps: Bool = true) {
             guard let window, let screen = window.screen?.visibleFrame else { return }
             let edge = Self.dockedEdge(of: window.frame, in: screen)
+            anchorsLeft = window.frame.midX < screen.midX
             switch snaps && snapsToSides ? edge : nil {
             case .leading: window.setFrameOrigin(NSPoint(x: screen.minX, y: window.frame.minY))
             case .trailing: window.setFrameOrigin(NSPoint(x: screen.maxX - window.frame.width, y: window.frame.minY))
@@ -1234,6 +1249,7 @@ struct WindowLevelSetter: NSViewRepresentable {
                     MainActor.assumeIsolated {
                         self?.keepAnchorEdgesIfNeeded()
                         self?.syncPointerInside()
+                        if self?.remeasureTimer != nil { self?.remeasureWhenSettled() }
                     }
                 })
             }
@@ -1408,7 +1424,10 @@ struct WindowLevelSetter: NSViewRepresentable {
                         return nil
                     default:
                         // A drag's mouse-up must not click the button it began on.
-                        guard isDragging else { return event }
+                        guard isDragging else {
+                            mouseDownLocation = nil
+                            return event
+                        }
                         endDrag()
                         return nil
                     }
@@ -1449,13 +1468,17 @@ struct WindowLevelSetter: NSViewRepresentable {
         /// once the button is released. Moves made in code happen with the
         /// button up and are not drops.
         private func watchForSystemDrop() {
-            guard compact, !isDragging, systemDropTimer == nil,
+            // The button state is system-wide; only a press that began in
+            // this window can be dragging it.
+            guard compact, !isDragging, systemDropTimer == nil, mouseDownLocation != nil,
                   NSEvent.pressedMouseButtons & 1 != 0 else { return }
             let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] timer in
                 guard NSEvent.pressedMouseButtons & 1 == 0 else { return }
                 timer.invalidate()
                 MainActor.assumeIsolated {
                     self?.systemDropTimer = nil
+                    // The window server kept the drag's mouse-up.
+                    self?.mouseDownLocation = nil
                     self?.reportDrop()
                 }
             }
