@@ -1213,8 +1213,11 @@ struct WindowLevelSetter: NSViewRepresentable {
                         // the nano panel, so close it here. `performClose`
                         // would only beep without a close button.
                         guard isNano,
-                              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-                              event.charactersIgnoringModifiers?.lowercased() == "w" else { return event }
+                              event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+                              // Layouts such as Russian type another letter
+                              // without Command but "w" with it, like menus.
+                              [event.characters, event.charactersIgnoringModifiers]
+                                .contains(where: { $0?.lowercased() == "w" }) else { return event }
                         window.close()
                         return nil
                     case .leftMouseDown:
