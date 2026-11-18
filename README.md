@@ -30,7 +30,7 @@ meters live only in the menu bar: you click, look, and the numbers disappear.
 Allowance Bar's Usage Details window (⌘D, or `allowancebar://details`) keeps
 every limit visible while you work:
 
-- **Three sizes.** The full window shows every provider's meters, reset times,
+- **Four views.** The full window shows every provider's meters, reset times,
   and balances, two limits per row (three when a provider has three). The
   small, chrome-free **mini panel** has one meter per limit (for example
   5-hour and weekly), the time until each resets, and each account's name

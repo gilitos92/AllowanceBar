@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.12.0] — 2026-11-18
+
 ### Added
 - A Vertical Nano View: the nano window standing on end as a narrow strip,
   so it can sit along a side of the screen instead of covering the
