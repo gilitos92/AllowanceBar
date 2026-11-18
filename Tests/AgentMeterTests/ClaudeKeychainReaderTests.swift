@@ -133,21 +133,25 @@ final class ClaudeKeychainReaderTests: XCTestCase {
     func testTimeoutTerminatesChildProcess() async throws {
         let script = try makeSleepingScript()
         defer { try? FileManager.default.removeItem(at: script.directory) }
+        let launchedPID = LaunchedPID()
 
+        // The PID comes from the reader at launch, not from the script's PID file:
+        // under load the 0.2 s timeout can stop the child before it writes that file.
         do {
             _ = try await ClaudeKeychainReader.read(
                 service: "test-service",
                 executableURL: script.executable,
                 account: "test-account",
-                timeout: 0.2
+                timeout: 0.2,
+                onLaunch: { launchedPID.value = $0 }
             )
             XCTFail("Expected timeout")
         } catch let error as ClaudeKeychainReaderError {
             XCTAssertEqual(error, .timedOut)
         }
 
-        guard let pid = await waitForPID(in: script.pidFile) else {
-            XCTFail("The fake child did not start")
+        guard let pid = launchedPID.value else {
+            XCTFail("The fake child was not launched")
             return
         }
         await assertProcessHasExited(pid)
@@ -222,5 +226,15 @@ final class ClaudeKeychainReaderTests: XCTestCase {
             try? await Task.sleep(nanoseconds: 10_000_000)
         }
         XCTFail("Child process \(pid) remained alive")
+    }
+}
+
+private final class LaunchedPID: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedValue: pid_t?
+
+    var value: pid_t? {
+        get { lock.withLock { storedValue } }
+        set { lock.withLock { storedValue = newValue } }
     }
 }

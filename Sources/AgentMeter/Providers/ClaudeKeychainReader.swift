@@ -26,13 +26,16 @@ enum ClaudeKeychainReader {
     }
 
     // Internal injection point for tests. Production always uses /usr/bin/security
-    // and the fixed argument vector below.
+    // and the fixed argument vector below. `onLaunch` receives the child's PID
+    // right after launch, so tests can check that the child is stopped even when
+    // it is killed before it runs any of its own code.
     static func read(
         service: String,
         executableURL: URL,
         account: String,
         timeout: TimeInterval = 5,
-        maximumOutputBytes: Int = 1_048_576
+        maximumOutputBytes: Int = 1_048_576,
+        onLaunch: (@Sendable (pid_t) -> Void)? = nil
     ) async throws -> Data? {
         try Task.checkCancellation()
         let arguments = ["find-generic-password", "-s", service, "-a", account, "-w"]
@@ -40,7 +43,8 @@ enum ClaudeKeychainReader {
             executableURL: executableURL,
             arguments: arguments,
             timeout: timeout,
-            maximumOutputBytes: maximumOutputBytes
+            maximumOutputBytes: maximumOutputBytes,
+            onLaunch: onLaunch
         )
 
         return try await withTaskCancellationHandler {
@@ -56,6 +60,7 @@ private final class ClaudeKeychainReadOperation: @unchecked Sendable {
     private let arguments: [String]
     private let timeout: TimeInterval
     private let maximumOutputBytes: Int
+    private let onLaunch: (@Sendable (pid_t) -> Void)?
     private let queue = DispatchQueue(label: "com.ggv.AllowanceBar.ClaudeKeychainReader")
 
     // All mutable state below is confined to queue.
@@ -71,11 +76,18 @@ private final class ClaudeKeychainReadOperation: @unchecked Sendable {
     private var didComplete = false
     private var cancellationRequested = false
 
-    init(executableURL: URL, arguments: [String], timeout: TimeInterval, maximumOutputBytes: Int) {
+    init(
+        executableURL: URL,
+        arguments: [String],
+        timeout: TimeInterval,
+        maximumOutputBytes: Int,
+        onLaunch: (@Sendable (pid_t) -> Void)?
+    ) {
         self.executableURL = executableURL
         self.arguments = arguments
         self.timeout = timeout
         self.maximumOutputBytes = maximumOutputBytes
+        self.onLaunch = onLaunch
     }
 
     func run() async throws -> Data? {
@@ -151,6 +163,7 @@ private final class ClaudeKeychainReadOperation: @unchecked Sendable {
             complete(.failure(ClaudeKeychainReaderError.launchFailed))
             return
         }
+        onLaunch?(process.processIdentifier)
 
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + timeout)
