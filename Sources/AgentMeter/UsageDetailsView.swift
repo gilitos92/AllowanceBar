@@ -1059,8 +1059,23 @@ struct WindowLevelSetter: NSViewRepresentable {
             guard isNano, !isDragging, let window else { return }
             let frame = window.frame
             let screens = NSScreen.screens
-            guard !screens.isEmpty,
-                  !screens.contains(where: { $0.frame.intersects(frame) }) else { return }
+            guard !screens.isEmpty else { return }
+            if let screen = screens.max(by: {
+                $0.frame.intersection(frame).width * $0.frame.intersection(frame).height
+                    < $1.frame.intersection(frame).width * $1.frame.intersection(frame).height
+            }), screen.frame.intersects(frame), frame.minY < screen.frame.minY {
+                // A drag stops at a screen's bottom edge, so a panel below it
+                // comes from a restored position (closing the panel while its
+                // controls show saves a taller frame, and it reopens lower).
+                // Keep it flush with that edge unless another screen is below.
+                let below = NSRect(x: frame.minX, y: frame.minY,
+                                   width: frame.width, height: screen.frame.minY - frame.minY)
+                if !screens.contains(where: { $0 !== screen && $0.frame.intersects(below) }) {
+                    window.setFrameOrigin(NSPoint(x: frame.minX, y: screen.frame.minY))
+                }
+                return
+            }
+            guard !screens.contains(where: { $0.frame.intersects(frame) }) else { return }
             let center = NSPoint(x: frame.midX, y: frame.midY)
             func distance(to screen: NSScreen) -> CGFloat {
                 let area = screen.frame
@@ -1214,10 +1229,10 @@ struct WindowLevelSetter: NSViewRepresentable {
                         // would only beep without a close button.
                         guard isNano,
                               event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
-                              // Layouts such as Russian type another letter
-                              // without Command but "w" with it, like menus.
-                              [event.characters, event.charactersIgnoringModifiers]
-                                .contains(where: { $0?.lowercased() == "w" }) else { return event }
+                              // The letter typed with Command held, as menus
+                              // match it: layouts such as Russian type another
+                              // letter without Command.
+                              event.characters?.lowercased() == "w" else { return event }
                         window.close()
                         return nil
                     case .leftMouseDown:
