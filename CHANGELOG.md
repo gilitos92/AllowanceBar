@@ -8,16 +8,15 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 ## [Unreleased]
 
 ### Added
-- The nano window can stand on end. Drag it against the left or right edge
-  of the screen and it turns into a narrow vertical strip, so it no longer
-  covers the toolbars and input fields near the top of other windows. Each
-  account shows its dot and code, a small vertical meter for each limit
-  with the even-pace marker, the leading percent with its pace arrow, and
-  its place in CLIProxyAPI's order; the hover controls stand on end too.
-  Drag it away from the edge to get the line back. A new Vertical Layout
-  button in its hover controls switches it until you move it again, and
-  Settings → Display → Nano window layout can keep it always horizontal or
-  always vertical.
+- A Vertical Nano View: the nano window standing on end as a narrow strip,
+  so it can sit along a side of the screen instead of covering the
+  toolbars and input fields near the top of other windows. Pick it with the
+  new button next to Nano (the nano icon turned on its side) in the
+  window's toolbar, the panels' hover controls and the menu bar dropdown;
+  Allowance Bar remembers it like the other views. Each account shows its
+  dot and code, a small vertical meter for each limit with the even-pace
+  marker, the leading percent with its pace arrow, and its place in
+  CLIProxyAPI's order; the hover controls stand on end too.
 
 ### Fixed
 - The nano window can now rest beside the Dock or on the bottom edge of the

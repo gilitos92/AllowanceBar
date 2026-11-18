@@ -36,9 +36,10 @@ every limit visible while you work:
   5-hour and weekly), the time until each resets, and each account's name
   in its own column. The **nano
   panel** is smaller still: only the menu bar text, e.g.
-  `Cx 80% (89%) · Cl 52% (58%)`. Switch views with the Full, Compact and
-  Nano buttons at the right of the full window's toolbar, in the panels'
-  hover controls, or in the menu bar dropdown, which opens the window in
+  `Cx 80% (89%) · Cl 52% (58%)`. The **vertical nano panel** is the same
+  panel standing on end, for a side of the screen. Switch views with the
+  Full, Compact, Nano and Vertical Nano buttons at the right of the full
+  window's toolbar, in the panels' hover controls, or in the menu bar dropdown, which opens the window in
   that view. Hover a panel to show Close, Keep on Top, Show on All
   Desktops, Opacity and the view buttons without moving it. Drag either
   panel anywhere outside the buttons.
@@ -50,15 +51,11 @@ every limit visible while you work:
   the menu bar stays brief. Percentages follow **Count direction**: used
   or remaining. With the icon-only menu bar style, nano still
   shows text for every provider enabled in the menu bar.
-- **Stand nano on end.** Drag the nano panel against the left or right edge
-  of the screen and it becomes a narrow vertical strip, so it stays clear of
-  the toolbars and input fields near the top of other windows. Each account
-  shows its dot and code, a small vertical meter for each limit with the
-  even-pace marker, the leading percent with its pace arrow, and its
-  CLIProxyAPI place. Drag it away from the edge to get the line back. The
-  Vertical Layout button in its hover controls switches it until you move it
-  again, and **Settings → Display → Nano window layout** can keep it always
-  horizontal or always vertical.
+- **Stand nano on end.** The Vertical Nano view is a narrow strip that
+  stays clear of the toolbars and input fields near the top of other
+  windows. Each account shows its dot and code, a small vertical meter for
+  each limit with the even-pace marker, the leading percent with its pace
+  arrow, and its CLIProxyAPI place.
 - **Keep on Top.** The window stays above other windows, even when you switch
   apps.
 - **Show on All Desktops.** It follows you to every desktop (Space) and over

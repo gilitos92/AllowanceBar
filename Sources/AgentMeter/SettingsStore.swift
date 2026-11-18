@@ -28,25 +28,6 @@ enum MenuBarStyle: String {
     case full, compact, icon
 }
 
-/// The nano Usage Details panel's shape.
-enum NanoLayout: String, CaseIterable {
-    /// Vertical while the panel was last dropped against the left or right
-    /// edge of the screen, horizontal anywhere else.
-    case automatic
-    case horizontal
-    case vertical
-
-    /// Whether the panel stands on end. `override` is the panel's own
-    /// layout button in automatic mode, kept until the panel moves again.
-    nonisolated func isVertical(dockedAtSide: Bool, override: Bool?) -> Bool {
-        switch self {
-        case .horizontal: false
-        case .vertical: true
-        case .automatic: override ?? dockedAtSide
-        }
-    }
-}
-
 /// User preferences: per-provider visibility and refresh cadence.
 @MainActor
 final class SettingsStore: ObservableObject {
@@ -129,11 +110,11 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(usageDetailsNano, forKey: Keys.usageDetailsNano) }
     }
 
-    /// Whether the nano panel shows its line of text or stands on end as a
-    /// strip of meters, which fits along a side of the screen instead of
-    /// over the top edge where apps keep their toolbars and input fields.
-    @Published var usageDetailsNanoLayout: NanoLayout {
-        didSet { defaults.set(usageDetailsNanoLayout.rawValue, forKey: Keys.usageDetailsNanoLayout) }
+    /// The nano panel stands on end as a strip of meters (the Vertical Nano
+    /// view), which fits along a side of the screen instead of over the top
+    /// edge where apps keep their toolbars and input fields.
+    @Published var usageDetailsNanoVertical: Bool {
+        didSet { defaults.set(usageDetailsNanoVertical, forKey: Keys.usageDetailsNanoVertical) }
     }
 
     /// Either chrome-free panel (compact or nano) is showing.
@@ -255,6 +236,8 @@ final class SettingsStore: ObservableObject {
         static let usageDetailsOnAllSpaces = "usageDetailsOnAllSpaces"
         static let usageDetailsCompact = "usageDetailsCompact"
         static let usageDetailsNano = "usageDetailsNano"
+        static let usageDetailsNanoVertical = "usageDetailsNanoVertical"
+        /// Replaced by `usageDetailsNanoVertical` before any release.
         static let usageDetailsNanoLayout = "usageDetailsNanoLayout"
         static let usageDetailsBackgroundOpacity = "usageDetailsBackgroundOpacity"
         static let usageDetailsClearGlass = "usageDetailsClearGlass"
@@ -316,8 +299,13 @@ final class SettingsStore: ObservableObject {
         self.usageDetailsOnAllSpaces = defaults.bool(forKey: Keys.usageDetailsOnAllSpaces)
         self.usageDetailsCompact = defaults.bool(forKey: Keys.usageDetailsCompact)
         self.usageDetailsNano = defaults.bool(forKey: Keys.usageDetailsNano)
-        self.usageDetailsNanoLayout = defaults.string(forKey: Keys.usageDetailsNanoLayout)
-            .flatMap(NanoLayout.init(rawValue:)) ?? .automatic
+        if let layout = defaults.string(forKey: Keys.usageDetailsNanoLayout) {
+            if defaults.object(forKey: Keys.usageDetailsNanoVertical) == nil {
+                defaults.set(layout == "vertical", forKey: Keys.usageDetailsNanoVertical)
+            }
+            defaults.removeObject(forKey: Keys.usageDetailsNanoLayout)
+        }
+        self.usageDetailsNanoVertical = defaults.bool(forKey: Keys.usageDetailsNanoVertical)
         if defaults.object(forKey: Keys.usageDetailsBackgroundOpacity) != nil {
             self.usageDetailsBackgroundOpacity = min(1, max(0, defaults.double(forKey: Keys.usageDetailsBackgroundOpacity)))
         } else {

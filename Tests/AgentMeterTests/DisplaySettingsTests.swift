@@ -1,4 +1,3 @@
-import SwiftUI
 import XCTest
 @testable import AgentMeter
 
@@ -17,39 +16,37 @@ final class DisplaySettingsTests: XCTestCase {
     }
 
     @MainActor
-    func testNanoLayoutDefaultsToAutomaticAndPersists() {
+    func testEveryUsageDetailsViewIsRemembered() {
         let suite = "DisplaySettingsTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
 
-        let settings = SettingsStore(defaults: defaults)
-        XCTAssertEqual(settings.usageDetailsNanoLayout, .automatic)
-        settings.usageDetailsNanoLayout = .vertical
-        XCTAssertEqual(SettingsStore(defaults: defaults).usageDetailsNanoLayout, .vertical)
-    }
-
-    func testNanoLayoutTurnsVerticalAtSideEdgesUnlessOverridden() {
-        XCTAssertFalse(NanoLayout.automatic.isVertical(dockedAtSide: false, override: nil))
-        XCTAssertTrue(NanoLayout.automatic.isVertical(dockedAtSide: true, override: nil))
-        // The panel's button wins until the panel is dropped again.
-        XCTAssertFalse(NanoLayout.automatic.isVertical(dockedAtSide: true, override: false))
-        XCTAssertTrue(NanoLayout.automatic.isVertical(dockedAtSide: false, override: true))
-        XCTAssertFalse(NanoLayout.horizontal.isVertical(dockedAtSide: true, override: true))
-        XCTAssertTrue(NanoLayout.vertical.isVertical(dockedAtSide: false, override: false))
-    }
-
-    func testDockedEdgeNeedsThePanelPushedAgainstASide() {
-        let screen = NSRect(x: 0, y: 0, width: 1512, height: 944)
-        func edge(x: CGFloat, width: CGFloat = 60) -> HorizontalEdge? {
-            WindowLevelSetter.ProbeView.dockedEdge(of: NSRect(x: x, y: 300, width: width, height: 200), in: screen)
+        XCTAssertEqual(SettingsStore(defaults: defaults).usageDetailsMode, .full)
+        for mode in UsageDetailsMode.allCases {
+            SettingsStore(defaults: defaults).usageDetailsMode = mode
+            XCTAssertEqual(SettingsStore(defaults: defaults).usageDetailsMode, mode)
         }
-        XCTAssertEqual(edge(x: 0), .leading)
-        XCTAssertEqual(edge(x: -20), .leading)
-        XCTAssertEqual(edge(x: 1512 - 60), .trailing)
-        XCTAssertEqual(edge(x: 1512 - 40), .trailing)
-        // 23 pt from the right edge: placed near it, not pushed against it.
-        XCTAssertNil(edge(x: 1512 - 520 - 23, width: 520))
-        XCTAssertNil(edge(x: 700))
+        // Nano after Vertical Nano shows the line again; leaving nano keeps
+        // the choice for the next time.
+        let settings = SettingsStore(defaults: defaults)
+        settings.usageDetailsMode = .nanoVertical
+        settings.usageDetailsMode = .full
+        settings.usageDetailsMode = .mini
+        XCTAssertTrue(settings.usageDetailsNanoVertical)
+        settings.usageDetailsMode = .nano
+        XCTAssertFalse(settings.usageDetailsNanoVertical)
+    }
+
+    @MainActor
+    func testUnreleasedNanoLayoutSettingMigrates() {
+        for (stored, vertical) in [("vertical", true), ("automatic", false), ("horizontal", false)] {
+            let suite = "DisplaySettingsTests.\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defer { defaults.removePersistentDomain(forName: suite) }
+            defaults.set(stored, forKey: "usageDetailsNanoLayout")
+            XCTAssertEqual(SettingsStore(defaults: defaults).usageDetailsNanoVertical, vertical, stored)
+            XCTAssertNil(defaults.object(forKey: "usageDetailsNanoLayout"))
+        }
     }
 
     @MainActor

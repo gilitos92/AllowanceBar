@@ -334,7 +334,7 @@ private struct MenuWindowScreenReader: NSViewRepresentable {
     }
 }
 
-/// The Usage Details window's three views on one capsule, like the window's
+/// The Usage Details window's views on one capsule, like the window's
 /// own view switcher. Each opens the window in that view, and ⌘D opens the
 /// current one. The current view is highlighted while the window is open.
 private struct ViewModeButtons: View {
@@ -347,6 +347,7 @@ private struct ViewModeButtons: View {
             ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
                 let button = Button { open(mode) } label: {
                     Image(systemName: mode.symbol)
+                        .rotationEffect(mode.symbolRotation)
                 }
                 .buttonStyle(ViewModeButtonStyle(isSelected: highlightsCurrent && mode == current))
                 .help(mode.help)
