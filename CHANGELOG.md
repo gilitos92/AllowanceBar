@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.12.1] — 2026-11-18
+
 ### Fixed
 - Claude accounts without a paid plan no longer show "Anthropic
   rate-limited the usage request" all day. Anthropic refuses the usage
