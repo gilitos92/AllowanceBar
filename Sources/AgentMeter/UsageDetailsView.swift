@@ -426,8 +426,8 @@ private struct NanoUsageView: View {
     }
 
     var body: some View {
-        // The window keeps its bottom edge, and the side edge nearer to
-        // where it was dropped, in place (see `WindowLevelSetter`). The
+        // The window keeps its bottom edge, and the side edge of the screen
+        // half the panel sits in, in place (see `WindowLevelSetter`). The
         // content aligns with that side, so the text stays put and the
         // controls grow the panel upward and toward the middle.
         VStack(alignment: anchorsLeft ? .leading : .trailing, spacing: 6) {
