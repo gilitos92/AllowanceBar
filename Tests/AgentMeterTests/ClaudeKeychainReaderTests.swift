@@ -160,19 +160,21 @@ final class ClaudeKeychainReaderTests: XCTestCase {
     func testCancellationTerminatesChildProcess() async throws {
         let script = try makeSleepingScript()
         defer { try? FileManager.default.removeItem(at: script.directory) }
+        let launchedPID = LaunchedPID()
 
         let task = Task {
             try await ClaudeKeychainReader.read(
                 service: "test-service",
                 executableURL: script.executable,
                 account: "test-account",
-                timeout: 10
+                timeout: 10,
+                onLaunch: { launchedPID.value = $0 }
             )
         }
 
-        guard let pid = await waitForPID(in: script.pidFile) else {
+        guard let pid = await waitForLaunch(of: launchedPID) else {
             task.cancel()
-            XCTFail("The fake child did not start")
+            XCTFail("The fake child was not launched")
             return
         }
         task.cancel()
@@ -209,12 +211,11 @@ final class ClaudeKeychainReaderTests: XCTestCase {
         return (directory, executable, pidFile)
     }
 
-    private func waitForPID(in file: URL) async -> pid_t? {
-        for _ in 0..<200 {
-            if let value = try? String(contentsOf: file, encoding: .utf8),
-               let pid = pid_t(value.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                return pid
-            }
+    // Waits up to the cancellation test's 10 s read timeout: launching is the
+    // reader's own work, so under heavy load it can take longer than usual.
+    private func waitForLaunch(of launchedPID: LaunchedPID) async -> pid_t? {
+        for _ in 0..<1_000 {
+            if let pid = launchedPID.value { return pid }
             try? await Task.sleep(nanoseconds: 10_000_000)
         }
         return nil
