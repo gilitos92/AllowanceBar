@@ -51,7 +51,14 @@ announcement drafts, environment specifics) and complements this file.
   modules live in `ProviderUsageSections.swift` (`ProviderModule`; a
   provider's accounts share one module via `ProviderGroup`) and are shared
   with `UsageDetailsView`, the ⌘D / `allowancebar://details` window with
-  full, mini and nano views (`UsageDetailsMode`). `SettingsWindow` (tabbed
+  full, mini and nano views (`UsageDetailsMode`). The nano view stands
+  on end (`NanoLayout`, `NanoMeterStack`, `store.nanoMeterEntries`, one
+  vertical `UsageMeterBar` per limit) when set to Vertical, or in
+  Automatic mode when the panel was last dropped against a left/right
+  screen edge (`WindowLevelSetter.ProbeView.dockedEdge`, measured at each
+  drag's end and once the window is on screen, never earlier: a new window
+  sits at x = 0 before it is placed; dropping snaps it flush and it then
+  stays anchored to that edge). `SettingsWindow` (tabbed
   Settings: General / Providers / Display / Alerts / Agents) draws its own
   cards with `SettingsCards.swift` instead of grouped forms; the Providers
   pane lists providers beside one page per provider, with account sheets

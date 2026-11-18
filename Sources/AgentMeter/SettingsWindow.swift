@@ -1597,6 +1597,18 @@ private struct DisplaySettingsTab: View {
             }
 
             SettingsGroup {
+                Picker(L("Nano window layout"), selection: $settings.usageDetailsNanoLayout) {
+                    Text(L("Automatic")).tag(NanoLayout.automatic)
+                    Text(L("Horizontal")).tag(NanoLayout.horizontal)
+                    Text(L("Vertical")).tag(NanoLayout.vertical)
+                }
+                .settingsSegmented()
+                .settingsRow(L("Nano window layout"))
+            } footer: {
+                SettingsNote(L("Vertical stands the nano window on end, with a small meter for each limit, so it fits along a side of the screen instead of covering toolbars and input fields near the top. Automatic turns it vertical when you drag it against the left or right edge of the screen, and back when you drag it away. Its Vertical Layout button switches it until you move it again."))
+            }
+
+            SettingsGroup {
                 Toggle(L("Show pace"), isOn: $settings.showsPace)
                 Toggle(L("Show pace in the nano window"), isOn: $settings.nanoShowsPace)
             } footer: {

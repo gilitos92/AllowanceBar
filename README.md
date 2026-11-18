@@ -50,6 +50,15 @@ every limit visible while you work:
   the menu bar stays brief. Percentages follow **Count direction**: used
   or remaining. With the icon-only menu bar style, nano still
   shows text for every provider enabled in the menu bar.
+- **Stand nano on end.** Drag the nano panel against the left or right edge
+  of the screen and it becomes a narrow vertical strip, so it stays clear of
+  the toolbars and input fields near the top of other windows. Each account
+  shows its dot and code, a small vertical meter for each limit with the
+  even-pace marker, the leading percent with its pace arrow, and its
+  CLIProxyAPI place. Drag it away from the edge to get the line back. The
+  Vertical Layout button in its hover controls switches it until you move it
+  again, and **Settings → Display → Nano window layout** can keep it always
+  horizontal or always vertical.
 - **Keep on Top.** The window stays above other windows, even when you switch
   apps.
 - **Show on All Desktops.** It follows you to every desktop (Space) and over

@@ -57,7 +57,30 @@ struct UsageDetailsView: View {
     @State private var contentHeight: CGFloat?
     @State private var titleBarInset: CGFloat = 0
     @State private var isPointerInside = false
+    /// The screen edge the panel was last dropped against, or touched when
+    /// the window came on screen.
+    @State private var nanoDockedEdge: HorizontalEdge?
+    /// The nano panel's layout button in automatic mode; cleared when the
+    /// panel is dropped somewhere again.
+    @State private var nanoVerticalOverride: Bool?
     @Environment(\.dismissWindow) private var dismissWindow
+
+    private var nanoIsVertical: Bool {
+        settings.usageDetailsNanoLayout.isVertical(
+            dockedAtSide: nanoDockedEdge != nil,
+            override: nanoVerticalOverride
+        )
+    }
+
+    private func toggleNanoLayout() {
+        let vertical = nanoIsVertical
+        switch settings.usageDetailsNanoLayout {
+        case .automatic:
+            nanoVerticalOverride = !vertical
+        case .horizontal, .vertical:
+            settings.usageDetailsNanoLayout = vertical ? .horizontal : .vertical
+        }
+    }
 
     var body: some View {
         Group {
@@ -67,10 +90,13 @@ struct UsageDetailsView: View {
                 // redraw every 30 seconds like the meters.
                 TimelineView(.periodic(from: .now, by: 30)) { _ in
                     NanoUsageView(
-                        entries: store.nanoEntries,
+                        entries: nanoIsVertical ? [] : store.nanoEntries,
+                        meterEntries: nanoIsVertical ? store.nanoMeterEntries : [],
+                        vertical: nanoIsVertical,
                         accessibilityDescription: store.nanoAccessibilityDescription,
                         settings: settings,
                         isPointerInside: isPointerInside,
+                        toggleLayout: toggleNanoLayout,
                         close: { dismissWindow(id: "usage-details") }
                     )
                 }
@@ -104,6 +130,11 @@ struct UsageDetailsView: View {
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
                                       anchorsBottomRight: settings.usageDetailsNano,
+                                      anchorsLeft: settings.usageDetailsNano && nanoDockedEdge == .leading,
+                                      onDrop: { edge in
+                                          nanoDockedEdge = edge
+                                          nanoVerticalOverride = nil
+                                      },
                                       onPointerInsideChange: { isPointerInside = $0 },
                                       onTitleBarHeightChange: { titleBarInset = $0 }))
         // The compact and nano panels have no title bar controls; their own
@@ -360,14 +391,19 @@ private struct CompactUsageView: View {
 }
 
 /// The smallest Usage Details panel: only the menu bar text, e.g.
-/// "Cx 50% · Cl 30%", each entry after a dot in its provider's color. While
-/// the pointer is over it, or always with VoiceOver, the window controls
-/// appear above the text. Dragging anywhere else moves it.
+/// "Cx 50% · Cl 30%", each entry after a dot in its provider's color. The
+/// vertical layout stands it on end for the side of the screen: each account
+/// is a small stack with a meter per limit. While the pointer is over it, or
+/// always with VoiceOver, the window controls appear above the text.
+/// Dragging anywhere else moves it.
 private struct NanoUsageView: View {
     let entries: [MenuBarEntry]
+    let meterEntries: [NanoMeterEntry]
+    let vertical: Bool
     let accessibilityDescription: String
     @ObservedObject var settings: SettingsStore
     let isPointerInside: Bool
+    let toggleLayout: () -> Void
     let close: () -> Void
     @State private var isAdjustingOpacity = false
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
@@ -377,31 +413,45 @@ private struct NanoUsageView: View {
     }
 
     var body: some View {
-        // The window keeps its bottom and right edges in place (see
-        // `WindowLevelSetter`), so the text stays put and the controls grow
-        // the panel upward.
-        VStack(alignment: .trailing, spacing: 6) {
+        // The window keeps its bottom edge, and the edge it was dropped
+        // against, in place (see `WindowLevelSetter`), so the text stays put
+        // and the controls grow the panel upward.
+        VStack(alignment: vertical ? .center : .trailing, spacing: 6) {
             if showsControls {
                 controls
             }
-            title
+            Group {
+                if vertical {
+                    strip
+                } else {
+                    line
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityDescription)
         }
         // Room around the text to grab the panel and drag it.
-        .padding(.horizontal, 14)
-        .padding(.vertical, 7)
+        .padding(.horizontal, vertical ? 8 : 14)
+        .padding(.vertical, vertical ? 9 : 7)
         .fixedSize()
         // The panel has no title bar, so it sits flush with the window edges.
         .ignoresSafeArea()
     }
 
     private var controls: some View {
-        PanelControls(settings: settings, isAdjustingOpacity: $isAdjustingOpacity, close: close)
-            .controlSize(.small)
+        PanelControls(
+            settings: settings,
+            isAdjustingOpacity: $isAdjustingOpacity,
+            close: close,
+            layoutToggle: (vertical, toggleLayout),
+            vertical: vertical
+        )
+        .controlSize(.small)
     }
 
     /// Same text as the menu bar title. Warning and critical entries take
     /// their severity color and symbol; severity is never shown by color alone.
-    private var title: some View {
+    private var line: some View {
         HStack(spacing: 8) {
             ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
                 if index > 0 {
@@ -409,34 +459,36 @@ private struct NanoUsageView: View {
                 }
                 HStack(spacing: 4) {
                     if let providerID = entry.providerID {
-                        Circle()
-                            .fill(dotColor(for: entry, providerID: providerID))
-                            .frame(width: 7, height: 7)
+                        NanoDot(severity: entry.severity, providerID: providerID)
                     }
                     // The provider code stays plain; only the value takes
                     // the severity color, e.g. "Cl" then "18%↗".
                     let parts = Self.split(entry.text, hasProvider: entry.providerID != nil)
                     if let code = parts.code {
-                        Text(verbatim: code)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(entry.severity == .stale ? .secondary : .primary)
+                        NanoCode(code: code, severity: entry.severity)
                     }
-                    SeverityValueLabel(
-                        text: parts.value,
-                        symbolName: entry.severity.symbolName,
-                        tint: entry.severity.textColor,
-                        plainColor: entry.severity == .stale ? .secondary : .primary,
-                        font: .system(size: 12, weight: entry.severity.isEmphasized ? .semibold : .regular).monospacedDigit(),
-                        symbolFont: .system(size: 10.5, weight: .semibold)
-                    )
+                    NanoValue(text: parts.value, severity: entry.severity)
                 }
                 // Entries never truncate; the panel grows to fit them.
                 .fixedSize()
             }
         }
         .lineLimit(1)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityDescription)
+    }
+
+    /// One stack per account, top to bottom in the line's order, with a
+    /// hairline between accounts.
+    private var strip: some View {
+        VStack(spacing: 6) {
+            ForEach(Array(meterEntries.enumerated()), id: \.element.id) { index, entry in
+                if index > 0 {
+                    Divider().frame(width: 22)
+                }
+                NanoMeterStack(entry: entry, settings: settings)
+            }
+        }
+        .lineLimit(1)
+        .fixedSize()
     }
 
     /// "Cl 18%↗ #1" → code "Cl", value "18%↗ #1". Entries without a
@@ -445,9 +497,69 @@ private struct NanoUsageView: View {
         guard hasProvider, let space = text.firstIndex(of: " ") else { return (nil, text) }
         return (String(text[..<space]), String(text[text.index(after: space)...]))
     }
+}
 
-    private func dotColor(for entry: MenuBarEntry, providerID: String) -> Color {
-        switch entry.severity {
+/// One account in the vertical nano panel: its dot and code, a vertical
+/// meter per limit with the even-pace marker, the leading value with its
+/// pace arrow, and its place in CLIProxyAPI's order.
+private struct NanoMeterStack: View {
+    let entry: NanoMeterEntry
+    @ObservedObject var settings: SettingsStore
+
+    var body: some View {
+        let now = Date()
+        let direction = settings.countDirection
+        VStack(spacing: 3) {
+            HStack(spacing: 4) {
+                if let providerID = entry.providerID {
+                    NanoDot(severity: entry.severity, providerID: providerID)
+                }
+                NanoCode(code: entry.code, severity: entry.severity)
+            }
+            if !entry.windows.isEmpty {
+                // Apart enough that neighboring pace markers don't touch.
+                HStack(spacing: 3) {
+                    ForEach(Array(entry.windows.enumerated()), id: \.offset) { _, window in
+                        UsageMeterBar(
+                            percent: direction.displayPercent(window.usedPercent),
+                            severity: UsageMeterSeverity.forUsedPercent(window.usedPercent),
+                            paceMarkerPercent: settings.nanoShowsPace
+                                ? direction.paceMarkerPercent(for: window, now: now) : nil,
+                            height: 5,
+                            vertical: true
+                        )
+                        .frame(height: 30)
+                    }
+                }
+                .opacity(entry.severity == .stale ? 0.5 : 1)
+                .padding(.vertical, 1)
+            }
+            if !entry.value.isEmpty {
+                NanoValue(text: entry.value, severity: entry.severity)
+            }
+            if let priority = entry.priority {
+                Text(verbatim: priority)
+                    .font(.system(size: 10.5, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// The provider's dot; warning, critical and stale entries take their
+/// severity's color instead.
+private struct NanoDot: View {
+    let severity: MenuBarSeverity
+    let providerID: String
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 7, height: 7)
+    }
+
+    private var color: Color {
+        switch severity {
         case .warning: Color(nsColor: .systemOrange)
         case .critical: Color(nsColor: .systemRed)
         case .stale: Color.secondary
@@ -456,31 +568,74 @@ private struct NanoUsageView: View {
     }
 }
 
+private struct NanoCode: View {
+    let code: String
+    let severity: MenuBarSeverity
+
+    var body: some View {
+        Text(verbatim: code)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(severity == .stale ? .secondary : .primary)
+    }
+}
+
+private struct NanoValue: View {
+    let text: String
+    let severity: MenuBarSeverity
+
+    var body: some View {
+        SeverityValueLabel(
+            text: text,
+            symbolName: severity.symbolName,
+            tint: severity.textColor,
+            plainColor: severity == .stale ? .secondary : .primary,
+            font: .system(size: 12, weight: severity.isEmphasized ? .semibold : .regular).monospacedDigit(),
+            symbolFont: .system(size: 10.5, weight: .semibold)
+        )
+    }
+}
+
 /// Hover controls shared by the compact and nano panels: the window options,
-/// and the same three-way view switcher as the full window's toolbar.
+/// and the same three-way view switcher as the full window's toolbar. The
+/// vertical nano panel stands each group on end, so the controls fit its
+/// narrow column instead of widening it.
 private struct PanelControls: View {
     @ObservedObject var settings: SettingsStore
     @Binding var isAdjustingOpacity: Bool
     let close: () -> Void
+    /// The nano panel's layout button: whether it is vertical, and the
+    /// switch to the other layout.
+    var layoutToggle: (isVertical: Bool, action: () -> Void)?
+    /// Stands each group on end, for the vertical nano panel.
+    var vertical = false
     @Environment(\.controlSize) private var controlSize
 
     var body: some View {
-        HStack(spacing: 4) {
-            glassGroup { windowOptions }
-            glassGroup {
-                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
-                    CompactControlButton(
-                        title: mode.title,
-                        symbol: mode.symbol,
-                        isOn: settings.usageDetailsMode == mode,
-                        help: mode.help,
-                        showsSelection: true
-                    ) { settings.usageDetailsMode = mode }
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(L("View"))
+        if vertical {
+            HStack(alignment: .top, spacing: 4) { groups }
+        } else {
+            HStack(spacing: 4) { groups }
         }
+    }
+
+    @ViewBuilder
+    private var groups: some View {
+        glassGroup {
+            windowOptions
+        }
+        glassGroup {
+            ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                CompactControlButton(
+                    title: mode.title,
+                    symbol: mode.symbol,
+                    isOn: settings.usageDetailsMode == mode,
+                    help: mode.help,
+                    showsSelection: true
+                ) { settings.usageDetailsMode = mode }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(L("View"))
     }
 
     @ViewBuilder
@@ -503,13 +658,30 @@ private struct PanelControls: View {
             compact: true,
             isPresented: $isAdjustingOpacity
         )
+        if let layoutToggle {
+            CompactControlButton(
+                title: L("Vertical Layout"),
+                symbol: layoutToggle.isVertical ? "rectangle.portrait.fill" : "rectangle.portrait",
+                isOn: layoutToggle.isVertical,
+                help: L("Stand the panel on end, so it fits along a side of the screen.")
+            ) { layoutToggle.action() }
+        }
     }
 
-    /// A row of buttons on its own glass capsule.
+    /// A row of buttons, or a column in the vertical nano panel, on its own
+    /// glass capsule.
     @ViewBuilder
     private func glassGroup<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        let buttons = HStack(spacing: 2) { content() }
-            .padding(controlSize == .small ? 2 : 3)
+        let padding: CGFloat = controlSize == .small ? 2 : 3
+        if vertical {
+            glass(VStack(spacing: 2) { content() }.padding(padding))
+        } else {
+            glass(HStack(spacing: 2) { content() }.padding(padding))
+        }
+    }
+
+    @ViewBuilder
+    private func glass(_ buttons: some View) -> some View {
         if #available(macOS 26, *) {
             buttons.glassEffect(.regular.interactive(), in: Capsule())
         } else {
@@ -912,6 +1084,13 @@ struct WindowLevelSetter: NSViewRepresentable {
     /// Keeps the window's bottom and right edges in place when its size
     /// changes, so the nano panel grows upward and to the left.
     var anchorsBottomRight = false
+    /// With `anchorsBottomRight`, keeps the left edge in place instead of the
+    /// right one, for a nano panel dropped against the left screen edge.
+    var anchorsLeft = false
+    /// Reports where the compact or nano panel came to rest after the user
+    /// dragged it, and where the window was when it came on screen: the
+    /// screen edge it touches, if any (see `ProbeView.dockedEdge`).
+    var onDrop: (HorizontalEdge?) -> Void = { _ in }
     /// Reports whether the pointer is anywhere over the window. SwiftUI's
     /// `onHover` lost the pointer over the compact panel's top strip, which
     /// hid its controls as soon as the pointer reached them.
@@ -930,6 +1109,8 @@ struct WindowLevelSetter: NSViewRepresentable {
     func updateNSView(_ nsView: ProbeView, context: Context) {
         nsView.onPointerInsideChange = onPointerInsideChange
         nsView.onTitleBarHeightChange = onTitleBarHeightChange
+        nsView.onDrop = onDrop
+        nsView.anchorsLeft = anchorsLeft
         nsView.alwaysOnTop = alwaysOnTop
         nsView.onAllSpaces = onAllSpaces
         nsView.compact = compact
@@ -953,6 +1134,8 @@ struct WindowLevelSetter: NSViewRepresentable {
         var anchorsBottomRight = false {
             didSet { if anchorsBottomRight != oldValue { applyLevel() } }
         }
+        var anchorsLeft = false
+        var onDrop: (HorizontalEdge?) -> Void = { _ in }
         private var lastFrame: NSRect?
         /// The window's toolbar while the nano panel is showing; see
         /// `applyCompactChrome`.
@@ -985,6 +1168,40 @@ struct WindowLevelSetter: NSViewRepresentable {
             installPointerTracking()
         }
 
+        /// How close to a side of the screen a dropped panel must be to count
+        /// as pushed against it. Small, so a panel merely placed near an edge
+        /// keeps its layout; the panel can be dragged past the edge.
+        static let dockingTolerance: CGFloat = 6
+
+        /// The left or right screen edge a window touches or overlaps.
+        nonisolated static func dockedEdge(of frame: NSRect, in screen: NSRect) -> HorizontalEdge? {
+            if frame.minX <= screen.minX + dockingTolerance { return .leading }
+            if frame.maxX >= screen.maxX - dockingTolerance { return .trailing }
+            return nil
+        }
+
+        private var hasReportedPlacement = false
+
+        private func reportPlacementOnceVisible() {
+            guard !hasReportedPlacement, let window, window.occlusionState.contains(.visible) else { return }
+            hasReportedPlacement = true
+            reportDrop(snaps: false)
+        }
+
+        /// A panel pushed against a side snaps flush with it, also when it was
+        /// dragged partly past the edge, so the narrower vertical panel that
+        /// follows stays fully on screen.
+        private func reportDrop(snaps: Bool = true) {
+            guard let window, let screen = window.screen?.visibleFrame else { return }
+            let edge = Self.dockedEdge(of: window.frame, in: screen)
+            switch snaps ? edge : nil {
+            case .leading: window.setFrameOrigin(NSPoint(x: screen.minX, y: window.frame.minY))
+            case .trailing: window.setFrameOrigin(NSPoint(x: screen.maxX - window.frame.width, y: window.frame.minY))
+            case nil: break
+            }
+            DispatchQueue.main.async { [weak self] in self?.onDrop(edge) }
+        }
+
         /// When the window opens right after launch, SwiftUI can finish
         /// configuring it later and bring the title bar back, leaving the
         /// compact panel with a title bar over clipped content. Restore the
@@ -1005,6 +1222,13 @@ struct WindowLevelSetter: NSViewRepresentable {
                     }
                 })
             }
+            // A new window is not in its place yet when this view joins it,
+            // so its edge is measured once it is on screen.
+            chromeObservers.append(NotificationCenter.default.addObserver(
+                forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.reportPlacementOnceVisible() }
+            })
             for name in [NSWindow.didUpdateNotification, NSWindow.didResizeNotification] {
                 chromeObservers.append(NotificationCenter.default.addObserver(
                     forName: name, object: window, queue: .main
@@ -1027,9 +1251,13 @@ struct WindowLevelSetter: NSViewRepresentable {
             let frame = window.frame
             defer { lastFrame = window.frame }
             guard anchorsBottomRight, compact, let old = lastFrame, frame.size != old.size else { return }
-            var origin = NSPoint(x: old.maxX - frame.width, y: old.minY)
+            var origin = NSPoint(x: anchorsLeft ? old.minX : old.maxX - frame.width, y: old.minY)
             if let screen = window.screen?.visibleFrame {
-                if old.minX >= screen.minX { origin.x = max(origin.x, screen.minX) }
+                if anchorsLeft {
+                    if old.maxX <= screen.maxX { origin.x = min(origin.x, screen.maxX - frame.width) }
+                } else if old.minX >= screen.minX {
+                    origin.x = max(origin.x, screen.minX)
+                }
                 if old.maxY <= screen.maxY { origin.y = min(origin.y, screen.maxY - frame.height) }
             }
             guard origin != frame.origin else { return }
@@ -1191,6 +1419,7 @@ struct WindowLevelSetter: NSViewRepresentable {
             dragEndTimer = nil
             mouseDownLocation = nil
             onPointerInsideChange(window?.frame.contains(NSEvent.mouseLocation) ?? false)
+            reportDrop()
         }
 
         /// The full-size SwiftUI content can end up ordered above the title

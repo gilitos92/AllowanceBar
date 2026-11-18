@@ -5752,6 +5752,118 @@
           }
         }
       }
+    },
+    "Vertical Layout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertical Layout"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diseño vertical"
+          }
+        }
+      }
+    },
+    "Stand the panel on end, so it fits along a side of the screen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stand the panel on end, so it fits along a side of the screen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pon el panel de pie, para que quepa a un lado de la pantalla."
+          }
+        }
+      }
+    },
+    "Nano window layout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nano window layout"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diseño de la ventana nano"
+          }
+        }
+      }
+    },
+    "Automatic": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automático"
+          }
+        }
+      }
+    },
+    "Horizontal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horizontal"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horizontal"
+          }
+        }
+      }
+    },
+    "Vertical": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertical"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertical"
+          }
+        }
+      }
+    },
+    "Vertical stands the nano window on end, with a small meter for each limit, so it fits along a side of the screen instead of covering toolbars and input fields near the top. Automatic turns it vertical when you drag it against the left or right edge of the screen, and back when you drag it away. Its Vertical Layout button switches it until you move it again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertical stands the nano window on end, with a small meter for each limit, so it fits along a side of the screen instead of covering toolbars and input fields near the top. Automatic turns it vertical when you drag it against the left or right edge of the screen, and back when you drag it away. Its Vertical Layout button switches it until you move it again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertical pone la ventana nano de pie, con un pequeño medidor para cada límite, para que quepa a un lado de la pantalla en lugar de tapar barras de herramientas y campos de texto cerca de la parte superior. Automático la pone en vertical cuando la arrastras contra el borde izquierdo o derecho de la pantalla, y la regresa cuando la alejas. Su botón Diseño vertical la cambia hasta que la vuelvas a mover."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

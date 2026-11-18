@@ -84,6 +84,8 @@
 	<string>Apple</string>
 	<key>Auto-updates powered by Sparkle (MIT License).</key>
 	<string>Auto-updates powered by Sparkle (MIT License).</string>
+	<key>Automatic</key>
+	<string>Automatic</string>
 	<key>Background opacity</key>
 	<string>Background opacity</string>
 	<key>Balance works through the limited rate-limits endpoint.</key>
@@ -222,6 +224,8 @@
 	<string>Group %lld</string>
 	<key>Hidden because %@ shows the same account. Choose On to show both.</key>
 	<string>Hidden because %@ shows the same account. Choose On to show both.</string>
+	<key>Horizontal</key>
+	<string>Horizontal</string>
 	<key>I confirmed this date today</key>
 	<string>I confirmed this date today</string>
 	<key>Inference and Admin Venice API keys are supported. x402 wallet balances are not supported.</key>
@@ -288,6 +292,8 @@
 	<string>Muse Code timed out</string>
 	<key>Nano View</key>
 	<string>Nano View</string>
+	<key>Nano window layout</key>
+	<string>Nano window layout</string>
 	<key>Not confirmed yet — check the platform that bills you.</key>
 	<string>Not confirmed yet — check the platform that bills you.</string>
 	<key>Not signed in</key>
@@ -370,6 +376,8 @@
 	<string>Shrink into a tiny panel with only the menu bar text.</string>
 	<key>Spending capped — Allowance Bar can read usage within this limit.</key>
 	<string>Spending capped — Allowance Bar can read usage within this limit.</string>
+	<key>Stand the panel on end, so it fits along a side of the screen.</key>
+	<string>Stand the panel on end, so it fits along a side of the screen.</string>
 	<key>Standard API key</key>
 	<string>Standard API key</string>
 	<key>Standard key</key>
@@ -438,6 +446,12 @@
 	<string>Verification failed — your key may still work.</string>
 	<key>Version %@</key>
 	<string>Version %@</string>
+	<key>Vertical</key>
+	<string>Vertical</string>
+	<key>Vertical Layout</key>
+	<string>Vertical Layout</string>
+	<key>Vertical stands the nano window on end, with a small meter for each limit, so it fits along a side of the screen instead of covering toolbars and input fields near the top. Automatic turns it vertical when you drag it against the left or right edge of the screen, and back when you drag it away. Its Vertical Layout button switches it until you move it again.</key>
+	<string>Vertical stands the nano window on end, with a small meter for each limit, so it fits along a side of the screen instead of covering toolbars and input fields near the top. Automatic turns it vertical when you drag it against the left or right edge of the screen, and back when you drag it away. Its Vertical Layout button switches it until you move it again.</string>
 	<key>View prepaid credits</key>
 	<string>View prepaid credits</string>
 	<key>Waiting for browser authorization…</key>

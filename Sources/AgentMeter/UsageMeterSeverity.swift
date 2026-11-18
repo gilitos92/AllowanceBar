@@ -62,31 +62,42 @@ struct UsageMeterBar: View {
     /// Even-pace position, 0...100 in the same units as `percent`: where the
     /// fill would end with even use across the window. Nil hides the marker.
     var paceMarkerPercent: Double? = nil
+    /// The bar's thickness: its height, or its width when vertical.
     var height: CGFloat = 6
+    /// Fills from the bottom up, as in the vertical nano panel.
+    var vertical = false
+
+    private func fraction(_ value: Double) -> CGFloat {
+        CGFloat(min(1, max(0, value / 100)))
+    }
 
     var body: some View {
         GeometryReader { proxy in
-            ZStack(alignment: .leading) {
+            let length = vertical ? proxy.size.height : proxy.size.width
+            ZStack(alignment: vertical ? .bottom : .leading) {
                 Capsule().fill(Color.meterTrack)
                 Capsule()
                     .fill(severity.color)
-                    .frame(width: proxy.size.width * min(1, max(0, percent / 100)))
+                    .frame(width: vertical ? nil : length * fraction(percent),
+                           height: vertical ? length * fraction(percent) : nil)
                 if let paceMarkerPercent {
-                    // Taller than the bar, with a background-colored edge, so
-                    // it stays visible on top of a fill of the same color.
-                    let x = proxy.size.width * min(1, max(0, paceMarkerPercent / 100))
+                    // Longer than the bar is thick, with a background-colored
+                    // edge, so it stays visible on top of a fill of the same color.
+                    let offset = length * fraction(paceMarkerPercent)
+                    let along = min(max(offset, 2), max(2, length - 2))
                     Capsule()
                         .fill(.primary)
-                        .frame(width: 2, height: height + 6)
-                        .padding(.horizontal, 1)
+                        .frame(width: vertical ? height + 6 : 2, height: vertical ? 2 : height + 6)
+                        .padding(vertical ? .vertical : .horizontal, 1)
                         .background(Capsule().fill(Color(nsColor: .windowBackgroundColor)))
-                        .position(x: min(max(x, 2), max(2, proxy.size.width - 2)), y: proxy.size.height / 2)
+                        .position(x: vertical ? proxy.size.width / 2 : along,
+                                  y: vertical ? length - along : proxy.size.height / 2)
                 }
             }
         }
-        .frame(height: height)
-        // Room for the pace marker above and below the bar.
-        .padding(.vertical, 3)
+        .frame(width: vertical ? height : nil, height: vertical ? nil : height)
+        // Room for the pace marker on both sides of the bar.
+        .padding(vertical ? .horizontal : .vertical, 3)
         .accessibilityHidden(true)
     }
 }
