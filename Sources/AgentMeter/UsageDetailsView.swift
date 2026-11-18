@@ -1,15 +1,17 @@
 import AppKit
 import SwiftUI
 
-/// The Usage Details window's three sizes.
+/// The Usage Details window's views: full, mini, and the nano panel as a
+/// line or standing on end.
 enum UsageDetailsMode: CaseIterable {
-    case full, mini, nano
+    case full, mini, nano, nanoVertical
 
     var title: String {
         switch self {
         case .full: L("Full View")
         case .mini: L("Compact View")
         case .nano: L("Nano View")
+        case .nanoVertical: L("Vertical Nano View")
         }
     }
 
@@ -18,22 +20,50 @@ enum UsageDetailsMode: CaseIterable {
         case .full: L("Show every provider's limits, reset times and plans.")
         case .mini: L("Collapse into a small panel with each provider's limits.")
         case .nano: L("Shrink into a tiny panel with only the menu bar text.")
+        case .nanoVertical: L("Stand the tiny panel on end for a side of the screen, with a meter for each limit.")
         }
     }
 
+    /// The vertical nano view shows the nano symbol turned a quarter turn;
+    /// SF Symbols has no horizontal "compress" symbol.
     var symbol: String {
         switch self {
         case .full: "list.bullet.rectangle"
         case .mini: "capsule"
-        case .nano: "rectangle.compress.vertical"
+        case .nano, .nanoVertical: "rectangle.compress.vertical"
         }
+    }
+
+    var symbolRotation: Angle {
+        self == .nanoVertical ? .degrees(90) : .zero
+    }
+
+    /// The symbol, turned like `symbolRotation`, as an image for controls
+    /// that draw it themselves, such as segmented pickers.
+    var symbolImage: Image {
+        guard self == .nanoVertical,
+              let symbol = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) else {
+            return Image(systemName: symbol)
+        }
+        let size = NSSize(width: symbol.size.height, height: symbol.size.width)
+        let turned = NSImage(size: size, flipped: false) { rect in
+            let transform = NSAffineTransform()
+            transform.translateX(by: rect.midX, yBy: rect.midY)
+            transform.rotate(byDegrees: -90)
+            transform.translateX(by: -symbol.size.width / 2, yBy: -symbol.size.height / 2)
+            transform.concat()
+            symbol.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 1)
+            return true
+        }
+        turned.isTemplate = true
+        return Image(nsImage: turned)
     }
 }
 
 extension SettingsStore {
     var usageDetailsMode: UsageDetailsMode {
         get {
-            if usageDetailsNano { return .nano }
+            if usageDetailsNano { return usageDetailsNanoVertical ? .nanoVertical : .nano }
             return usageDetailsCompact ? .mini : .full
         }
         set {
@@ -44,7 +74,8 @@ extension SettingsStore {
             case .mini:
                 usageDetailsNano = false
                 usageDetailsCompact = true
-            case .nano:
+            case .nano, .nanoVertical:
+                usageDetailsNanoVertical = newValue == .nanoVertical
                 usageDetailsNano = true
             }
         }
@@ -57,50 +88,26 @@ struct UsageDetailsView: View {
     @State private var contentHeight: CGFloat?
     @State private var titleBarInset: CGFloat = 0
     @State private var isPointerInside = false
-    /// The screen edge the panel was last dropped against, or touched when
-    /// the window came on screen.
-    @State private var nanoDockedEdge: HorizontalEdge?
     /// The window keeps the nano panel's left edge in place, not its right
-    /// one, because the panel was dropped in the left half of the screen.
+    /// one, because the panel sits in the left half of the screen.
     @State private var nanoAnchorsLeft = false
-    /// The nano panel's layout button in automatic mode; cleared when the
-    /// panel is dropped somewhere again.
-    @State private var nanoVerticalOverride: Bool?
     @Environment(\.dismissWindow) private var dismissWindow
-
-    private var nanoIsVertical: Bool {
-        settings.usageDetailsNanoLayout.isVertical(
-            dockedAtSide: nanoDockedEdge != nil,
-            override: nanoVerticalOverride
-        )
-    }
-
-    private func toggleNanoLayout() {
-        let vertical = nanoIsVertical
-        switch settings.usageDetailsNanoLayout {
-        case .automatic:
-            nanoVerticalOverride = !vertical
-        case .horizontal, .vertical:
-            settings.usageDetailsNanoLayout = vertical ? .horizontal : .vertical
-        }
-    }
 
     var body: some View {
         Group {
             switch settings.usageDetailsMode {
-            case .nano:
+            case .nano, .nanoVertical:
                 // Pace arrows depend on the time, not only on refreshes, so
                 // redraw every 30 seconds like the meters.
                 TimelineView(.periodic(from: .now, by: 30)) { _ in
                     NanoUsageView(
-                        entries: nanoIsVertical ? [] : store.nanoEntries,
-                        meterEntries: nanoIsVertical ? store.nanoMeterEntries : [],
-                        vertical: nanoIsVertical,
+                        entries: settings.usageDetailsNanoVertical ? [] : store.nanoEntries,
+                        meterEntries: settings.usageDetailsNanoVertical ? store.nanoMeterEntries : [],
+                        vertical: settings.usageDetailsNanoVertical,
                         anchorsLeft: nanoAnchorsLeft,
                         accessibilityDescription: store.nanoAccessibilityDescription,
                         settings: settings,
                         isPointerInside: isPointerInside,
-                        toggleLayout: toggleNanoLayout,
                         close: { dismissWindow(id: "usage-details") }
                     )
                 }
@@ -138,13 +145,7 @@ struct UsageDetailsView: View {
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
                                       anchorsBottomRight: settings.usageDetailsNano,
-                                      snapsToSides: settings.usageDetailsNano
-                                          && settings.usageDetailsNanoLayout == .automatic,
-                                      onDrop: { edge, anchorsLeft in
-                                          nanoDockedEdge = edge
-                                          nanoAnchorsLeft = anchorsLeft
-                                          nanoVerticalOverride = nil
-                                      },
+                                      onAnchorSideChange: { nanoAnchorsLeft = $0 },
                                       onPointerInsideChange: { isPointerInside = $0 },
                                       onTitleBarHeightChange: { titleBarInset = $0 }))
         // The compact and nano panels have no title bar controls; their own
@@ -245,7 +246,8 @@ struct UsageDetailsView: View {
                         isOn: settings.usageDetailsMode == mode,
                         help: mode.help,
                         large: true,
-                        showsSelection: true
+                        showsSelection: true,
+                        symbolRotation: mode.symbolRotation
                     ) { settings.usageDetailsMode = mode }
                 }
             }
@@ -293,7 +295,7 @@ struct UsageDetailsView: View {
                 set: { settings.usageDetailsMode = $0 }
             )) {
                 ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
-                    Label(mode.title, systemImage: mode.symbol).tag(mode)
+                    Label { Text(mode.title) } icon: { mode.symbolImage }.tag(mode)
                 }
             }
             .pickerStyle(.segmented)
@@ -323,8 +325,8 @@ struct UsageDetailsView: View {
         // The window fits its content (see `windowResizability(.contentSize)`)
         // and scrolls only when the content is taller than the screen allows.
         // Wide enough for two columns of modules, each with two limits per
-        // row like the dropdown, and the toolbar.
-        .frame(minWidth: 720, idealWidth: 740, maxWidth: .infinity)
+        // row like the dropdown, and the toolbar with its four view buttons.
+        .frame(minWidth: 780, idealWidth: 800, maxWidth: .infinity)
         .frame(height: min(contentHeight ?? 500, Self.maxHeight))
     }
 }
@@ -415,7 +417,6 @@ private struct NanoUsageView: View {
     let accessibilityDescription: String
     @ObservedObject var settings: SettingsStore
     let isPointerInside: Bool
-    let toggleLayout: () -> Void
     let close: () -> Void
     @State private var isAdjustingOpacity = false
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
@@ -425,8 +426,8 @@ private struct NanoUsageView: View {
     }
 
     var body: some View {
-        // The window keeps its bottom edge, and the side edge nearer to
-        // where it was dropped, in place (see `WindowLevelSetter`). The
+        // The window keeps its bottom edge, and the side edge of the screen
+        // half the panel sits in, in place (see `WindowLevelSetter`). The
         // content aligns with that side, so the text stays put and the
         // controls grow the panel upward and toward the middle.
         VStack(alignment: anchorsLeft ? .leading : .trailing, spacing: 6) {
@@ -456,7 +457,6 @@ private struct NanoUsageView: View {
             settings: settings,
             isAdjustingOpacity: $isAdjustingOpacity,
             close: close,
-            layoutToggle: (vertical, toggleLayout),
             vertical: vertical
         )
         .controlSize(.small)
@@ -609,16 +609,13 @@ private struct NanoValue: View {
 }
 
 /// Hover controls shared by the compact and nano panels: the window options,
-/// and the same three-way view switcher as the full window's toolbar. The
+/// and the same view switcher as the full window's toolbar. The
 /// vertical nano panel stands each group on end, so the controls fit its
 /// narrow column instead of widening it.
 private struct PanelControls: View {
     @ObservedObject var settings: SettingsStore
     @Binding var isAdjustingOpacity: Bool
     let close: () -> Void
-    /// The nano panel's layout button: whether it is vertical, and the
-    /// switch to the other layout.
-    var layoutToggle: (isVertical: Bool, action: () -> Void)?
     /// Stands each group on end, for the vertical nano panel.
     var vertical = false
     @Environment(\.controlSize) private var controlSize
@@ -643,7 +640,8 @@ private struct PanelControls: View {
                     symbol: mode.symbol,
                     isOn: settings.usageDetailsMode == mode,
                     help: mode.help,
-                    showsSelection: true
+                    showsSelection: true,
+                    symbolRotation: mode.symbolRotation
                 ) { settings.usageDetailsMode = mode }
             }
         }
@@ -671,14 +669,6 @@ private struct PanelControls: View {
             compact: true,
             isPresented: $isAdjustingOpacity
         )
-        if let layoutToggle {
-            CompactControlButton(
-                title: L("Vertical Layout"),
-                symbol: layoutToggle.isVertical ? "rectangle.portrait.fill" : "rectangle.portrait",
-                isOn: layoutToggle.isVertical,
-                help: L("Stand the panel on end, so it fits along a side of the screen.")
-            ) { layoutToggle.action() }
-        }
     }
 
     /// A row of buttons, or a column in the vertical nano panel, on its own
@@ -713,6 +703,7 @@ private struct CompactControlButton: View {
     var large = false
     /// Marks the "on" state with a filled capsule behind the symbol.
     var showsSelection = false
+    var symbolRotation: Angle = .zero
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
     /// `.small` in the nano panel.
@@ -724,6 +715,7 @@ private struct CompactControlButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: large ? 14 : small ? 10 : 12, weight: .semibold))
+                .rotationEffect(symbolRotation)
                 .frame(width: large ? 32 : small ? 17 : 20, height: large ? 28 : small ? 17 : 20)
                 .background {
                     if showsSelection, isOn, isEnabled {
@@ -1097,15 +1089,9 @@ struct WindowLevelSetter: NSViewRepresentable {
     /// Keeps the window's bottom and right edges in place when its size
     /// changes, so the nano panel grows upward and to the left.
     var anchorsBottomRight = false
-    /// Snaps a panel dropped against a side flush with it. Only when the
-    /// nano panel stands on end there; other panels may stay partly past
-    /// the screen edge where the user left them.
-    var snapsToSides = false
-    /// Reports where the compact or nano panel came to rest after the user
-    /// dragged it, and where the window was when it came on screen: the
-    /// screen edge it touches, if any (see `ProbeView.dockedEdge`), and
-    /// whether the window now keeps its left edge in place.
-    var onDrop: (HorizontalEdge?, _ anchorsLeft: Bool) -> Void = { _, _ in }
+    /// Reports whether the nano panel now keeps its left edge in place when
+    /// it resizes, rather than its right one.
+    var onAnchorSideChange: (Bool) -> Void = { _ in }
     /// Reports whether the pointer is anywhere over the window. SwiftUI's
     /// `onHover` lost the pointer over the compact panel's top strip, which
     /// hid its controls as soon as the pointer reached them.
@@ -1124,8 +1110,7 @@ struct WindowLevelSetter: NSViewRepresentable {
     func updateNSView(_ nsView: ProbeView, context: Context) {
         nsView.onPointerInsideChange = onPointerInsideChange
         nsView.onTitleBarHeightChange = onTitleBarHeightChange
-        nsView.onDrop = onDrop
-        nsView.snapsToSides = snapsToSides
+        nsView.onAnchorSideChange = onAnchorSideChange
         nsView.alwaysOnTop = alwaysOnTop
         nsView.onAllSpaces = onAllSpaces
         nsView.compact = compact
@@ -1150,19 +1135,21 @@ struct WindowLevelSetter: NSViewRepresentable {
             didSet {
                 guard anchorsBottomRight != oldValue else { return }
                 applyLevel()
-                if anchorsBottomRight { remeasureWhenSettled() }
+                // The panel grows from the side of the screen the previous
+                // view was on.
+                if anchorsBottomRight, let window, let screen = window.screen?.visibleFrame {
+                    updateAnchorSide(left: window.frame.midX < screen.midX)
+                }
             }
         }
         /// Keeps the left edge in place instead of the right one, for a
-        /// panel last dropped in the left half of the screen, so it grows
-        /// toward the middle and never back against the edge it left.
+        /// panel in the left half of the screen, so it grows toward the
+        /// middle. Chosen when the panel moves, not when it resizes, so
+        /// switching between the nano views back and forth never drifts it.
         private var anchorsLeft = false
-        /// Turned on when the layout becomes Automatic; a panel already lying
-        /// partly past a side is measured, and snapped, right away.
-        var snapsToSides = false {
-            didSet { if snapsToSides, !oldValue { remeasureWhenSettled() } }
-        }
-        var onDrop: (HorizontalEdge?, _ anchorsLeft: Bool) -> Void = { _, _ in }
+        /// Where `keepAnchorEdgesIfNeeded` last moved the window itself.
+        private var anchoredOrigin: NSPoint?
+        var onAnchorSideChange: (Bool) -> Void = { _ in }
         private var lastFrame: NSRect?
         /// The window's toolbar while the nano panel is showing; see
         /// `applyCompactChrome`.
@@ -1179,7 +1166,6 @@ struct WindowLevelSetter: NSViewRepresentable {
         private var mouseDownLocation: NSPoint?
         private var isDragging = false
         private var dragEndTimer: Timer?
-        private var systemDropTimer: Timer?
         private var pointerTrackingArea: NSTrackingArea?
         private weak var pointerTrackingView: NSView?
         var onPointerInsideChange: (Bool) -> Void = { _ in }
@@ -1192,8 +1178,6 @@ struct WindowLevelSetter: NSViewRepresentable {
             chromeObservers.forEach(NotificationCenter.default.removeObserver)
             if let dragMonitor { NSEvent.removeMonitor(dragMonitor) }
             dragEndTimer?.invalidate()
-            systemDropTimer?.invalidate()
-            remeasureTimer?.invalidate()
             if let pointerTrackingArea { pointerTrackingView?.removeTrackingArea(pointerTrackingArea) }
         }
 
@@ -1205,57 +1189,7 @@ struct WindowLevelSetter: NSViewRepresentable {
             installPointerTracking()
         }
 
-        /// How close to a side of the screen a dropped panel must be to count
-        /// as pushed against it. Small, so a panel merely placed near an edge
-        /// keeps its layout; the panel can be dragged past the edge.
-        static let dockingTolerance: CGFloat = 6
 
-        /// The left or right screen edge a window touches or overlaps.
-        nonisolated static func dockedEdge(of frame: NSRect, in screen: NSRect) -> HorizontalEdge? {
-            if frame.minX <= screen.minX + dockingTolerance { return .leading }
-            if frame.maxX >= screen.maxX - dockingTolerance { return .trailing }
-            return nil
-        }
-
-        private var hasReportedPlacement = false
-        private var remeasureTimer: Timer?
-
-        /// Another view may have been moved anywhere, so the nano panel's
-        /// edge is measured again once the window stops resizing into it.
-        private func remeasureWhenSettled() {
-            guard let window, window.isVisible else { return }
-            remeasureTimer?.invalidate()
-            let timer = Timer(timeInterval: 0.3, repeats: false) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    self?.remeasureTimer = nil
-                    self?.reportDrop()
-                }
-            }
-            RunLoop.main.add(timer, forMode: .common)
-            remeasureTimer = timer
-        }
-
-        private func reportPlacementOnceVisible() {
-            guard !hasReportedPlacement, let window, window.occlusionState.contains(.visible) else { return }
-            hasReportedPlacement = true
-            reportDrop()
-        }
-
-        /// A panel pushed against a side snaps flush with it, also when it was
-        /// dragged partly past the edge, so the narrower vertical panel that
-        /// follows stays fully on screen.
-        private func reportDrop() {
-            guard let window, let screen = window.screen?.visibleFrame else { return }
-            let edge = Self.dockedEdge(of: window.frame, in: screen)
-            anchorsLeft = window.frame.midX < screen.midX
-            switch snapsToSides ? edge : nil {
-            case .leading: window.setFrameOrigin(NSPoint(x: screen.minX, y: window.frame.minY))
-            case .trailing: window.setFrameOrigin(NSPoint(x: screen.maxX - window.frame.width, y: window.frame.minY))
-            case nil: break
-            }
-            let anchorsLeft = anchorsLeft
-            DispatchQueue.main.async { [weak self] in self?.onDrop(edge, anchorsLeft) }
-        }
 
         /// When the window opens right after launch, SwiftUI can finish
         /// configuring it later and bring the title bar back, leaving the
@@ -1276,22 +1210,9 @@ struct WindowLevelSetter: NSViewRepresentable {
                         self?.keepOnAScreenIfNeeded()
                         self?.liftAboveDockIfNeeded()
                         self?.syncPointerInside()
-                        if self?.remeasureTimer != nil { self?.remeasureWhenSettled() }
                     }
                 })
             }
-            chromeObservers.append(NotificationCenter.default.addObserver(
-                forName: NSWindow.didMoveNotification, object: window, queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated { self?.watchForSystemDrop() }
-            })
-            // A new window is not in its place yet when this view joins it,
-            // so its edge is measured once it is on screen.
-            chromeObservers.append(NotificationCenter.default.addObserver(
-                forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated { self?.reportPlacementOnceVisible() }
-            })
             for name in [NSWindow.didUpdateNotification, NSWindow.didResizeNotification] {
                 chromeObservers.append(NotificationCenter.default.addObserver(
                     forName: name, object: window, queue: .main
@@ -1313,7 +1234,16 @@ struct WindowLevelSetter: NSViewRepresentable {
             guard let window else { return }
             let frame = window.frame
             defer { lastFrame = window.frame }
-            guard anchorsBottomRight, compact, let old = lastFrame, frame.size != old.size else { return }
+            guard anchorsBottomRight, compact, let old = lastFrame else { return }
+            guard frame.size != old.size else {
+                // Moved, not by this function: keep the edge on the panel's
+                // half of the screen from now on.
+                if frame.origin != old.origin, frame.origin != anchoredOrigin,
+                   let screen = window.screen?.visibleFrame {
+                    updateAnchorSide(left: frame.midX < screen.midX)
+                }
+                return
+            }
             var origin = NSPoint(x: anchorsLeft ? old.minX : old.maxX - frame.width, y: old.minY)
             // The resized window may already be off its screen entirely.
             let screen = window.screen ?? NSScreen.screens.first { $0.visibleFrame.intersects(old) }
@@ -1330,7 +1260,14 @@ struct WindowLevelSetter: NSViewRepresentable {
                 if old.maxY <= screen.maxY { origin.y = min(origin.y, screen.maxY - frame.height) }
             }
             guard origin != frame.origin else { return }
+            anchoredOrigin = origin
             window.setFrameOrigin(origin)
+        }
+
+        private func updateAnchorSide(left: Bool) {
+            guard left != anchorsLeft else { return }
+            anchorsLeft = left
+            DispatchQueue.main.async { [weak self] in self?.onAnchorSideChange(left) }
         }
 
         /// macOS keeps a window with a title bar on screen when it is opened
@@ -1569,33 +1506,8 @@ struct WindowLevelSetter: NSViewRepresentable {
             dragEndTimer = nil
             mouseDownLocation = nil
             onPointerInsideChange(window?.frame.contains(NSEvent.mouseLocation) ?? false)
-            reportDrop()
         }
 
-        /// A drag whose first steps are too small for the drag monitor is
-        /// left to the window server (`isMovableByWindowBackground`), and
-        /// real pointer drags often start that way. When the window moves
-        /// while the button is down outside our own drag, report the drop
-        /// once the button is released. Moves made in code happen with the
-        /// button up and are not drops.
-        private func watchForSystemDrop() {
-            // The button state is system-wide; only a press that began in
-            // this window can be dragging it.
-            guard compact, !isDragging, systemDropTimer == nil, mouseDownLocation != nil,
-                  NSEvent.pressedMouseButtons & 1 != 0 else { return }
-            let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] timer in
-                guard NSEvent.pressedMouseButtons & 1 == 0 else { return }
-                timer.invalidate()
-                MainActor.assumeIsolated {
-                    self?.systemDropTimer = nil
-                    // The window server kept the drag's mouse-up.
-                    self?.mouseDownLocation = nil
-                    self?.reportDrop()
-                }
-            }
-            RunLoop.main.add(timer, forMode: .common)
-            systemDropTimer = timer
-        }
 
         /// The full-size SwiftUI content can end up ordered above the title
         /// bar, where its material hides the title, window buttons and toolbar.
