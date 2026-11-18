@@ -170,9 +170,10 @@ struct CLIProxyAccountProvider: UsageProvider {
         case .claude:
             // Before the usage, never next to it: two requests at once from
             // one login can trip Anthropic's rate limit. Kept for hours.
-            let plan = await client.plan(for: account, cache: planCache)
+            let plan = await ClaudeProvider.currentPlan(of: account, client: client, cache: planCache, forceRefresh: forceRefresh)
             // Anthropic refuses a free account's usage request.
-            guard plan != ClaudeProvider.freePlan else {
+            let hasRecentNumbers = account.claudeQuota?.isFresh(now: now) == true
+            if ClaudeProvider.showsAsFree(plan: plan, hasRecentNumbers: hasRecentNumbers) {
                 return ClaudeProvider.freePlanUsage(email: account.email, now: now)
             }
             var fromHeaders: ProviderUsage?
@@ -374,12 +375,14 @@ actor CLIProxyPlanCache {
     private var entries: [String: Entry] = [:]
     private var running: [String: Task<String?, Never>] = [:]
 
+    /// `recheck` asks again even when the plan is still fresh.
     func plan(
         for key: String,
         now: Date = Date(),
+        recheck: Bool = false,
         lookup: @escaping @Sendable () async -> String?
     ) async -> String? {
-        if let entry = entries[key], now < entry.nextCheck { return entry.plan }
+        if !recheck, let entry = entries[key], now < entry.nextCheck { return entry.plan }
         if let task = running[key] {
             let fresh = await task.value
             return fresh ?? entries[key]?.plan

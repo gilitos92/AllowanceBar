@@ -787,7 +787,11 @@ final class CLIProxyTests: XCTestCase {
             XCTAssertEqual(usage.menuSummary(direction: .remaining), "–", "Nothing to show, and nothing wrong")
         }
         let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
-        XCTAssertEqual(urls, [ClaudeProvider.profileURL.absoluteString], "One profile request, never the usage endpoint")
+        XCTAssertEqual(
+            urls,
+            [ClaudeProvider.profileURL.absoluteString, ClaudeProvider.profileURL.absoluteString],
+            "The profile (again on Refresh), never the usage endpoint"
+        )
     }
 
     func testExpiredLoginSavedAsMaxIsFreeWhenItsProfileSaysSo() async throws {
@@ -871,6 +875,43 @@ final class CLIProxyTests: XCTestCase {
         let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
         XCTAssertEqual(urls.filter { $0 == ClaudeProvider.usageURL.absoluteString }.count, 1, "One request for both rows")
         XCTAssertEqual(urls.filter { $0 == ClaudeProvider.profileURL.absoluteString }.count, 1, "One plan request too")
+    }
+
+    func testRecentProxyNumbersBeatAFreePlan() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+        var row = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+        row.modelLimits = await memoryWithoutModelLimits()
+
+        let usage = try await row.fetch()
+
+        XCTAssertEqual(usage.windows.map { $0.usedPercent.rounded() }, [56, 77], "Messages went through, so it isn't free")
+        XCTAssertNil(usage.note)
+    }
+
+    func testRefreshRechecksAFreePlan() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        let row = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+        _ = try await row.fetch()
+
+        MockCLIProxyURLProtocol.server.profileBody = nil
+        let usage = try await row.fetch(forceRefresh: true)
+
+        XCTAssertEqual(usage.planName, "Pro", "The account subscribed again")
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [42])
+    }
+
+    func testThisMacsOwnTokenNeverUsesAProxiedAnswer() async throws {
+        let requests = ClaudeUsageRequests()
+        _ = try await requests.response(for: "account|main@example.com", maxAge: 0) {
+            try JSONDecoder().decode(ClaudeProvider.UsageResponse.self, from: Data(#"{"five_hour":{"utilization":99.0}}"#.utf8))
+        }
+        var local = try makeProvider(expiresAt: Date().timeIntervalSince1970 * 1000 + 3_600_000, config: config)
+        local.usageRequests = requests
+
+        let usage = try await local.fetch()
+
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [7], "Its own answer, so a proxy failure can't reach it either")
     }
 
     func testRateLimitedClaudeLoginWaitsBeforeAskingAgain() async throws {

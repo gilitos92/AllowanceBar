@@ -327,11 +327,11 @@ struct CLIProxyClient: Sendable {
     /// with the login list. Each login is asked at most
     /// every few hours (`CLIProxyPlanCache`). Callers run it next to the
     /// usage request, so a slow answer never holds up the limits for long.
-    func plan(for account: Account, cache: CLIProxyPlanCache = .shared) async -> String? {
+    func plan(for account: Account, cache: CLIProxyPlanCache = .shared, recheck: Bool = false) async -> String? {
         guard account.kind != .codex else { return nil }
         let key = [config.identity, account.kind.rawValue, account.email.lowercased(), account.projectID ?? ""]
             .joined(separator: "|")
-        return await cache.plan(for: key) { await lookUpPlan(account) }
+        return await cache.plan(for: key, recheck: recheck) { await lookUpPlan(account) }
     }
 
     /// Shorter than usage requests: a plan is nice to have.

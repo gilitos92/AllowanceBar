@@ -1,10 +1,13 @@
 import Foundation
 
-/// One usage request per Claude account at a time. An account can show as
-/// two rows, this Mac's login and its CLIProxyAPI login, and both refresh
-/// together: without this, both ask Anthropic at the same moment, which can
-/// trip its rate limit. Keyed like `ClaudeRateLimitGate` (the account's
-/// email), so the rows share the request in flight and its answer.
+/// One usage request through CLIProxyAPI per Claude account at a time. An
+/// account can show as two rows, this Mac's login and its CLIProxyAPI login.
+/// When this Mac's login has expired, both read through the proxy and
+/// refresh together: without this, both ask Anthropic at the same moment,
+/// which can trip its rate limit. Keyed like `ClaudeRateLimitGate` (the
+/// account's email), so the rows share the request in flight and its
+/// answer. Requests with this Mac's own token stay apart: a failure of the
+/// proxy's login must not reach a row whose own login works.
 actor ClaudeUsageRequests {
     static let shared = ClaudeUsageRequests()
     /// How long a proxied answer serves the account's rows, so a short

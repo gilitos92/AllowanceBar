@@ -58,7 +58,7 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let fromHeaders = await proxyNumbers()
         if let fromHeaders, fromHeaders.isComplete { return fromHeaders.usage }
         do {
-            var usage = try await fetchUsage(forceRefresh: forceRefresh)
+            var usage = try await fetchUsage(forceRefresh: forceRefresh, hasRecentNumbers: fromHeaders != nil)
             // The proxy login's email when there is one, as with the proxy's
             // numbers: they look the memory up with it, and the duplicate
             // proxy row stays hidden. It may differ from Claude Code's email
@@ -76,20 +76,23 @@ struct ClaudeProvider: AccountConfigurableProvider {
     }
 
     /// The usage endpoint, with this Mac's login or through the proxy.
-    private func fetchUsage(forceRefresh: Bool) async throws -> ProviderUsage {
+    /// `hasRecentNumbers`: the proxy has recent numbers for this account.
+    private func fetchUsage(forceRefresh: Bool, hasRecentNumbers: Bool) async throws -> ProviderUsage {
         var plan: String?
         let localError: ClaudeError
         do {
             let creds = try await loadCredentials()
             plan = creds.subscriptionType
             guard !creds.isExpired else { throw ClaudeError.refreshRequired }
-            let key = ClaudeRateLimitGate.key(email: Self.accountEmail(atPath: accountInfoPath), fallback: "local|" + id)
-            let (session, rateLimits) = (session, rateLimits)
-            // A fresh answer on every refresh, as before; a proxy row of the
-            // same account asking at the same moment shares it.
-            let response = try await usageRequests.response(for: key, maxAge: 0) {
-                try await Self.fetchUsage(accessToken: creds.accessToken, session: session, rateLimits: rateLimits, key: key)
-            }
+            let response = try await Self.fetchUsage(
+                accessToken: creds.accessToken,
+                session: session,
+                rateLimits: rateLimits,
+                key: ClaudeRateLimitGate.key(
+                    email: Self.accountEmail(atPath: accountInfoPath),
+                    fallback: "local|" + id
+                )
+            )
             var usage = Self.usage(from: response, plan: creds.subscriptionType, now: Date())
             usage.accountEmail = Self.accountEmail(atPath: accountInfoPath)
             return usage
@@ -106,8 +109,10 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let samePlan = localEmail.map { $0.caseInsensitiveCompare(account.email) == .orderedSame } ?? false
         // Asked before the usage, never next to it: two requests at once from
         // one login can trip Anthropic's rate limit. Kept for hours.
-        let proxyPlan = await client.plan(for: account, cache: proxyPlanCache)
-        guard proxyPlan != Self.freePlan else { return Self.freePlanUsage(email: account.email, now: Date()) }
+        let proxyPlan = await Self.currentPlan(of: account, client: client, cache: proxyPlanCache, forceRefresh: forceRefresh)
+        if Self.showsAsFree(plan: proxyPlan, hasRecentNumbers: hasRecentNumbers) {
+            return Self.freePlanUsage(email: account.email, now: Date())
+        }
         // Like the proxy's own rows: one usage request per account every two
         // minutes, so a short refresh interval doesn't trip Anthropic's limit.
         let response = try await usageRequests.response(
@@ -121,6 +126,27 @@ struct ClaudeProvider: AccountConfigurableProvider {
 
     /// The plan word of an account without a subscription.
     static let freePlan = "free"
+
+    /// A proxy login's plan. Refresh asks again when it says free, so an
+    /// account that subscribes again doesn't wait hours for its limits.
+    static func currentPlan(
+        of account: CLIProxyClient.Account,
+        client: CLIProxyClient,
+        cache: CLIProxyPlanCache,
+        forceRefresh: Bool
+    ) async -> String? {
+        let plan = await client.plan(for: account, cache: cache)
+        guard forceRefresh, plan == freePlan else { return plan }
+        return await client.plan(for: account, cache: cache, recheck: true)
+    }
+
+    /// Whether an account with `plan` shows the free-plan note instead of
+    /// asking for its usage. Recent numbers from the proxy win: they come
+    /// from Claude Code messages, which a free account can't send, so the
+    /// remembered plan is out of date.
+    static func showsAsFree(plan: String?, hasRecentNumbers: Bool) -> Bool {
+        plan == freePlan && !hasRecentNumbers
+    }
 
     /// An account without a paid plan: Anthropic refuses its usage request
     /// and Claude Code's own requests, so it has no limits to show.

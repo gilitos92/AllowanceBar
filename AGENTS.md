@@ -174,12 +174,15 @@ announcement drafts, environment specifics) and complements this file.
   BEFORE the usage request (cached 6 h), never alongside it: a profile
   that says free (`ClaudeProvider.freePlan`) skips the usage request and
   shows `ProviderUsage.note` instead (free accounts can't run
-  Claude Code either: 403 `oauth_not_allowed_for_organization`). The
-  profile names the plan of an expired local login; a valid one's saved
-  `subscriptionType` still counts. `ClaudeUsageRequests` (key
-  `account|<email>`) shares one request in flight per account between its
-  local and proxy rows; proxied answers serve both for 2 min unless forced,
-  this Mac's own token still asks on every refresh.
+  Claude Code either: 403 `oauth_not_allowed_for_organization`), unless
+  the proxy has fresh header numbers for it (then the plan is out of
+  date); Refresh re-asks a cached free plan. The profile names the plan
+  of an expired local login; a valid one's saved `subscriptionType`
+  still counts. `ClaudeUsageRequests` (key `account|<email>`) shares one
+  proxied request in flight, and its answer for 2 min unless forced,
+  between an account's proxy row and its expired local row. Requests
+  with this Mac's own token stay apart, so a proxy-only failure never
+  reaches a row whose own login works.
 - **CLIProxyAPI rows** (v2.7.0, `CLIProxyAccountProvider.swift`): every
   enabled `claude`/`codex`/`antigravity`/`gemini-cli` login in `auth-files`
   becomes a row with id `<base>:proxy-<12 hex of SHA-256(kind, email,
