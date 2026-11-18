@@ -1620,7 +1620,17 @@ struct WindowLevelSetter: NSViewRepresentable {
 
         /// The compact panel has no visible title bar: content fills the whole
         /// window, the window buttons are hidden, and it drags by its background.
+        /// Giving the window its title bar back runs `applyCompactChrome`
+        /// again from inside the style change; see there.
+        private var isApplyingCompactChrome = false
+
         private func applyCompactChrome(to window: NSWindow) {
+            // The inner run put the toolbar back before macOS rebuilt the
+            // title bar, which then dropped it, so the full window came back
+            // without its toolbar after the app had opened in nano.
+            guard !isApplyingCompactChrome else { return }
+            isApplyingCompactChrome = true
+            defer { isApplyingCompactChrome = false }
             window.titleVisibility = compact ? .hidden : .visible
             window.isMovableByWindowBackground = compact
             updateDragMonitor()
