@@ -380,7 +380,7 @@ struct UsageMetersView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if usage.windows.isEmpty && usage.balance == nil && usage.apiUsage == nil {
-                Text(L("No usage data"))
+                Text(usage.note ?? L("No usage data"))
                     .font(.callout.weight(.medium))
                     .foregroundStyle(.secondary)
             }

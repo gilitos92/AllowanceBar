@@ -19,6 +19,8 @@ private final class MockCLIProxyServer {
     var mainQuota = ""
     /// Overrides Anthropic's usage answer, through the proxy or direct.
     var claudeUsageBody: String?
+    /// Overrides the Claude profile, which names a Pro plan.
+    var profileBody: String?
 
     func reset() {
         lock.lock()
@@ -32,6 +34,7 @@ private final class MockCLIProxyServer {
         upstreamHeader = [:]
         mainQuota = ""
         claudeUsageBody = nil
+        profileBody = nil
     }
 
     func requestLog() -> [String] {
@@ -93,7 +96,7 @@ private final class MockCLIProxyServer {
             let upstream: String
             if url.contains("/api/oauth/profile") {
                 status = planStatus ?? status
-                upstream = #"{"account":{"has_claude_pro":true,"has_claude_max":false},"organization":{"organization_type":"claude_pro"}}"#
+                upstream = profileBody ?? #"{"account":{"has_claude_pro":true,"has_claude_max":false},"organization":{"organization_type":"claude_pro"}}"#
             } else if url.contains("daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist") {
                 // Antigravity: the subscription is the paid tier; the current tier still says free.
                 status = planStatus ?? status
@@ -131,7 +134,9 @@ private final class MockCLIProxyServer {
             let wrapped: [String: Any] = ["status_code": status, "header": upstreamHeader, "body": upstream]
             return (200, try! JSONSerialization.data(withJSONObject: wrapped))
         case "/api/oauth/usage":
-            if let claudeUsageStatus, claudeUsageStatus != 200 { return (claudeUsageStatus, Data("{}".utf8)) }
+            if let claudeUsageStatus, claudeUsageStatus != 200 {
+                return (claudeUsageStatus, Data((claudeUsageBody ?? "{}").utf8))
+            }
             return (200, Data((claudeUsageBody ?? #"{"five_hour":{"utilization":7.0}}"#).utf8))
         default:
             return (404, Data(#"{"error":"not_found"}"#.utf8))
@@ -235,7 +240,7 @@ final class CLIProxyTests: XCTestCase {
             proxyAccountCache: cache,
             proxyPlanCache: CLIProxyPlanCache(),
             rateLimits: rateLimits,
-            proxyUsageCache: CLIProxyUsageCache(),
+            usageRequests: ClaudeUsageRequests(),
             modelLimits: modelLimits
         )
     }
@@ -259,11 +264,14 @@ final class CLIProxyTests: XCTestCase {
         let usage = try await provider.fetch()
 
         XCTAssertEqual(usage.windows.map(\.usedPercent), [42])
-        XCTAssertEqual(usage.planName, "Max", "The plan still comes from Claude Code's login")
+        XCTAssertEqual(usage.planName, "Pro", "The login's profile, not the plan saved with the expired login")
         XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), [
             "GET proxy.test/v0/management/auth-files",
             "POST proxy.test/v0/management/api-call",
+            "POST proxy.test/v0/management/api-call",
         ])
+        let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
+        XCTAssertEqual(urls, [ClaudeProvider.profileURL.absoluteString, ClaudeProvider.usageURL.absoluteString])
         let call = try XCTUnwrap(MockCLIProxyURLProtocol.server.lastAPICall())
         XCTAssertEqual(call["auth_index"] as? String, "idx-main")
         XCTAssertEqual(call["url"] as? String, "https://api.anthropic.com/api/oauth/usage")
@@ -277,10 +285,10 @@ final class CLIProxyTests: XCTestCase {
 
         _ = try await provider.fetch()
         _ = try await provider.fetch()
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 1, "One usage request in two minutes")
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2, "One plan and one usage request in two minutes")
 
         let usage = try await provider.fetch(forceRefresh: true)
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 2, "Refresh asks again")
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.apiCalls().count, 3, "Refresh asks for the usage again")
         XCTAssertEqual(usage.windows.map(\.usedPercent), [42])
     }
 
@@ -674,7 +682,7 @@ final class CLIProxyTests: XCTestCase {
 
         let fixed = try makeProvider(expiresAt: 1, config: config, cache: cache)
         _ = try await fixed.fetch()
-        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog().count, 3)
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog().count, 4, "The login list, its plan and its usage")
     }
 
     func testBanIsWaitedOutBeforeTryingAgain() async throws {
@@ -742,15 +750,198 @@ final class CLIProxyTests: XCTestCase {
         provider.usageCache = CLIProxyUsageCache()
         provider.planCache = CLIProxyPlanCache()
         provider.claudeRateLimits = ClaudeRateLimitGate()
+        provider.claudeUsageRequests = ClaudeUsageRequests()
         provider.modelLimits = ClaudeModelLimitMemory()
         return provider
     }
 
-    func testClaudePlanIsAskedOnlyAfterItsUsage() async throws {
+    func testClaudePlanIsAskedBeforeItsUsageNotNextToIt() async throws {
         _ = try await proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com")).fetch()
 
         let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
-        XCTAssertEqual(urls, [ClaudeProvider.usageURL.absoluteString, ClaudeProvider.profileURL.absoluteString])
+        XCTAssertEqual(urls, [ClaudeProvider.profileURL.absoluteString, ClaudeProvider.usageURL.absoluteString])
+    }
+
+    // MARK: - Claude accounts without a paid plan
+
+    /// A canceled Pro: both flags false, the organization now `claude_free`.
+    private static let freeProfile = """
+    {"account":{"has_claude_pro":false,"has_claude_max":false},
+     "organization":{"organization_type":"claude_free","subscription_status":"canceled"}}
+    """
+
+    /// Anthropic's refusal of a free account's usage request.
+    private static let refusal = """
+    {"type":"error","error":{"type":"permission_error","message":"OAuth authentication is currently not allowed for this organization."}}
+    """
+
+    func testFreeProxyLoginShowsANoteWithoutAskingForUsage() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        let row = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+
+        for force in [false, true] {
+            let usage = try await row.fetch(forceRefresh: force)
+            XCTAssertEqual(usage.planName, "Free")
+            XCTAssertEqual(usage.windows, [])
+            XCTAssertEqual(usage.note, L("Anthropic doesn't share Claude Code limits for free accounts"))
+            XCTAssertEqual(usage.menuSummary(direction: .remaining), "–", "Nothing to show, and nothing wrong")
+        }
+        let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
+        XCTAssertEqual(
+            urls,
+            [ClaudeProvider.profileURL.absoluteString, ClaudeProvider.profileURL.absoluteString],
+            "The profile (again on Refresh), never the usage endpoint"
+        )
+    }
+
+    func testExpiredLoginSavedAsMaxIsFreeWhenItsProfileSaysSo() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        let provider = try makeProvider(expiresAt: 1, config: config)
+
+        let usage = try await provider.fetch()
+
+        XCTAssertEqual(usage.planName, "Free", "Not the Max plan saved with the expired login")
+        XCTAssertNotNil(usage.note)
+        XCTAssertEqual(usage.accountEmail, "Main@Example.com", "So the duplicate proxy row stays hidden")
+        XCTAssertNil(MockCLIProxyURLProtocol.server.apiCall(to: ClaudeProvider.usageURL.absoluteString))
+    }
+
+    func testRefusedUsageWaitsSixHoursThroughTheProxy() async throws {
+        MockCLIProxyURLProtocol.server.claudeUsageStatus = 403
+        MockCLIProxyURLProtocol.server.claudeUsageBody = Self.refusal
+        let row = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+        let start = Date()
+
+        for force in [false, true] {
+            do {
+                _ = try await row.fetch(forceRefresh: force)
+                XCTFail("A refused login has no usage")
+            } catch ClaudeError.usageUnavailable(let retryAt) {
+                XCTAssertEqual(retryAt.timeIntervalSince(start), ClaudeRateLimitGate.unavailableWait, accuracy: 5)
+            }
+        }
+        let usageCalls = MockCLIProxyURLProtocol.server.apiCalls().filter {
+            ($0["url"] as? String) == ClaudeProvider.usageURL.absoluteString
+        }
+        XCTAssertEqual(usageCalls.count, 1, "Refresh waits too")
+    }
+
+    func testRefusedUsageWaitsSixHoursWithThisMacsLogin() async throws {
+        MockCLIProxyURLProtocol.server.claudeUsageStatus = 403
+        MockCLIProxyURLProtocol.server.claudeUsageBody = Self.refusal
+        let provider = try makeProvider(expiresAt: Date().timeIntervalSince1970 * 1000 + 3_600_000, config: nil)
+
+        for _ in 0..<2 {
+            do {
+                _ = try await provider.fetch()
+                XCTFail("A refused login has no usage")
+            } catch ClaudeError.usageUnavailable {}
+        }
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog(), ["GET api.anthropic.com/api/oauth/usage"])
+    }
+
+    func testOtherForbiddenAnswersDoNotWait() async throws {
+        MockCLIProxyURLProtocol.server.claudeUsageStatus = 403
+        MockCLIProxyURLProtocol.server.claudeUsageBody = "<html>Forbidden</html>"
+        let provider = try makeProvider(expiresAt: Date().timeIntervalSince1970 * 1000 + 3_600_000, config: nil)
+
+        for _ in 0..<2 {
+            do {
+                _ = try await provider.fetch()
+                XCTFail("Expected an error")
+            } catch ClaudeError.httpStatus(let code) {
+                XCTAssertEqual(code, 403)
+            }
+        }
+        XCTAssertEqual(MockCLIProxyURLProtocol.server.requestLog().count, 2, "Not Anthropic's refusal, so no wait")
+    }
+
+    func testAnAccountsRowsShareOneUsageRequest() async throws {
+        let requests = ClaudeUsageRequests()
+        var local = try makeProvider(expiresAt: 1, config: config)
+        local.usageRequests = requests
+        var row = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+        row.claudeUsageRequests = requests
+        row.planCache = local.proxyPlanCache
+        row.claudeRateLimits = local.rateLimits
+
+        let (localRow, proxyRow) = (local, row)
+        async let fromLocal = localRow.fetch()
+        async let fromRow = proxyRow.fetch()
+        let (localUsage, rowUsage) = try await (fromLocal, fromRow)
+
+        XCTAssertEqual(localUsage.windows.map(\.usedPercent), [42])
+        XCTAssertEqual(rowUsage.windows.map(\.usedPercent), [42])
+        let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
+        XCTAssertEqual(urls.filter { $0 == ClaudeProvider.usageURL.absoluteString }.count, 1, "One request for both rows")
+        XCTAssertEqual(urls.filter { $0 == ClaudeProvider.profileURL.absoluteString }.count, 1, "One plan request too")
+    }
+
+    func testRecentProxyNumbersBeatAFreePlan() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+        var row = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+        row.modelLimits = await memoryWithoutModelLimits()
+
+        let usage = try await row.fetch()
+
+        XCTAssertEqual(usage.windows.map { $0.usedPercent.rounded() }, [56, 77], "Messages went through, so it isn't free")
+        XCTAssertNil(usage.note)
+    }
+
+    func testRefreshRechecksAFreePlan() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        let row = proxyRow(CLIProxyLoginKey(kind: .claude, email: "main@example.com"))
+        _ = try await row.fetch()
+
+        MockCLIProxyURLProtocol.server.profileBody = nil
+        let usage = try await row.fetch(forceRefresh: true)
+
+        XCTAssertEqual(usage.planName, "Pro", "The account subscribed again")
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [42])
+    }
+
+    func testThisMacsOwnTokenNeverUsesAProxiedAnswer() async throws {
+        let requests = ClaudeUsageRequests()
+        _ = try await requests.response(for: "account|main@example.com", maxAge: 0) {
+            try JSONDecoder().decode(ClaudeProvider.UsageResponse.self, from: Data(#"{"five_hour":{"utilization":99.0}}"#.utf8))
+        }
+        var local = try makeProvider(expiresAt: Date().timeIntervalSince1970 * 1000 + 3_600_000, config: config)
+        local.usageRequests = requests
+
+        let usage = try await local.fetch()
+
+        XCTAssertEqual(usage.windows.map(\.usedPercent), [7], "Its own answer, so a proxy failure can't reach it either")
+    }
+
+    func testExpiredLoginWithRecentProxyNumbersIsNotShownAsFree() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+        MockCLIProxyURLProtocol.server.claudeUsageBody = Self.usageWithFable
+        let provider = try makeProvider(expiresAt: 1, config: config)
+
+        let usage = try await provider.fetch()
+
+        XCTAssertNil(usage.note, "Messages went through, so the cached free plan is out of date")
+        XCTAssertFalse(usage.windows.isEmpty)
+    }
+
+    func testFreePlanNoteKeepsTheRememberedModelLimits() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        let memory = ClaudeModelLimitMemory()
+        let fable = ClaudeProvider.modelWeeklyWindow(model: "Fable", usedPercent: 30, resetsAt: nil)
+        await memory.remember(ProviderUsage(planName: nil, windows: [fable], asOf: Date()), email: "main@example.com")
+        let provider = try makeProvider(expiresAt: 1, config: config, modelLimits: memory)
+
+        let usage = try await provider.fetch()
+
+        XCTAssertNotNil(usage.note)
+        let quota = try XCTUnwrap(ClaudeProxyQuota(
+            signals: ["anthropic-ratelimit-unified-7d-utilization": "0.5"],
+            observedAt: "2027-01-15T02:00:00Z"
+        ))
+        let numbers = await memory.complete(quota, plan: nil, email: "main@example.com")
+        XCTAssertEqual(numbers.usage.windows.map(\.shortLabel), ["Week", "Fable"], "The Fable limit is still remembered")
     }
 
     func testRateLimitedClaudeLoginWaitsBeforeAskingAgain() async throws {
@@ -768,7 +959,11 @@ final class CLIProxyTests: XCTestCase {
             }
         }
         let urls = MockCLIProxyURLProtocol.server.apiCalls().compactMap { $0["url"] as? String }
-        XCTAssertEqual(urls, [ClaudeProvider.usageURL.absoluteString], "No plan request and no second usage request")
+        XCTAssertEqual(
+            urls,
+            [ClaudeProvider.profileURL.absoluteString, ClaudeProvider.usageURL.absoluteString],
+            "No second usage request"
+        )
     }
 
     func testRateLimitedLocalLoginWaitsBeforeAskingAgain() async throws {

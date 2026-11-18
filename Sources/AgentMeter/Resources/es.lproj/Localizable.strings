@@ -162,6 +162,10 @@
 	<string>Una clave de administrador muestra más detalle de facturación, pero es más poderosa — cámbiala solo si necesitas ese detalle extra.</string>
 	<key>An Inference key is the safer default — it lets apps run models but limits access to billing and key management. Allowance Bar only reads your balance through a read-only endpoint; it cannot spend credits.</key>
 	<string>Una clave de inferencia es la opción más segura por defecto: permite que las apps ejecuten modelos, pero limita el acceso a facturación y administración de claves. Allowance Bar solo lee tu saldo mediante un punto de acceso de solo lectura; no puede gastar créditos.</string>
+	<key>Anthropic doesn't share Claude Code limits for free accounts</key>
+	<string>Anthropic no comparte los límites de Claude Code de las cuentas gratuitas</string>
+	<key>Anthropic doesn't share this account's usage. Trying again at %@</key>
+	<string>Anthropic no comparte el uso de esta cuenta. Se intentará de nuevo a las %@</string>
 	<key>Anthropic rate-limited the usage request</key>
 	<string>Anthropic limitó la solicitud de uso</string>
 	<key>Anthropic rate-limited the usage request. Trying again at %@</key>

@@ -133,21 +133,25 @@ final class ClaudeKeychainReaderTests: XCTestCase {
     func testTimeoutTerminatesChildProcess() async throws {
         let script = try makeSleepingScript()
         defer { try? FileManager.default.removeItem(at: script.directory) }
+        let launchedPID = LaunchedPID()
 
+        // The PID comes from the reader at launch, not from the script's PID file:
+        // under load the 0.2 s timeout can stop the child before it writes that file.
         do {
             _ = try await ClaudeKeychainReader.read(
                 service: "test-service",
                 executableURL: script.executable,
                 account: "test-account",
-                timeout: 0.2
+                timeout: 0.2,
+                onLaunch: { launchedPID.value = $0 }
             )
             XCTFail("Expected timeout")
         } catch let error as ClaudeKeychainReaderError {
             XCTAssertEqual(error, .timedOut)
         }
 
-        guard let pid = await waitForPID(in: script.pidFile) else {
-            XCTFail("The fake child did not start")
+        guard let pid = launchedPID.value else {
+            XCTFail("The fake child was not launched")
             return
         }
         await assertProcessHasExited(pid)
@@ -156,21 +160,24 @@ final class ClaudeKeychainReaderTests: XCTestCase {
     func testCancellationTerminatesChildProcess() async throws {
         let script = try makeSleepingScript()
         defer { try? FileManager.default.removeItem(at: script.directory) }
+        let launchedPID = LaunchedPID()
 
         let task = Task {
             try await ClaudeKeychainReader.read(
                 service: "test-service",
                 executableURL: script.executable,
                 account: "test-account",
-                timeout: 10
+                timeout: 10,
+                onLaunch: { launchedPID.value = $0 }
             )
         }
 
-        guard let pid = await waitForPID(in: script.pidFile) else {
+        guard let pid = await waitForLaunch(of: launchedPID) else {
             task.cancel()
-            XCTFail("The fake child did not start")
+            XCTFail("The fake child was not launched")
             return
         }
+        XCTAssertEqual(Darwin.kill(pid, 0), 0, "The fake child should still be running before cancellation")
         task.cancel()
 
         do {
@@ -205,12 +212,10 @@ final class ClaudeKeychainReaderTests: XCTestCase {
         return (directory, executable, pidFile)
     }
 
-    private func waitForPID(in file: URL) async -> pid_t? {
-        for _ in 0..<200 {
-            if let value = try? String(contentsOf: file, encoding: .utf8),
-               let pid = pid_t(value.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                return pid
-            }
+    // A generous 10 s bound for the reader to launch the child under heavy load.
+    private func waitForLaunch(of launchedPID: LaunchedPID) async -> pid_t? {
+        for _ in 0..<1_000 {
+            if let pid = launchedPID.value { return pid }
             try? await Task.sleep(nanoseconds: 10_000_000)
         }
         return nil
@@ -222,5 +227,15 @@ final class ClaudeKeychainReaderTests: XCTestCase {
             try? await Task.sleep(nanoseconds: 10_000_000)
         }
         XCTFail("Child process \(pid) remained alive")
+    }
+}
+
+private final class LaunchedPID: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedValue: pid_t?
+
+    var value: pid_t? {
+        get { lock.withLock { storedValue } }
+        set { lock.withLock { storedValue = newValue } }
     }
 }

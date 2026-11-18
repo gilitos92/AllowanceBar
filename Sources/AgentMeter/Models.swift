@@ -287,6 +287,9 @@ struct ProviderUsage: Equatable {
     /// The signed-in account's email, when the provider knows it. Used to
     /// show a CLIProxyAPI login only once when it is also on this Mac.
     var accountEmail: String?
+    /// Why an account has no limits to show, in place of "No usage data"
+    /// (e.g. a Claude account without a paid plan).
+    var note: String?
 
     init(
         planName: String?,
@@ -330,7 +333,8 @@ struct ProviderUsage: Equatable {
             window.menuLabel(direction: direction, showsPace: showsPace, now: now)
         }
         let shown = menuWindows(allWindows: allWindows)
-        guard let first = shown.first else { return balance?.shortDisplay }
+        // A dash: nothing to show, and nothing wrong either (`note`).
+        guard let first = shown.first else { return balance?.shortDisplay ?? note.map { _ in "–" } }
         guard shown.count > 1 else { return label(first) }
         let rest = shown.dropFirst().map(label).joined(separator: ", ")
         return "\(label(first)) (\(rest))"

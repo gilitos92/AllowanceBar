@@ -167,8 +167,22 @@ announcement drafts, environment specifics) and complements this file.
   proxy rows; without an email `local|<id>` or `proxy|<identity>|
   <auth_index>`) sends nothing to Anthropic until `Retry-After` (60 s–1 h;
   the proxy passes upstream headers in `api-call`'s `header`), else 5 min
-  doubling to 30 min; forced refreshes wait too; a 200 resets it. The
-  Claude plan lookup runs AFTER the usage request, never alongside it.
+  doubling to 30 min; forced refreshes wait too; a 200 resets it. A 403
+  whose body is `permission_error` (Anthropic refuses the usage of an
+  account without a paid plan, then answers hour-long 429s) waits 6 h
+  (`usageUnavailable`). The Claude plan lookup through the proxy runs
+  BEFORE the usage request (cached 6 h), never alongside it: a profile
+  that says free (`ClaudeProvider.freePlan`) skips the usage request and
+  shows `ProviderUsage.note` instead (free accounts can't run
+  Claude Code either: 403 `oauth_not_allowed_for_organization`), unless
+  the proxy has fresh header numbers for it (then the plan is out of
+  date); Refresh re-asks a cached free plan. The profile names the plan
+  of an expired local login; a valid one's saved `subscriptionType`
+  still counts. `ClaudeUsageRequests` (key `account|<email>`) shares one
+  proxied request in flight, and its answer for 2 min unless forced,
+  between an account's proxy row and its expired local row. Requests
+  with this Mac's own token stay apart, so a proxy-only failure never
+  reaches a row whose own login works.
 - **CLIProxyAPI rows** (v2.7.0, `CLIProxyAccountProvider.swift`): every
   enabled `claude`/`codex`/`antigravity`/`gemini-cli` login in `auth-files`
   becomes a row with id `<base>:proxy-<12 hex of SHA-256(kind, email,
@@ -229,7 +243,7 @@ announcement drafts, environment specifics) and complements this file.
   to their answer). The `7d_oi` window takes the remembered Fable model's name. `api-call` itself has no cache: every relayed
   request reaches Anthropic and counts toward the account's limit. A local
   Claude row that falls back to the proxy keeps its answer in
-  `CLIProxyUsageCache` (2 min, key `<identity>|local|<id>|<auth_index>`)
+  `ClaudeUsageRequests` (2 min, shared with the account's proxy row)
   unless forced, like proxy rows.
 - **Claude API** (`claude-api`, v1.12.0): separate from subscription Claude.
   Keychain API key must have organization reporting access. Read-only GET
