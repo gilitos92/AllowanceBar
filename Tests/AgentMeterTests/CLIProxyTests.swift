@@ -914,6 +914,36 @@ final class CLIProxyTests: XCTestCase {
         XCTAssertEqual(usage.windows.map(\.usedPercent), [7], "Its own answer, so a proxy failure can't reach it either")
     }
 
+    func testExpiredLoginWithRecentProxyNumbersIsNotShownAsFree() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        MockCLIProxyURLProtocol.server.mainQuota = quotaJSON(observedAgo: 60)
+        MockCLIProxyURLProtocol.server.claudeUsageBody = Self.usageWithFable
+        let provider = try makeProvider(expiresAt: 1, config: config)
+
+        let usage = try await provider.fetch()
+
+        XCTAssertNil(usage.note, "Messages went through, so the cached free plan is out of date")
+        XCTAssertFalse(usage.windows.isEmpty)
+    }
+
+    func testFreePlanNoteKeepsTheRememberedModelLimits() async throws {
+        MockCLIProxyURLProtocol.server.profileBody = Self.freeProfile
+        let memory = ClaudeModelLimitMemory()
+        let fable = ClaudeProvider.modelWeeklyWindow(model: "Fable", usedPercent: 30, resetsAt: nil)
+        await memory.remember(ProviderUsage(planName: nil, windows: [fable], asOf: Date()), email: "main@example.com")
+        let provider = try makeProvider(expiresAt: 1, config: config, modelLimits: memory)
+
+        let usage = try await provider.fetch()
+
+        XCTAssertNotNil(usage.note)
+        let quota = try XCTUnwrap(ClaudeProxyQuota(
+            signals: ["anthropic-ratelimit-unified-7d-utilization": "0.5"],
+            observedAt: "2027-01-15T02:00:00Z"
+        ))
+        let numbers = await memory.complete(quota, plan: nil, email: "main@example.com")
+        XCTAssertEqual(numbers.usage.windows.map(\.shortLabel), ["Week", "Fable"], "The Fable limit is still remembered")
+    }
+
     func testRateLimitedClaudeLoginWaitsBeforeAskingAgain() async throws {
         MockCLIProxyURLProtocol.server.claudeUsageStatus = 429
         MockCLIProxyURLProtocol.server.upstreamHeader = ["Retry-After": ["120"]]

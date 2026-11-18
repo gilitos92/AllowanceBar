@@ -58,13 +58,15 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let fromHeaders = await proxyNumbers()
         if let fromHeaders, fromHeaders.isComplete { return fromHeaders.usage }
         do {
-            var usage = try await fetchUsage(forceRefresh: forceRefresh, hasRecentNumbers: fromHeaders != nil)
+            var usage = try await fetchUsage(forceRefresh: forceRefresh)
             // The proxy login's email when there is one, as with the proxy's
             // numbers: they look the memory up with it, and the duplicate
             // proxy row stays hidden. It may differ from Claude Code's email
             // (`cliProxyClaudeEmails`).
             if let email = fromHeaders?.usage.accountEmail { usage.accountEmail = email }
-            await modelLimits.remember(usage, email: usage.accountEmail)
+            // A free plan's note isn't an answer from Anthropic: it must not
+            // replace the remembered per-model limits.
+            if usage.note == nil { await modelLimits.remember(usage, email: usage.accountEmail) }
             return usage
         } catch {
             // Recent numbers from the proxy beat an error; only their
@@ -76,8 +78,7 @@ struct ClaudeProvider: AccountConfigurableProvider {
     }
 
     /// The usage endpoint, with this Mac's login or through the proxy.
-    /// `hasRecentNumbers`: the proxy has recent numbers for this account.
-    private func fetchUsage(forceRefresh: Bool, hasRecentNumbers: Bool) async throws -> ProviderUsage {
+    private func fetchUsage(forceRefresh: Bool) async throws -> ProviderUsage {
         var plan: String?
         let localError: ClaudeError
         do {
@@ -110,7 +111,9 @@ struct ClaudeProvider: AccountConfigurableProvider {
         // Asked before the usage, never next to it: two requests at once from
         // one login can trip Anthropic's rate limit. Kept for hours.
         let proxyPlan = await Self.currentPlan(of: account, client: client, cache: proxyPlanCache, forceRefresh: forceRefresh)
-        if Self.showsAsFree(plan: proxyPlan, hasRecentNumbers: hasRecentNumbers) {
+        // The login list's own numbers, also when `proxyNumbers` gave up
+        // waiting for a slow proxy.
+        if Self.showsAsFree(plan: proxyPlan, hasRecentNumbers: account.claudeQuota?.isFresh() == true) {
             return Self.freePlanUsage(email: account.email, now: Date())
         }
         // Like the proxy's own rows: one usage request per account every two
