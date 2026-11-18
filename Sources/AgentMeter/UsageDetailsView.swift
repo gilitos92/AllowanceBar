@@ -1204,10 +1204,19 @@ struct WindowLevelSetter: NSViewRepresentable {
         private func updateDragMonitor() {
             if compact, dragMonitor == nil {
                 dragMonitor = NSEvent.addLocalMonitorForEvents(
-                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .keyDown]
                 ) { [weak self] event in
                     guard let self, let window, event.window === window else { return event }
                     switch event.type {
+                    case .keyDown:
+                        // Without a title bar, macOS disables Close (⌘W) for
+                        // the nano panel, so close it here. `performClose`
+                        // would only beep without a close button.
+                        guard isNano,
+                              event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                              event.charactersIgnoringModifiers?.lowercased() == "w" else { return event }
+                        window.close()
+                        return nil
                     case .leftMouseDown:
                         mouseDownLocation = event.locationInWindow
                         return event
