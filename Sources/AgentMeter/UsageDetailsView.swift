@@ -1153,7 +1153,11 @@ struct WindowLevelSetter: NSViewRepresentable {
         /// panel last dropped in the left half of the screen, so it grows
         /// toward the middle and never back against the edge it left.
         private var anchorsLeft = false
-        var snapsToSides = false
+        /// Turned on when the layout becomes Automatic; a panel already lying
+        /// partly past a side is measured, and snapped, right away.
+        var snapsToSides = false {
+            didSet { if snapsToSides, !oldValue { remeasureWhenSettled() } }
+        }
         var onDrop: (HorizontalEdge?, _ anchorsLeft: Bool) -> Void = { _, _ in }
         private var lastFrame: NSRect?
         /// The window's toolbar while the nano panel is showing; see
