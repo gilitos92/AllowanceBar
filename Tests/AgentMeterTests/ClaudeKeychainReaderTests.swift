@@ -177,6 +177,7 @@ final class ClaudeKeychainReaderTests: XCTestCase {
             XCTFail("The fake child was not launched")
             return
         }
+        XCTAssertEqual(Darwin.kill(pid, 0), 0, "The fake child should still be running before cancellation")
         task.cancel()
 
         do {
@@ -211,8 +212,7 @@ final class ClaudeKeychainReaderTests: XCTestCase {
         return (directory, executable, pidFile)
     }
 
-    // Waits up to the cancellation test's 10 s read timeout: launching is the
-    // reader's own work, so under heavy load it can take longer than usual.
+    // A generous 10 s bound for the reader to launch the child under heavy load.
     private func waitForLaunch(of launchedPID: LaunchedPID) async -> pid_t? {
         for _ in 0..<1_000 {
             if let pid = launchedPID.value { return pid }
