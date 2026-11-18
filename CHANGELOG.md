@@ -7,6 +7,32 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.12.0] — 2026-11-18
+
+### Added
+- A Vertical Nano View: the nano window standing on end as a narrow strip,
+  so it can sit along a side of the screen instead of covering the
+  toolbars and input fields near the top of other windows. Pick it with the
+  new button next to Nano (the nano icon turned on its side) in the
+  window's toolbar, the panels' hover controls and the menu bar dropdown;
+  Allowance Bar remembers it like the other views. Each account shows its
+  dot and code, a small vertical meter for each limit with the even-pace
+  marker, the leading percent with its pace arrow, and its place in
+  CLIProxyAPI's order; the hover controls stand on end too.
+
+### Fixed
+- The nano window can now rest beside the Dock or on the bottom edge of the
+  screen. macOS used to push it back above the Dock when you let go,
+  because it never lets a window's title bar rest under the Dock, and the
+  nano window was short enough to count entirely as title bar. It no longer
+  has a title bar, so its glass now draws its own rounded corners. Switching
+  from there to the mini or full view moves the window up so that it opens
+  above the Dock.
+- The full Usage Details window keeps its toolbar after the nano view. When
+  Allowance Bar opened in the nano view, switching to the full view showed
+  the window without its toolbar: putting the title bar back made macOS
+  drop the toolbar the app had just restored.
+
 ## [2.11.0] — 2026-11-14
 
 ### Added

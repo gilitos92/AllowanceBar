@@ -1,15 +1,17 @@
 import AppKit
 import SwiftUI
 
-/// The Usage Details window's three sizes.
+/// The Usage Details window's views: full, mini, and the nano panel as a
+/// line or standing on end.
 enum UsageDetailsMode: CaseIterable {
-    case full, mini, nano
+    case full, mini, nano, nanoVertical
 
     var title: String {
         switch self {
         case .full: L("Full View")
         case .mini: L("Compact View")
         case .nano: L("Nano View")
+        case .nanoVertical: L("Vertical Nano View")
         }
     }
 
@@ -18,22 +20,50 @@ enum UsageDetailsMode: CaseIterable {
         case .full: L("Show every provider's limits, reset times and plans.")
         case .mini: L("Collapse into a small panel with each provider's limits.")
         case .nano: L("Shrink into a tiny panel with only the menu bar text.")
+        case .nanoVertical: L("Stand the tiny panel on end for a side of the screen, with a meter for each limit.")
         }
     }
 
+    /// The vertical nano view shows the nano symbol turned a quarter turn;
+    /// SF Symbols has no horizontal "compress" symbol.
     var symbol: String {
         switch self {
         case .full: "list.bullet.rectangle"
         case .mini: "capsule"
-        case .nano: "rectangle.compress.vertical"
+        case .nano, .nanoVertical: "rectangle.compress.vertical"
         }
+    }
+
+    var symbolRotation: Angle {
+        self == .nanoVertical ? .degrees(90) : .zero
+    }
+
+    /// The symbol, turned like `symbolRotation`, as an image for controls
+    /// that draw it themselves, such as segmented pickers.
+    var symbolImage: Image {
+        guard self == .nanoVertical,
+              let symbol = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) else {
+            return Image(systemName: symbol)
+        }
+        let size = NSSize(width: symbol.size.height, height: symbol.size.width)
+        let turned = NSImage(size: size, flipped: false) { rect in
+            let transform = NSAffineTransform()
+            transform.translateX(by: rect.midX, yBy: rect.midY)
+            transform.rotate(byDegrees: -90)
+            transform.translateX(by: -symbol.size.width / 2, yBy: -symbol.size.height / 2)
+            transform.concat()
+            symbol.draw(at: .zero, from: .zero, operation: .sourceOver, fraction: 1)
+            return true
+        }
+        turned.isTemplate = true
+        return Image(nsImage: turned)
     }
 }
 
 extension SettingsStore {
     var usageDetailsMode: UsageDetailsMode {
         get {
-            if usageDetailsNano { return .nano }
+            if usageDetailsNano { return usageDetailsNanoVertical ? .nanoVertical : .nano }
             return usageDetailsCompact ? .mini : .full
         }
         set {
@@ -44,7 +74,8 @@ extension SettingsStore {
             case .mini:
                 usageDetailsNano = false
                 usageDetailsCompact = true
-            case .nano:
+            case .nano, .nanoVertical:
+                usageDetailsNanoVertical = newValue == .nanoVertical
                 usageDetailsNano = true
             }
         }
@@ -57,17 +88,23 @@ struct UsageDetailsView: View {
     @State private var contentHeight: CGFloat?
     @State private var titleBarInset: CGFloat = 0
     @State private var isPointerInside = false
+    /// The window keeps the nano panel's left edge in place, not its right
+    /// one, because the panel sits in the left half of the screen.
+    @State private var nanoAnchorsLeft = false
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         Group {
             switch settings.usageDetailsMode {
-            case .nano:
+            case .nano, .nanoVertical:
                 // Pace arrows depend on the time, not only on refreshes, so
                 // redraw every 30 seconds like the meters.
                 TimelineView(.periodic(from: .now, by: 30)) { _ in
                     NanoUsageView(
-                        entries: store.nanoEntries,
+                        entries: settings.usageDetailsNanoVertical ? [] : store.nanoEntries,
+                        meterEntries: settings.usageDetailsNanoVertical ? store.nanoMeterEntries : [],
+                        vertical: settings.usageDetailsNanoVertical,
+                        anchorsLeft: nanoAnchorsLeft,
                         accessibilityDescription: store.nanoAccessibilityDescription,
                         settings: settings,
                         isPointerInside: isPointerInside,
@@ -94,16 +131,21 @@ struct UsageDetailsView: View {
         // window's own corners and outline shape every view, also the mini
         // and nano panels. Only the background extends under the expanded
         // window's title bar; its content stays in the normal safe area. The
-        // window can be a little taller than the nano panel's content (its
-        // minimum height), so the glass also reaches past the content's
-        // bottom edge; the window clips it.
+        // window can be a little taller than its content (its minimum
+        // height), so the glass also reaches past the content's
+        // bottom edge; the window clips it. The nano window has no title bar
+        // (see `WindowLevelSetter`), hence no corners of its own, so its
+        // glass is rounded like the window corners macOS draws and ends at
+        // the window's edges.
         .background(WindowGlassBackground(
-            opacity: settings.usageDetailsBackgroundOpacity
-        ).padding(.bottom, -8).ignoresSafeArea())
+            opacity: settings.usageDetailsBackgroundOpacity,
+            cornerRadius: settings.usageDetailsNano ? 16 : 0
+        ).padding(.bottom, settings.usageDetailsNano ? 0 : -8).ignoresSafeArea())
         .background(WindowLevelSetter(alwaysOnTop: settings.usageDetailsAlwaysOnTop,
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
                                       anchorsBottomRight: settings.usageDetailsNano,
+                                      onAnchorSideChange: { nanoAnchorsLeft = $0 },
                                       onPointerInsideChange: { isPointerInside = $0 },
                                       onTitleBarHeightChange: { titleBarInset = $0 }))
         // The compact and nano panels have no title bar controls; their own
@@ -204,7 +246,8 @@ struct UsageDetailsView: View {
                         isOn: settings.usageDetailsMode == mode,
                         help: mode.help,
                         large: true,
-                        showsSelection: true
+                        showsSelection: true,
+                        symbolRotation: mode.symbolRotation
                     ) { settings.usageDetailsMode = mode }
                 }
             }
@@ -252,7 +295,7 @@ struct UsageDetailsView: View {
                 set: { settings.usageDetailsMode = $0 }
             )) {
                 ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
-                    Label(mode.title, systemImage: mode.symbol).tag(mode)
+                    Label { Text(mode.title) } icon: { mode.symbolImage }.tag(mode)
                 }
             }
             .pickerStyle(.segmented)
@@ -282,8 +325,8 @@ struct UsageDetailsView: View {
         // The window fits its content (see `windowResizability(.contentSize)`)
         // and scrolls only when the content is taller than the screen allows.
         // Wide enough for two columns of modules, each with two limits per
-        // row like the dropdown, and the toolbar.
-        .frame(minWidth: 720, idealWidth: 740, maxWidth: .infinity)
+        // row like the dropdown, and the toolbar with its four view buttons.
+        .frame(minWidth: 780, idealWidth: 800, maxWidth: .infinity)
         .frame(height: min(contentHeight ?? 500, Self.maxHeight))
     }
 }
@@ -360,11 +403,17 @@ private struct CompactUsageView: View {
 }
 
 /// The smallest Usage Details panel: only the menu bar text, e.g.
-/// "Cx 50% · Cl 30%", each entry after a dot in its provider's color. While
-/// the pointer is over it, or always with VoiceOver, the window controls
-/// appear above the text. Dragging anywhere else moves it.
+/// "Cx 50% · Cl 30%", each entry after a dot in its provider's color. The
+/// vertical layout stands it on end for the side of the screen: each account
+/// is a small stack with a meter per limit. While the pointer is over it, or
+/// always with VoiceOver, the window controls appear above the text.
+/// Dragging anywhere else moves it.
 private struct NanoUsageView: View {
     let entries: [MenuBarEntry]
+    let meterEntries: [NanoMeterEntry]
+    let vertical: Bool
+    /// Aligns the content with the window edge that stays in place.
+    let anchorsLeft: Bool
     let accessibilityDescription: String
     @ObservedObject var settings: SettingsStore
     let isPointerInside: Bool
@@ -377,31 +426,45 @@ private struct NanoUsageView: View {
     }
 
     var body: some View {
-        // The window keeps its bottom and right edges in place (see
-        // `WindowLevelSetter`), so the text stays put and the controls grow
-        // the panel upward.
-        VStack(alignment: .trailing, spacing: 6) {
+        // The window keeps its bottom edge, and the side edge of the screen
+        // half the panel sits in, in place (see `WindowLevelSetter`). The
+        // content aligns with that side, so the text stays put and the
+        // controls grow the panel upward and toward the middle.
+        VStack(alignment: anchorsLeft ? .leading : .trailing, spacing: 6) {
             if showsControls {
                 controls
             }
-            title
+            Group {
+                if vertical {
+                    strip
+                } else {
+                    line
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityDescription)
         }
         // Room around the text to grab the panel and drag it.
-        .padding(.horizontal, 14)
-        .padding(.vertical, 7)
+        .padding(.horizontal, vertical ? 8 : 14)
+        .padding(.vertical, vertical ? 9 : 7)
         .fixedSize()
         // The panel has no title bar, so it sits flush with the window edges.
         .ignoresSafeArea()
     }
 
     private var controls: some View {
-        PanelControls(settings: settings, isAdjustingOpacity: $isAdjustingOpacity, close: close)
-            .controlSize(.small)
+        PanelControls(
+            settings: settings,
+            isAdjustingOpacity: $isAdjustingOpacity,
+            close: close,
+            vertical: vertical
+        )
+        .controlSize(.small)
     }
 
     /// Same text as the menu bar title. Warning and critical entries take
     /// their severity color and symbol; severity is never shown by color alone.
-    private var title: some View {
+    private var line: some View {
         HStack(spacing: 8) {
             ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
                 if index > 0 {
@@ -409,34 +472,36 @@ private struct NanoUsageView: View {
                 }
                 HStack(spacing: 4) {
                     if let providerID = entry.providerID {
-                        Circle()
-                            .fill(dotColor(for: entry, providerID: providerID))
-                            .frame(width: 7, height: 7)
+                        NanoDot(severity: entry.severity, providerID: providerID)
                     }
                     // The provider code stays plain; only the value takes
                     // the severity color, e.g. "Cl" then "18%↗".
                     let parts = Self.split(entry.text, hasProvider: entry.providerID != nil)
                     if let code = parts.code {
-                        Text(verbatim: code)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(entry.severity == .stale ? .secondary : .primary)
+                        NanoCode(code: code, severity: entry.severity)
                     }
-                    SeverityValueLabel(
-                        text: parts.value,
-                        symbolName: entry.severity.symbolName,
-                        tint: entry.severity.textColor,
-                        plainColor: entry.severity == .stale ? .secondary : .primary,
-                        font: .system(size: 12, weight: entry.severity.isEmphasized ? .semibold : .regular).monospacedDigit(),
-                        symbolFont: .system(size: 10.5, weight: .semibold)
-                    )
+                    NanoValue(text: parts.value, severity: entry.severity)
                 }
                 // Entries never truncate; the panel grows to fit them.
                 .fixedSize()
             }
         }
         .lineLimit(1)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityDescription)
+    }
+
+    /// One stack per account, top to bottom in the line's order, with a
+    /// hairline between accounts.
+    private var strip: some View {
+        VStack(spacing: 6) {
+            ForEach(Array(meterEntries.enumerated()), id: \.element.id) { index, entry in
+                if index > 0 {
+                    Divider().frame(width: 22)
+                }
+                NanoMeterStack(entry: entry, settings: settings)
+            }
+        }
+        .lineLimit(1)
+        .fixedSize()
     }
 
     /// "Cl 18%↗ #1" → code "Cl", value "18%↗ #1". Entries without a
@@ -445,9 +510,69 @@ private struct NanoUsageView: View {
         guard hasProvider, let space = text.firstIndex(of: " ") else { return (nil, text) }
         return (String(text[..<space]), String(text[text.index(after: space)...]))
     }
+}
 
-    private func dotColor(for entry: MenuBarEntry, providerID: String) -> Color {
-        switch entry.severity {
+/// One account in the vertical nano panel: its dot and code, a vertical
+/// meter per limit with the even-pace marker, the leading value with its
+/// pace arrow, and its place in CLIProxyAPI's order.
+private struct NanoMeterStack: View {
+    let entry: NanoMeterEntry
+    @ObservedObject var settings: SettingsStore
+
+    var body: some View {
+        let now = Date()
+        let direction = settings.countDirection
+        VStack(spacing: 3) {
+            HStack(spacing: 4) {
+                if let providerID = entry.providerID {
+                    NanoDot(severity: entry.severity, providerID: providerID)
+                }
+                NanoCode(code: entry.code, severity: entry.severity)
+            }
+            if !entry.windows.isEmpty {
+                // Apart enough that neighboring pace markers don't touch.
+                HStack(spacing: 3) {
+                    ForEach(Array(entry.windows.enumerated()), id: \.offset) { _, window in
+                        UsageMeterBar(
+                            percent: direction.displayPercent(window.usedPercent),
+                            severity: UsageMeterSeverity.forUsedPercent(window.usedPercent),
+                            paceMarkerPercent: settings.nanoShowsPace
+                                ? direction.paceMarkerPercent(for: window, now: now) : nil,
+                            height: 5,
+                            vertical: true
+                        )
+                        .frame(height: 30)
+                    }
+                }
+                .opacity(entry.severity == .stale ? 0.5 : 1)
+                .padding(.vertical, 1)
+            }
+            if !entry.value.isEmpty {
+                NanoValue(text: entry.value, severity: entry.severity)
+            }
+            if let priority = entry.priority {
+                Text(verbatim: priority)
+                    .font(.system(size: 10.5, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// The provider's dot; warning, critical and stale entries take their
+/// severity's color instead.
+private struct NanoDot: View {
+    let severity: MenuBarSeverity
+    let providerID: String
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 7, height: 7)
+    }
+
+    private var color: Color {
+        switch severity {
         case .warning: Color(nsColor: .systemOrange)
         case .critical: Color(nsColor: .systemRed)
         case .stale: Color.secondary
@@ -456,31 +581,72 @@ private struct NanoUsageView: View {
     }
 }
 
+private struct NanoCode: View {
+    let code: String
+    let severity: MenuBarSeverity
+
+    var body: some View {
+        Text(verbatim: code)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(severity == .stale ? .secondary : .primary)
+    }
+}
+
+private struct NanoValue: View {
+    let text: String
+    let severity: MenuBarSeverity
+
+    var body: some View {
+        SeverityValueLabel(
+            text: text,
+            symbolName: severity.symbolName,
+            tint: severity.textColor,
+            plainColor: severity == .stale ? .secondary : .primary,
+            font: .system(size: 12, weight: severity.isEmphasized ? .semibold : .regular).monospacedDigit(),
+            symbolFont: .system(size: 10.5, weight: .semibold)
+        )
+    }
+}
+
 /// Hover controls shared by the compact and nano panels: the window options,
-/// and the same three-way view switcher as the full window's toolbar.
+/// and the same view switcher as the full window's toolbar. The
+/// vertical nano panel stands each group on end, so the controls fit its
+/// narrow column instead of widening it.
 private struct PanelControls: View {
     @ObservedObject var settings: SettingsStore
     @Binding var isAdjustingOpacity: Bool
     let close: () -> Void
+    /// Stands each group on end, for the vertical nano panel.
+    var vertical = false
     @Environment(\.controlSize) private var controlSize
 
     var body: some View {
-        HStack(spacing: 4) {
-            glassGroup { windowOptions }
-            glassGroup {
-                ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
-                    CompactControlButton(
-                        title: mode.title,
-                        symbol: mode.symbol,
-                        isOn: settings.usageDetailsMode == mode,
-                        help: mode.help,
-                        showsSelection: true
-                    ) { settings.usageDetailsMode = mode }
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel(L("View"))
+        if vertical {
+            HStack(alignment: .top, spacing: 4) { groups }
+        } else {
+            HStack(spacing: 4) { groups }
         }
+    }
+
+    @ViewBuilder
+    private var groups: some View {
+        glassGroup {
+            windowOptions
+        }
+        glassGroup {
+            ForEach(UsageDetailsMode.allCases, id: \.self) { mode in
+                CompactControlButton(
+                    title: mode.title,
+                    symbol: mode.symbol,
+                    isOn: settings.usageDetailsMode == mode,
+                    help: mode.help,
+                    showsSelection: true,
+                    symbolRotation: mode.symbolRotation
+                ) { settings.usageDetailsMode = mode }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(L("View"))
     }
 
     @ViewBuilder
@@ -505,11 +671,20 @@ private struct PanelControls: View {
         )
     }
 
-    /// A row of buttons on its own glass capsule.
+    /// A row of buttons, or a column in the vertical nano panel, on its own
+    /// glass capsule.
     @ViewBuilder
     private func glassGroup<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        let buttons = HStack(spacing: 2) { content() }
-            .padding(controlSize == .small ? 2 : 3)
+        let padding: CGFloat = controlSize == .small ? 2 : 3
+        if vertical {
+            glass(VStack(spacing: 2) { content() }.padding(padding))
+        } else {
+            glass(HStack(spacing: 2) { content() }.padding(padding))
+        }
+    }
+
+    @ViewBuilder
+    private func glass(_ buttons: some View) -> some View {
         if #available(macOS 26, *) {
             buttons.glassEffect(.regular.interactive(), in: Capsule())
         } else {
@@ -528,6 +703,7 @@ private struct CompactControlButton: View {
     var large = false
     /// Marks the "on" state with a filled capsule behind the symbol.
     var showsSelection = false
+    var symbolRotation: Angle = .zero
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
     /// `.small` in the nano panel.
@@ -539,6 +715,7 @@ private struct CompactControlButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: large ? 14 : small ? 10 : 12, weight: .semibold))
+                .rotationEffect(symbolRotation)
                 .frame(width: large ? 32 : small ? 17 : 20, height: large ? 28 : small ? 17 : 20)
                 .background {
                     if showsSelection, isOn, isEnabled {
@@ -912,6 +1089,9 @@ struct WindowLevelSetter: NSViewRepresentable {
     /// Keeps the window's bottom and right edges in place when its size
     /// changes, so the nano panel grows upward and to the left.
     var anchorsBottomRight = false
+    /// Reports whether the nano panel now keeps its left edge in place when
+    /// it resizes, rather than its right one.
+    var onAnchorSideChange: (Bool) -> Void = { _ in }
     /// Reports whether the pointer is anywhere over the window. SwiftUI's
     /// `onHover` lost the pointer over the compact panel's top strip, which
     /// hid its controls as soon as the pointer reached them.
@@ -930,6 +1110,7 @@ struct WindowLevelSetter: NSViewRepresentable {
     func updateNSView(_ nsView: ProbeView, context: Context) {
         nsView.onPointerInsideChange = onPointerInsideChange
         nsView.onTitleBarHeightChange = onTitleBarHeightChange
+        nsView.onAnchorSideChange = onAnchorSideChange
         nsView.alwaysOnTop = alwaysOnTop
         nsView.onAllSpaces = onAllSpaces
         nsView.compact = compact
@@ -951,12 +1132,35 @@ struct WindowLevelSetter: NSViewRepresentable {
             didSet { applyLevel() }
         }
         var anchorsBottomRight = false {
-            didSet { if anchorsBottomRight != oldValue { applyLevel() } }
+            didSet {
+                guard anchorsBottomRight != oldValue else { return }
+                applyLevel()
+                // The panel grows from the side of the screen the previous
+                // view was on.
+                if anchorsBottomRight, let window, let screen = window.screen?.visibleFrame {
+                    updateAnchorSide(left: window.frame.midX < screen.midX)
+                }
+            }
         }
+        /// Keeps the left edge in place instead of the right one, for a
+        /// panel in the left half of the screen, so it grows toward the
+        /// middle. Chosen when the panel moves, not when it resizes, so
+        /// switching between the nano views back and forth never drifts it.
+        private var anchorsLeft = false
+        /// Where `keepAnchorEdgesIfNeeded` last moved the window itself.
+        private var anchoredOrigin: NSPoint?
+        var onAnchorSideChange: (Bool) -> Void = { _ in }
         private var lastFrame: NSRect?
         /// The window's toolbar while the nano panel is showing; see
         /// `applyCompactChrome`.
         private var detachedToolbar: NSToolbar?
+        /// The title bar was removed for the nano panel; see
+        /// `applyCompactChrome`.
+        private var removedTitleBar = false
+        /// When the window stops lifting itself above the Dock after leaving
+        /// nano; see `liftAboveDockIfNeeded`.
+        private var liftsAboveDockUntil: Date?
+        private var isNano: Bool { compact && anchorsBottomRight }
         private var fullSizeContentBeforeCompact: Bool?
         private var dragMonitor: Any?
         private var mouseDownLocation: NSPoint?
@@ -985,6 +1189,8 @@ struct WindowLevelSetter: NSViewRepresentable {
             installPointerTracking()
         }
 
+
+
         /// When the window opens right after launch, SwiftUI can finish
         /// configuring it later and bring the title bar back, leaving the
         /// compact panel with a title bar over clipped content. Restore the
@@ -1001,6 +1207,8 @@ struct WindowLevelSetter: NSViewRepresentable {
                 ) { [weak self] _ in
                     MainActor.assumeIsolated {
                         self?.keepAnchorEdgesIfNeeded()
+                        self?.keepOnAScreenIfNeeded()
+                        self?.liftAboveDockIfNeeded()
                         self?.syncPointerInside()
                     }
                 })
@@ -1026,18 +1234,110 @@ struct WindowLevelSetter: NSViewRepresentable {
             guard let window else { return }
             let frame = window.frame
             defer { lastFrame = window.frame }
-            guard anchorsBottomRight, compact, let old = lastFrame, frame.size != old.size else { return }
-            var origin = NSPoint(x: old.maxX - frame.width, y: old.minY)
-            if let screen = window.screen?.visibleFrame {
-                if old.minX >= screen.minX { origin.x = max(origin.x, screen.minX) }
+            guard anchorsBottomRight, compact, let old = lastFrame else { return }
+            guard frame.size != old.size else {
+                // Moved, not by this function: keep the edge on the panel's
+                // half of the screen from now on.
+                if frame.origin != old.origin, frame.origin != anchoredOrigin,
+                   let screen = window.screen?.visibleFrame {
+                    updateAnchorSide(left: frame.midX < screen.midX)
+                }
+                return
+            }
+            var origin = NSPoint(x: anchorsLeft ? old.minX : old.maxX - frame.width, y: old.minY)
+            // The resized window may already be off its screen entirely.
+            let screen = window.screen ?? NSScreen.screens.first { $0.visibleFrame.intersects(old) }
+            if let screen = screen?.visibleFrame {
+                if anchorsLeft {
+                    if old.maxX <= screen.maxX { origin.x = min(origin.x, screen.maxX - frame.width) }
+                } else if old.minX >= screen.minX {
+                    origin.x = max(origin.x, screen.minX)
+                }
+                // A panel dragged past an edge may stay there, but shrinking
+                // must not carry it, and its controls, off the screen.
+                let visible = min(frame.width, 40)
+                origin.x = min(max(origin.x, screen.minX - frame.width + visible), screen.maxX - visible)
                 if old.maxY <= screen.maxY { origin.y = min(origin.y, screen.maxY - frame.height) }
             }
             guard origin != frame.origin else { return }
+            anchoredOrigin = origin
             window.setFrameOrigin(origin)
+        }
+
+        private func updateAnchorSide(left: Bool) {
+            guard left != anchorsLeft else { return }
+            anchorsLeft = left
+            DispatchQueue.main.async { [weak self] in self?.onAnchorSideChange(left) }
+        }
+
+        /// macOS keeps a window with a title bar on screen when it is opened
+        /// or its saved position is restored, but not the nano window, which
+        /// has none. Restoring a position saved for another display arrangement
+        /// could leave the panel entirely off screen. Bring it back to the
+        /// nearest screen then; a panel that still touches a screen, e.g. one
+        /// the user dragged partly past an edge or beside the Dock, stays put.
+        private func keepOnAScreenIfNeeded() {
+            guard isNano, !isDragging, let window else { return }
+            let frame = window.frame
+            let screens = NSScreen.screens
+            guard !screens.isEmpty else { return }
+            if let screen = screens.max(by: {
+                $0.frame.intersection(frame).width * $0.frame.intersection(frame).height
+                    < $1.frame.intersection(frame).width * $1.frame.intersection(frame).height
+            }), screen.frame.intersects(frame), frame.minY < screen.frame.minY {
+                // A drag stops at a screen's bottom edge, so a panel below it
+                // comes from a restored position (closing the panel while its
+                // controls show saves a taller frame, and it reopens lower).
+                // Keep it flush with that edge unless another screen is below.
+                let below = NSRect(x: frame.minX, y: frame.minY,
+                                   width: frame.width, height: screen.frame.minY - frame.minY)
+                if !screens.contains(where: { $0 !== screen && $0.frame.intersects(below) }) {
+                    window.setFrameOrigin(NSPoint(x: frame.minX, y: screen.frame.minY))
+                }
+                return
+            }
+            guard !screens.contains(where: { $0.frame.intersects(frame) }) else { return }
+            let center = NSPoint(x: frame.midX, y: frame.midY)
+            func distance(to screen: NSScreen) -> CGFloat {
+                let area = screen.frame
+                let dx = max(area.minX - center.x, 0, center.x - area.maxX)
+                let dy = max(area.minY - center.y, 0, center.y - area.maxY)
+                return hypot(dx, dy)
+            }
+            guard let nearest = screens.min(by: { distance(to: $0) < distance(to: $1) }) else { return }
+            let visible = nearest.visibleFrame
+            let origin = NSPoint(
+                x: min(max(frame.minX, visible.minX), visible.maxX - frame.width),
+                y: min(max(frame.minY, visible.minY), visible.maxY - frame.height)
+            )
+            window.setFrameOrigin(origin)
+        }
+
+        /// The nano panel can rest beside the Dock or on the screen's bottom
+        /// edge. The mini and full views grow downward from there, so for a
+        /// moment after leaving nano, move the window up until its bottom
+        /// edge clears the Dock instead of opening them cut off.
+        private func liftAboveDockIfNeeded() {
+            guard let until = liftsAboveDockUntil else { return }
+            guard Date() < until, !isNano, let window,
+                  let visible = (window.screen ?? NSScreen.main)?.visibleFrame else {
+                liftsAboveDockUntil = nil
+                return
+            }
+            let frame = window.frame
+            guard frame.minY < visible.minY else { return }
+            let y = min(visible.minY, visible.maxY - frame.height)
+            window.setFrameOrigin(NSPoint(x: frame.minX, y: y))
         }
 
         private func restoreCompactChromeIfNeeded() {
             guard compact, let window else { return }
+            if isNano {
+                // Without a title bar there is no title or buttons to drift;
+                // only the title bar itself can come back.
+                if window.styleMask.contains(.titled) { applyLevel() }
+                return
+            }
             let drifted = window.titleVisibility != .hidden
                 || !window.titlebarAppearsTransparent
                 || !window.styleMask.contains(.fullSizeContentView)
@@ -1140,10 +1440,22 @@ struct WindowLevelSetter: NSViewRepresentable {
         private func updateDragMonitor() {
             if compact, dragMonitor == nil {
                 dragMonitor = NSEvent.addLocalMonitorForEvents(
-                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .keyDown]
                 ) { [weak self] event in
                     guard let self, let window, event.window === window else { return event }
                     switch event.type {
+                    case .keyDown:
+                        // Without a title bar, macOS disables Close (⌘W) for
+                        // the nano panel, so close it here. `performClose`
+                        // would only beep without a close button.
+                        guard isNano,
+                              event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+                              // The letter typed with Command held, as menus
+                              // match it: layouts such as Russian type another
+                              // letter without Command.
+                              event.characters?.lowercased() == "w" else { return event }
+                        window.close()
+                        return nil
                     case .leftMouseDown:
                         mouseDownLocation = event.locationInWindow
                         return event
@@ -1160,7 +1472,10 @@ struct WindowLevelSetter: NSViewRepresentable {
                         return nil
                     default:
                         // A drag's mouse-up must not click the button it began on.
-                        guard isDragging else { return event }
+                        guard isDragging else {
+                            mouseDownLocation = nil
+                            return event
+                        }
                         endDrag()
                         return nil
                     }
@@ -1193,6 +1508,7 @@ struct WindowLevelSetter: NSViewRepresentable {
             onPointerInsideChange(window?.frame.contains(NSEvent.mouseLocation) ?? false)
         }
 
+
         /// The full-size SwiftUI content can end up ordered above the title
         /// bar, where its material hides the title, window buttons and toolbar.
         /// Keep the title bar in front of the content in the expanded window,
@@ -1216,7 +1532,17 @@ struct WindowLevelSetter: NSViewRepresentable {
 
         /// The compact panel has no visible title bar: content fills the whole
         /// window, the window buttons are hidden, and it drags by its background.
+        /// Giving the window its title bar back runs `applyCompactChrome`
+        /// again from inside the style change; see there.
+        private var isApplyingCompactChrome = false
+
         private func applyCompactChrome(to window: NSWindow) {
+            // The inner run put the toolbar back before macOS rebuilt the
+            // title bar, which then dropped it, so the full window came back
+            // without its toolbar after the app had opened in nano.
+            guard !isApplyingCompactChrome else { return }
+            isApplyingCompactChrome = true
+            defer { isApplyingCompactChrome = false }
             window.titleVisibility = compact ? .hidden : .visible
             window.isMovableByWindowBackground = compact
             updateDragMonitor()
@@ -1228,12 +1554,31 @@ struct WindowLevelSetter: NSViewRepresentable {
             // hidden, which leaves an empty band of glass under the nano
             // panel. Detach the toolbar while nano and put the same one back
             // afterwards, so SwiftUI keeps its items, title and subtitle.
-            if compact && anchorsBottomRight {
+            if isNano {
                 if let toolbar = window.toolbar {
                     detachedToolbar = toolbar
                     window.toolbar = nil
                 }
-            } else if let toolbar = detachedToolbar {
+            }
+            // macOS never lets a window's title bar rest under the Dock: when
+            // a drag ends there, it moves the window up until the title bar
+            // clears the Dock. The nano panel is so short that all of it
+            // counts as title bar, so it could never sit beside or over the
+            // Dock. Without a title bar the window stays where it is dropped.
+            // Its glass draws the corners and shadow macOS no longer does.
+            if isNano {
+                if window.styleMask.contains(.titled) {
+                    BorderlessKeyWindow.allow(window)
+                    window.styleMask.remove(.titled)
+                    removedTitleBar = true
+                }
+                window.hasShadow = true
+            } else if removedTitleBar {
+                removedTitleBar = false
+                window.styleMask.insert(.titled)
+                liftsAboveDockUntil = Date().addingTimeInterval(1)
+            }
+            if !isNano, let toolbar = detachedToolbar {
                 detachedToolbar = nil
                 window.toolbar = toolbar
             }
@@ -1246,6 +1591,48 @@ struct WindowLevelSetter: NSViewRepresentable {
                 if !wasFullSize { window.styleMask.remove(.fullSizeContentView) }
                 fullSizeContentBeforeCompact = nil
             }
+        }
+    }
+}
+
+/// A window without a title bar can't become the key or main window, so
+/// VoiceOver couldn't focus the nano panel, and the mini or full view came
+/// back inactive after it. SwiftUI owns the window's class, so this adds
+/// `canBecomeKeyWindow` and `canBecomeMainWindow` overrides to that class
+/// that say yes for windows passed to `allow` while they have no title bar,
+/// and keep the class's own answer for every other window.
+@MainActor
+enum BorderlessKeyWindow {
+    private static let flag = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+    private static var patchedClasses: Set<ObjectIdentifier> = []
+
+    static func allow(_ window: NSWindow) {
+        objc_setAssociatedObject(window, flag, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        // `className` skips the subclass that key-value observing may add.
+        let windowClass: AnyClass = NSClassFromString(window.className) ?? type(of: window)
+        guard patchedClasses.insert(ObjectIdentifier(windowClass)).inserted else { return }
+        for selector in [#selector(getter: NSWindow.canBecomeKey), #selector(getter: NSWindow.canBecomeMain)] {
+            patch(selector, of: windowClass)
+        }
+    }
+
+    private static func patch(_ selector: Selector, of windowClass: AnyClass) {
+        guard let method = class_getInstanceMethod(windowClass, selector) else { return }
+        typealias Getter = @convention(c) (AnyObject, Selector) -> Bool
+        let original = unsafeBitCast(method_getImplementation(method), to: Getter.self)
+        let flag = flag
+        let override: @convention(block) (AnyObject) -> Bool = { object in
+            if let window = object as? NSWindow, !window.styleMask.contains(.titled),
+               objc_getAssociatedObject(window, flag) != nil {
+                return true
+            }
+            return original(object, selector)
+        }
+        let implementation = imp_implementationWithBlock(override)
+        // Inherited from NSWindow: add the override to this class only.
+        // Defined by the class itself: replace it, still calling the original.
+        if !class_addMethod(windowClass, selector, implementation, method_getTypeEncoding(method)) {
+            method_setImplementation(method, implementation)
         }
     }
 }

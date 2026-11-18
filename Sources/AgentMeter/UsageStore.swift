@@ -429,20 +429,59 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    /// The menu bar text for the nano Usage Details panel, with its own
-    /// all-limits setting. With the icon-only menu bar style it falls back to
-    /// every menu bar provider, since a lone icon would tell nothing.
-    var nanoEntries: [MenuBarEntry] {
-        let allWindows = settings.nanoShowsAllLimits
-        let showsPace = settings.nanoShowsPace
-        let showsPriority = settings.nanoShowsProxyPriority
-        guard settings.menuBarStyle == .icon else {
-            return menuBarEntries(allWindows: allWindows, showsPace: showsPace, showsPriority: showsPriority)
-        }
+    /// The providers the nano Usage Details panel names: the menu bar's,
+    /// with its own all-limits setting. With the icon-only menu bar style it
+    /// falls back to every menu bar provider, since a lone icon would tell
+    /// nothing.
+    private var nanoProviders: [any UsageProvider] {
         let providers = titleProviders
+        if settings.menuBarStyle == .compact, let provider = mostConstrainedMenuBarProvider(from: providers) {
+            return [provider]
+        }
+        return providers
+    }
+
+    /// The menu bar text for the horizontal nano panel.
+    var nanoEntries: [MenuBarEntry] {
+        let providers = nanoProviders
         guard !providers.isEmpty else { return [("Allowance Bar", .normal, nil)] }
         return providers.map {
-            providerMenuBarEntry(for: $0, allWindows: allWindows, showsPace: showsPace, showsPriority: showsPriority)
+            providerMenuBarEntry(
+                for: $0,
+                allWindows: settings.nanoShowsAllLimits,
+                showsPace: settings.nanoShowsPace,
+                showsPriority: settings.nanoShowsProxyPriority
+            )
+        }
+    }
+
+    /// The vertical nano panel's accounts: the same providers, limits, pace
+    /// arrows and proxy places as `nanoEntries`, with each limit as a meter.
+    var nanoMeterEntries: [NanoMeterEntry] {
+        let providers = nanoProviders
+        guard !providers.isEmpty else {
+            return [NanoMeterEntry(id: "app", providerID: nil, code: "Allowance Bar", windows: [],
+                                   value: "", priority: nil, severity: .normal)]
+        }
+        let now = Date()
+        return providers.map { provider in
+            let providerState = state(for: provider.id)
+            let windows = providerState.usage?.menuWindows(allWindows: settings.nanoShowsAllLimits) ?? []
+            let value = windows.first.map {
+                $0.menuLabel(direction: settings.countDirection, showsPace: settings.nanoShowsPace, now: now)
+            } ?? providerSummaryText(for: providerState)
+            return NanoMeterEntry(
+                id: provider.id,
+                providerID: provider.id,
+                code: provider.shortCode,
+                windows: windows,
+                value: value,
+                priority: settings.nanoShowsProxyPriority ? proxyPriority(for: provider)?.shortLabel : nil,
+                severity: MenuBarTitleRenderer.severity(
+                    for: providerState,
+                    balanceThreshold: settings.balanceNotificationThreshold
+                )
+            )
         }
     }
 
@@ -662,6 +701,24 @@ final class UsageStore: ObservableObject {
 /// One segment of the menu bar text, e.g. "Cx 42%", with its severity and
 /// the provider it describes (nil for the app-name placeholder).
 typealias MenuBarEntry = (text: String, severity: MenuBarSeverity, providerID: String?)
+
+/// One account in the vertical nano panel. It carries the same facts as the
+/// account's segment of the horizontal text, e.g. "Cl 95%↘ (63%↘) #1".
+struct NanoMeterEntry: Identifiable {
+    let id: String
+    /// Nil for the app-name placeholder.
+    let providerID: String?
+    /// The provider's short code, e.g. "Cl".
+    let code: String
+    /// The limits the horizontal text names, in its order; one meter each.
+    let windows: [UsageWindow]
+    /// The text's leading value, e.g. "95%↘", or the balance, "…" or "!"
+    /// for providers without limits.
+    let value: String
+    /// Place in CLIProxyAPI's order of use, e.g. "#1".
+    let priority: String?
+    let severity: MenuBarSeverity
+}
 
 /// A provider's limit windows plus its menu-bar-style summary, e.g. "42%",
 /// for the compact Usage Details window. The summary is shown for providers

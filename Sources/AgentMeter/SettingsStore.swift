@@ -110,6 +110,13 @@ final class SettingsStore: ObservableObject {
         didSet { defaults.set(usageDetailsNano, forKey: Keys.usageDetailsNano) }
     }
 
+    /// The nano panel stands on end as a strip of meters (the Vertical Nano
+    /// view), which fits along a side of the screen instead of over the top
+    /// edge where apps keep their toolbars and input fields.
+    @Published var usageDetailsNanoVertical: Bool {
+        didSet { defaults.set(usageDetailsNanoVertical, forKey: Keys.usageDetailsNanoVertical) }
+    }
+
     /// Either chrome-free panel (compact or nano) is showing.
     var usageDetailsChromeless: Bool {
         usageDetailsCompact || usageDetailsNano
@@ -229,6 +236,9 @@ final class SettingsStore: ObservableObject {
         static let usageDetailsOnAllSpaces = "usageDetailsOnAllSpaces"
         static let usageDetailsCompact = "usageDetailsCompact"
         static let usageDetailsNano = "usageDetailsNano"
+        static let usageDetailsNanoVertical = "usageDetailsNanoVertical"
+        /// Replaced by `usageDetailsNanoVertical` before any release.
+        static let usageDetailsNanoLayout = "usageDetailsNanoLayout"
         static let usageDetailsBackgroundOpacity = "usageDetailsBackgroundOpacity"
         static let usageDetailsClearGlass = "usageDetailsClearGlass"
         static let codexExtraAccounts = "codexExtraAccounts"
@@ -289,6 +299,13 @@ final class SettingsStore: ObservableObject {
         self.usageDetailsOnAllSpaces = defaults.bool(forKey: Keys.usageDetailsOnAllSpaces)
         self.usageDetailsCompact = defaults.bool(forKey: Keys.usageDetailsCompact)
         self.usageDetailsNano = defaults.bool(forKey: Keys.usageDetailsNano)
+        if let layout = defaults.string(forKey: Keys.usageDetailsNanoLayout) {
+            if defaults.object(forKey: Keys.usageDetailsNanoVertical) == nil {
+                defaults.set(layout == "vertical", forKey: Keys.usageDetailsNanoVertical)
+            }
+            defaults.removeObject(forKey: Keys.usageDetailsNanoLayout)
+        }
+        self.usageDetailsNanoVertical = defaults.bool(forKey: Keys.usageDetailsNanoVertical)
         if defaults.object(forKey: Keys.usageDetailsBackgroundOpacity) != nil {
             self.usageDetailsBackgroundOpacity = min(1, max(0, defaults.double(forKey: Keys.usageDetailsBackgroundOpacity)))
         } else {

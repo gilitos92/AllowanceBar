@@ -660,6 +660,8 @@
 	<string>Gasto limitado — Allowance Bar puede leer el uso dentro de este límite.</string>
 	<key>Stale since %@</key>
 	<string>Obsoleto desde %@</string>
+	<key>Stand the tiny panel on end for a side of the screen, with a meter for each limit.</key>
+	<string>Pon el panel diminuto de pie para un lado de la pantalla, con un medidor para cada límite.</string>
 	<key>Standard API key</key>
 	<string>Clave API estándar</string>
 	<key>Standard key</key>
@@ -774,6 +776,8 @@
 	<string>La verificación falló — tu clave puede seguir funcionando.</string>
 	<key>Version %@</key>
 	<string>Versión %@</string>
+	<key>Vertical Nano View</key>
+	<string>Vista nano vertical</string>
 	<key>View</key>
 	<string>Vista</string>
 	<key>View prepaid credits</key>

@@ -65,6 +65,14 @@ struct UsageWindow: Equatable {
         return (duration - left) / duration
     }
 
+    /// The window's value in the menu bar text, e.g. "38%" or, with
+    /// `showsPace`, "38%↗".
+    func menuLabel(direction: CountDirection, showsPace: Bool, now: Date = Date()) -> String {
+        let percent = direction.percentLabel(usedPercent, menuBar: true)
+        guard showsPace, let pace = pace(now: now) else { return percent }
+        return percent + pace.arrow
+    }
+
     /// Usage compared with even use across the window. Nil when the elapsed
     /// share is unknown.
     func pace(now: Date = Date()) -> UsagePace? {
@@ -296,6 +304,13 @@ struct ProviderUsage: Equatable {
         self.accountEmail = accountEmail
     }
 
+    /// The windows the menu bar text names: every one with `allWindows`
+    /// (when there are several), else the most constrained one.
+    func menuWindows(allWindows: Bool) -> [UsageWindow] {
+        if allWindows, windows.count > 1 { return windows }
+        return worstWindow.map { [$0] } ?? []
+    }
+
     /// The most constrained window, used for the menu bar summary.
     var worstWindow: UsageWindow? {
         windows.max(by: { $0.usedPercent < $1.usedPercent })
@@ -312,18 +327,13 @@ struct ProviderUsage: Equatable {
         now: Date = Date()
     ) -> String? {
         func label(_ window: UsageWindow) -> String {
-            let percent = direction.percentLabel(window.usedPercent, menuBar: true)
-            guard showsPace, let pace = window.pace(now: now) else { return percent }
-            return percent + pace.arrow
+            window.menuLabel(direction: direction, showsPace: showsPace, now: now)
         }
-        if allWindows, let first = windows.first, windows.count > 1 {
-            let rest = windows.dropFirst().map(label).joined(separator: ", ")
-            return "\(label(first)) (\(rest))"
-        }
-        if let worst = worstWindow {
-            return label(worst)
-        }
-        return balance?.shortDisplay
+        let shown = menuWindows(allWindows: allWindows)
+        guard let first = shown.first else { return balance?.shortDisplay }
+        guard shown.count > 1 else { return label(first) }
+        let rest = shown.dropFirst().map(label).joined(separator: ", ")
+        return "\(label(first)) (\(rest))"
     }
 }
 

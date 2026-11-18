@@ -370,6 +370,8 @@
 	<string>Shrink into a tiny panel with only the menu bar text.</string>
 	<key>Spending capped — Allowance Bar can read usage within this limit.</key>
 	<string>Spending capped — Allowance Bar can read usage within this limit.</string>
+	<key>Stand the tiny panel on end for a side of the screen, with a meter for each limit.</key>
+	<string>Stand the tiny panel on end for a side of the screen, with a meter for each limit.</string>
 	<key>Standard API key</key>
 	<string>Standard API key</string>
 	<key>Standard key</key>
@@ -438,6 +440,8 @@
 	<string>Verification failed — your key may still work.</string>
 	<key>Version %@</key>
 	<string>Version %@</string>
+	<key>Vertical Nano View</key>
+	<string>Vertical Nano View</string>
 	<key>View prepaid credits</key>
 	<string>View prepaid credits</string>
 	<key>Waiting for browser authorization…</key>

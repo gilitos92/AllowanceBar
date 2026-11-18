@@ -16,6 +16,40 @@ final class DisplaySettingsTests: XCTestCase {
     }
 
     @MainActor
+    func testEveryUsageDetailsViewIsRemembered() {
+        let suite = "DisplaySettingsTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        XCTAssertEqual(SettingsStore(defaults: defaults).usageDetailsMode, .full)
+        for mode in UsageDetailsMode.allCases {
+            SettingsStore(defaults: defaults).usageDetailsMode = mode
+            XCTAssertEqual(SettingsStore(defaults: defaults).usageDetailsMode, mode)
+        }
+        // Nano after Vertical Nano shows the line again; leaving nano keeps
+        // the choice for the next time.
+        let settings = SettingsStore(defaults: defaults)
+        settings.usageDetailsMode = .nanoVertical
+        settings.usageDetailsMode = .full
+        settings.usageDetailsMode = .mini
+        XCTAssertTrue(settings.usageDetailsNanoVertical)
+        settings.usageDetailsMode = .nano
+        XCTAssertFalse(settings.usageDetailsNanoVertical)
+    }
+
+    @MainActor
+    func testUnreleasedNanoLayoutSettingMigrates() {
+        for (stored, vertical) in [("vertical", true), ("automatic", false), ("horizontal", false)] {
+            let suite = "DisplaySettingsTests.\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suite)!
+            defer { defaults.removePersistentDomain(forName: suite) }
+            defaults.set(stored, forKey: "usageDetailsNanoLayout")
+            XCTAssertEqual(SettingsStore(defaults: defaults).usageDetailsNanoVertical, vertical, stored)
+            XCTAssertNil(defaults.object(forKey: "usageDetailsNanoLayout"))
+        }
+    }
+
+    @MainActor
     func testUsageDetailsAlwaysOnTopDefaultsOffAndPersists() {
         let suite = "DisplaySettingsTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

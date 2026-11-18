@@ -5752,6 +5752,38 @@
           }
         }
       }
+    },
+    "Vertical Nano View": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertical Nano View"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vista nano vertical"
+          }
+        }
+      }
+    },
+    "Stand the tiny panel on end for a side of the screen, with a meter for each limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stand the tiny panel on end for a side of the screen, with a meter for each limit."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pon el panel diminuto de pie para un lado de la pantalla, con un medidor para cada límite."
+          }
+        }
+      }
     }
   },
   "version": "1.0"
