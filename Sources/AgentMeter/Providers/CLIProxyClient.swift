@@ -248,6 +248,8 @@ struct CLIProxyClient: Sendable {
             await claudeRateLimits.succeeded(key)
             return usage
         case 401: throw CLIProxyError.loginSignedOut
+        case 403 where ClaudeRateLimitGate.isRefusal(Data(result.body.utf8)):
+            throw await claudeRateLimits.unavailable(key)
         case 429: throw await claudeRateLimits.limited(key, retryAfter: result.retryAfter)
         default: throw ClaudeError.httpStatus(result.statusCode)
         }

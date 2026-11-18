@@ -7,6 +7,21 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Fixed
+- Claude accounts without a paid plan no longer show "Anthropic
+  rate-limited the usage request" all day. Anthropic refuses the usage
+  request of a free account, and asking again soon after makes it answer
+  "too many requests" for an hour at a time. Allowance Bar now reads the
+  account's plan first (CLIProxyAPI logins and expired Claude Code logins)
+  and, for a free account, says "Anthropic doesn't share Claude Code limits
+  for free accounts" without asking for its usage. When Anthropic refuses an
+  account's usage anyway, Allowance Bar waits 6 hours before asking again.
+- A Claude account whose Claude Code login has expired shows the plan
+  Anthropic reports now, so a canceled Pro reads Free instead of Pro.
+- A Claude account shown twice, from this Mac's Claude Code login and from
+  CLIProxyAPI, sends one usage request for both rows instead of two at the
+  same moment, which could trip Anthropic's rate limit.
+
 ## [2.12.0] — 2026-11-18
 
 ### Added

@@ -7,16 +7,23 @@ import Foundation
 /// while 429s continue, up to 30 minutes. Forced refreshes wait too. The row
 /// keeps its last numbers meanwhile and says when it tries again. The wait
 /// covers the account, so its local and proxy rows wait together.
+///
+/// Anthropic refuses the usage request of an account without a paid plan
+/// (HTTP 403, `permission_error`), and asking again soon after turns into
+/// hour-long 429s. So such a refusal makes the account wait 6 hours.
 actor ClaudeRateLimitGate {
     static let shared = ClaudeRateLimitGate()
     static let firstWait: TimeInterval = 5 * 60
     static let maxWait: TimeInterval = 30 * 60
+    /// After Anthropic refuses an account's usage (`unavailable`).
+    static let unavailableWait: TimeInterval = 6 * 3600
     /// Bounds for the server's own `Retry-After`.
     static let retryAfterRange: ClosedRange<TimeInterval> = 60...3600
 
     private struct Entry {
         var until: Date
         var strikes: Int
+        var refused = false
     }
 
     private var entries: [String: Entry] = [:]
@@ -31,8 +38,27 @@ actor ClaudeRateLimitGate {
     /// Throws `ClaudeError.rateLimited` while `key` is still waiting.
     func check(_ key: String, now: Date = Date()) throws {
         if let entry = entries[key], now < entry.until {
-            throw ClaudeError.rateLimited(retryAt: entry.until)
+            throw entry.refused
+                ? ClaudeError.usageUnavailable(retryAt: entry.until)
+                : ClaudeError.rateLimited(retryAt: entry.until)
         }
+    }
+
+    /// Records Anthropic refusing `key`'s usage and returns the error to throw.
+    func unavailable(_ key: String, now: Date = Date()) -> ClaudeError {
+        let until = now.addingTimeInterval(Self.unavailableWait)
+        entries[key] = Entry(until: until, strikes: 0, refused: true)
+        return .usageUnavailable(retryAt: until)
+    }
+
+    /// Whether a refused request's body is Anthropic's `permission_error`,
+    /// not, say, a proxy or network page that also answers 403.
+    static func isRefusal(_ body: Data) -> Bool {
+        struct Answer: Decodable {
+            struct Detail: Decodable { let type: String? }
+            let error: Detail?
+        }
+        return (try? JSONDecoder().decode(Answer.self, from: body))?.error?.type == "permission_error"
     }
 
     /// Records a 429 for `key` and returns the error to throw.

@@ -106,7 +106,7 @@ enum MenuBarAccessibilitySummary {
             }
             return text
         }
-        return nil
+        return usage.note
     }
 
     nonisolated private static func windowPhrase(
