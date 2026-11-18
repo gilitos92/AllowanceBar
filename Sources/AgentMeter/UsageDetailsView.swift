@@ -1213,7 +1213,7 @@ struct WindowLevelSetter: NSViewRepresentable {
             let timer = Timer(timeInterval: 0.3, repeats: false) { [weak self] _ in
                 MainActor.assumeIsolated {
                     self?.remeasureTimer = nil
-                    self?.reportDrop(snaps: false)
+                    self?.reportDrop()
                 }
             }
             RunLoop.main.add(timer, forMode: .common)
@@ -1223,17 +1223,17 @@ struct WindowLevelSetter: NSViewRepresentable {
         private func reportPlacementOnceVisible() {
             guard !hasReportedPlacement, let window, window.occlusionState.contains(.visible) else { return }
             hasReportedPlacement = true
-            reportDrop(snaps: false)
+            reportDrop()
         }
 
         /// A panel pushed against a side snaps flush with it, also when it was
         /// dragged partly past the edge, so the narrower vertical panel that
         /// follows stays fully on screen.
-        private func reportDrop(snaps: Bool = true) {
+        private func reportDrop() {
             guard let window, let screen = window.screen?.visibleFrame else { return }
             let edge = Self.dockedEdge(of: window.frame, in: screen)
             anchorsLeft = window.frame.midX < screen.midX
-            switch snaps && snapsToSides ? edge : nil {
+            switch snapsToSides ? edge : nil {
             case .leading: window.setFrameOrigin(NSPoint(x: screen.minX, y: window.frame.minY))
             case .trailing: window.setFrameOrigin(NSPoint(x: screen.maxX - window.frame.width, y: window.frame.minY))
             case nil: break
