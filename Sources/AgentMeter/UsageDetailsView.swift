@@ -60,6 +60,10 @@ struct UsageDetailsView: View {
     /// The screen edge the panel was last dropped against, or touched when
     /// the window came on screen.
     @State private var nanoDockedEdge: HorizontalEdge?
+    /// The nano panel keeps its left edge in place when it resizes, since it
+    /// was last docked on the left; also while it widens after leaving that
+    /// edge, so it does not grow back against it.
+    @State private var nanoAnchorsLeft = false
     /// The nano panel's layout button in automatic mode; cleared when the
     /// panel is dropped somewhere again.
     @State private var nanoVerticalOverride: Bool?
@@ -130,9 +134,12 @@ struct UsageDetailsView: View {
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
                                       anchorsBottomRight: settings.usageDetailsNano,
-                                      anchorsLeft: settings.usageDetailsNano && nanoDockedEdge == .leading,
+                                      anchorsLeft: settings.usageDetailsNano && nanoAnchorsLeft,
+                                      snapsToSides: settings.usageDetailsNano
+                                          && settings.usageDetailsNanoLayout == .automatic,
                                       onDrop: { edge in
                                           nanoDockedEdge = edge
+                                          if let edge { nanoAnchorsLeft = edge == .leading }
                                           nanoVerticalOverride = nil
                                       },
                                       onPointerInsideChange: { isPointerInside = $0 },
@@ -1087,6 +1094,10 @@ struct WindowLevelSetter: NSViewRepresentable {
     /// With `anchorsBottomRight`, keeps the left edge in place instead of the
     /// right one, for a nano panel dropped against the left screen edge.
     var anchorsLeft = false
+    /// Snaps a panel dropped against a side flush with it. Only when the
+    /// nano panel stands on end there; other panels may stay partly past
+    /// the screen edge where the user left them.
+    var snapsToSides = false
     /// Reports where the compact or nano panel came to rest after the user
     /// dragged it, and where the window was when it came on screen: the
     /// screen edge it touches, if any (see `ProbeView.dockedEdge`).
@@ -1111,6 +1122,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         nsView.onTitleBarHeightChange = onTitleBarHeightChange
         nsView.onDrop = onDrop
         nsView.anchorsLeft = anchorsLeft
+        nsView.snapsToSides = snapsToSides
         nsView.alwaysOnTop = alwaysOnTop
         nsView.onAllSpaces = onAllSpaces
         nsView.compact = compact
@@ -1135,6 +1147,7 @@ struct WindowLevelSetter: NSViewRepresentable {
             didSet { if anchorsBottomRight != oldValue { applyLevel() } }
         }
         var anchorsLeft = false
+        var snapsToSides = false
         var onDrop: (HorizontalEdge?) -> Void = { _ in }
         private var lastFrame: NSRect?
         /// The window's toolbar while the nano panel is showing; see
@@ -1145,6 +1158,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         private var mouseDownLocation: NSPoint?
         private var isDragging = false
         private var dragEndTimer: Timer?
+        private var systemDropTimer: Timer?
         private var pointerTrackingArea: NSTrackingArea?
         private weak var pointerTrackingView: NSView?
         var onPointerInsideChange: (Bool) -> Void = { _ in }
@@ -1157,6 +1171,7 @@ struct WindowLevelSetter: NSViewRepresentable {
             chromeObservers.forEach(NotificationCenter.default.removeObserver)
             if let dragMonitor { NSEvent.removeMonitor(dragMonitor) }
             dragEndTimer?.invalidate()
+            systemDropTimer?.invalidate()
             if let pointerTrackingArea { pointerTrackingView?.removeTrackingArea(pointerTrackingArea) }
         }
 
@@ -1194,7 +1209,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         private func reportDrop(snaps: Bool = true) {
             guard let window, let screen = window.screen?.visibleFrame else { return }
             let edge = Self.dockedEdge(of: window.frame, in: screen)
-            switch snaps ? edge : nil {
+            switch snaps && snapsToSides ? edge : nil {
             case .leading: window.setFrameOrigin(NSPoint(x: screen.minX, y: window.frame.minY))
             case .trailing: window.setFrameOrigin(NSPoint(x: screen.maxX - window.frame.width, y: window.frame.minY))
             case nil: break
@@ -1222,6 +1237,11 @@ struct WindowLevelSetter: NSViewRepresentable {
                     }
                 })
             }
+            chromeObservers.append(NotificationCenter.default.addObserver(
+                forName: NSWindow.didMoveNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.watchForSystemDrop() }
+            })
             // A new window is not in its place yet when this view joins it,
             // so its edge is measured once it is on screen.
             chromeObservers.append(NotificationCenter.default.addObserver(
@@ -1420,6 +1440,27 @@ struct WindowLevelSetter: NSViewRepresentable {
             mouseDownLocation = nil
             onPointerInsideChange(window?.frame.contains(NSEvent.mouseLocation) ?? false)
             reportDrop()
+        }
+
+        /// A drag whose first steps are too small for the drag monitor is
+        /// left to the window server (`isMovableByWindowBackground`), and
+        /// real pointer drags often start that way. When the window moves
+        /// while the button is down outside our own drag, report the drop
+        /// once the button is released. Moves made in code happen with the
+        /// button up and are not drops.
+        private func watchForSystemDrop() {
+            guard compact, !isDragging, systemDropTimer == nil,
+                  NSEvent.pressedMouseButtons & 1 != 0 else { return }
+            let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] timer in
+                guard NSEvent.pressedMouseButtons & 1 == 0 else { return }
+                timer.invalidate()
+                MainActor.assumeIsolated {
+                    self?.systemDropTimer = nil
+                    self?.reportDrop()
+                }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            systemDropTimer = timer
         }
 
         /// The full-size SwiftUI content can end up ordered above the title
