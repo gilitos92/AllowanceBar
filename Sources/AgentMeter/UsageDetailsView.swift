@@ -60,6 +60,9 @@ struct UsageDetailsView: View {
     /// The screen edge the panel was last dropped against, or touched when
     /// the window came on screen.
     @State private var nanoDockedEdge: HorizontalEdge?
+    /// The window keeps the nano panel's left edge in place, not its right
+    /// one, because the panel was dropped in the left half of the screen.
+    @State private var nanoAnchorsLeft = false
     /// The nano panel's layout button in automatic mode; cleared when the
     /// panel is dropped somewhere again.
     @State private var nanoVerticalOverride: Bool?
@@ -93,6 +96,7 @@ struct UsageDetailsView: View {
                         entries: nanoIsVertical ? [] : store.nanoEntries,
                         meterEntries: nanoIsVertical ? store.nanoMeterEntries : [],
                         vertical: nanoIsVertical,
+                        anchorsLeft: nanoAnchorsLeft,
                         accessibilityDescription: store.nanoAccessibilityDescription,
                         settings: settings,
                         isPointerInside: isPointerInside,
@@ -132,8 +136,9 @@ struct UsageDetailsView: View {
                                       anchorsBottomRight: settings.usageDetailsNano,
                                       snapsToSides: settings.usageDetailsNano
                                           && settings.usageDetailsNanoLayout == .automatic,
-                                      onDrop: { edge in
+                                      onDrop: { edge, anchorsLeft in
                                           nanoDockedEdge = edge
+                                          nanoAnchorsLeft = anchorsLeft
                                           nanoVerticalOverride = nil
                                       },
                                       onPointerInsideChange: { isPointerInside = $0 },
@@ -401,6 +406,8 @@ private struct NanoUsageView: View {
     let entries: [MenuBarEntry]
     let meterEntries: [NanoMeterEntry]
     let vertical: Bool
+    /// Aligns the content with the window edge that stays in place.
+    let anchorsLeft: Bool
     let accessibilityDescription: String
     @ObservedObject var settings: SettingsStore
     let isPointerInside: Bool
@@ -414,10 +421,11 @@ private struct NanoUsageView: View {
     }
 
     var body: some View {
-        // The window keeps its bottom edge, and the edge it was dropped
-        // against, in place (see `WindowLevelSetter`), so the text stays put
-        // and the controls grow the panel upward.
-        VStack(alignment: vertical ? .center : .trailing, spacing: 6) {
+        // The window keeps its bottom edge, and the side edge nearer to
+        // where it was dropped, in place (see `WindowLevelSetter`). The
+        // content aligns with that side, so the text stays put and the
+        // controls grow the panel upward and toward the middle.
+        VStack(alignment: anchorsLeft ? .leading : .trailing, spacing: 6) {
             if showsControls {
                 controls
             }
@@ -1091,8 +1099,9 @@ struct WindowLevelSetter: NSViewRepresentable {
     var snapsToSides = false
     /// Reports where the compact or nano panel came to rest after the user
     /// dragged it, and where the window was when it came on screen: the
-    /// screen edge it touches, if any (see `ProbeView.dockedEdge`).
-    var onDrop: (HorizontalEdge?) -> Void = { _ in }
+    /// screen edge it touches, if any (see `ProbeView.dockedEdge`), and
+    /// whether the window now keeps its left edge in place.
+    var onDrop: (HorizontalEdge?, _ anchorsLeft: Bool) -> Void = { _, _ in }
     /// Reports whether the pointer is anywhere over the window. SwiftUI's
     /// `onHover` lost the pointer over the compact panel's top strip, which
     /// hid its controls as soon as the pointer reached them.
@@ -1145,7 +1154,7 @@ struct WindowLevelSetter: NSViewRepresentable {
         /// toward the middle and never back against the edge it left.
         private var anchorsLeft = false
         var snapsToSides = false
-        var onDrop: (HorizontalEdge?) -> Void = { _ in }
+        var onDrop: (HorizontalEdge?, _ anchorsLeft: Bool) -> Void = { _, _ in }
         private var lastFrame: NSRect?
         /// The window's toolbar while the nano panel is showing; see
         /// `applyCompactChrome`.
@@ -1229,7 +1238,8 @@ struct WindowLevelSetter: NSViewRepresentable {
             case .trailing: window.setFrameOrigin(NSPoint(x: screen.maxX - window.frame.width, y: window.frame.minY))
             case nil: break
             }
-            DispatchQueue.main.async { [weak self] in self?.onDrop(edge) }
+            let anchorsLeft = anchorsLeft
+            DispatchQueue.main.async { [weak self] in self?.onDrop(edge, anchorsLeft) }
         }
 
         /// When the window opens right after launch, SwiftUI can finish
