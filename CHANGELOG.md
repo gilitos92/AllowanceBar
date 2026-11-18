@@ -27,6 +27,10 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
   has a title bar, so its glass now draws its own rounded corners. Switching
   from there to the mini or full view moves the window up so that it opens
   above the Dock.
+- The full Usage Details window keeps its toolbar after the nano view. When
+  Allowance Bar opened in the nano view, switching to the full view showed
+  the window without its toolbar: putting the title bar back made macOS
+  drop the toolbar the app had just restored.
 
 ## [2.11.0] — 2026-11-14
 
