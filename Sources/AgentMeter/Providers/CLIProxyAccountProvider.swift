@@ -94,6 +94,9 @@ struct CLIProxyAccountProvider: UsageProvider {
     var modelLimits: ClaudeModelLimitMemory = .shared
     var planCache: CLIProxyPlanCache = .shared
     var claudeRateLimits: ClaudeRateLimitGate = .shared
+    /// A Claude login's usage request, shared with the same account's row
+    /// on this Mac.
+    var claudeUsageRequests: ClaudeUsageRequests = .shared
 
     init(login: CLIProxyLoginKey) {
         self.login = login
@@ -140,7 +143,15 @@ struct CLIProxyAccountProvider: UsageProvider {
         guard let account = matches.first(where: { !$0.disabled }) else {
             throw CLIProxyError.loginRemoved
         }
-        let usage = try await Self.usage(for: account, client: client, planCache: planCache, modelLimits: modelLimits, now: Date())
+        let usage = try await Self.usage(
+            for: account,
+            client: client,
+            planCache: planCache,
+            modelLimits: modelLimits,
+            usageRequests: claudeUsageRequests,
+            forceRefresh: forceRefresh,
+            now: Date()
+        )
         await usageCache.store(usage, for: cacheKey)
         return usage
     }
@@ -150,17 +161,26 @@ struct CLIProxyAccountProvider: UsageProvider {
         client: CLIProxyClient,
         planCache: CLIProxyPlanCache = .shared,
         modelLimits: ClaudeModelLimitMemory = .shared,
+        usageRequests: ClaudeUsageRequests = .shared,
+        forceRefresh: Bool = false,
         now: Date
     ) async throws -> ProviderUsage {
         var usage: ProviderUsage
         switch account.kind {
         case .claude:
+            // Before the usage, never next to it: two requests at once from
+            // one login can trip Anthropic's rate limit. Kept for hours.
+            let plan = await ClaudeProvider.currentPlan(of: account, client: client, cache: planCache, forceRefresh: forceRefresh)
+            // Anthropic refuses a free account's usage request.
+            let hasRecentNumbers = account.claudeQuota?.isFresh(now: now) == true
+            if ClaudeProvider.showsAsFree(plan: plan, hasRecentNumbers: hasRecentNumbers) {
+                return ClaudeProvider.freePlanUsage(email: account.email, now: now)
+            }
             var fromHeaders: ProviderUsage?
             if let quota = account.claudeQuota, quota.isFresh(now: now) {
                 // The proxy saw these limits on a recent message: nothing
                 // goes to Anthropic's usage endpoint, unless they may lack
                 // the login's Fable limit.
-                let plan = await client.plan(for: account, cache: planCache)
                 let numbers = await modelLimits.complete(quota, plan: plan, email: account.email, now: now)
                 fromHeaders = numbers.usage
                 if numbers.isComplete {
@@ -169,10 +189,10 @@ struct CLIProxyAccountProvider: UsageProvider {
                 }
             }
             do {
-                // The plan waits for the usage answer: two requests at once
-                // from one login can trip Anthropic's rate limit.
-                let response = try await client.claudeUsage(account)
-                let plan = await client.plan(for: account, cache: planCache)
+                let response = try await usageRequests.response(
+                    for: client.claudeRateLimitKey(account),
+                    maxAge: forceRefresh ? 0 : ClaudeUsageRequests.proxyMaxAge
+                ) { try await client.claudeUsage(account) }
                 usage = ClaudeProvider.usage(from: response, plan: plan, now: now)
                 await modelLimits.remember(usage, email: account.email, now: now)
             } catch {
@@ -355,12 +375,14 @@ actor CLIProxyPlanCache {
     private var entries: [String: Entry] = [:]
     private var running: [String: Task<String?, Never>] = [:]
 
+    /// `recheck` asks again even when the plan is still fresh.
     func plan(
         for key: String,
         now: Date = Date(),
+        recheck: Bool = false,
         lookup: @escaping @Sendable () async -> String?
     ) async -> String? {
-        if let entry = entries[key], now < entry.nextCheck { return entry.plan }
+        if !recheck, let entry = entries[key], now < entry.nextCheck { return entry.plan }
         if let task = running[key] {
             let fresh = await task.value
             return fresh ?? entries[key]?.plan

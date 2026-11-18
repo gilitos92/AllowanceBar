@@ -1063,6 +1063,26 @@
         }
       }
     },
+    "Anthropic doesn't share Claude Code limits for free accounts": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anthropic no comparte los límites de Claude Code de las cuentas gratuitas"
+          }
+        }
+      }
+    },
+    "Anthropic doesn't share this account's usage. Trying again at %@": {
+      "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anthropic no comparte el uso de esta cuenta. Se intentará de nuevo a las %@"
+          }
+        }
+      }
+    },
     "Anthropic rate-limited the usage request": {
       "localizations": {
         "es": {

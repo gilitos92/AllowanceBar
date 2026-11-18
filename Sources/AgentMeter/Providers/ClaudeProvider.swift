@@ -27,9 +27,8 @@ struct ClaudeProvider: AccountConfigurableProvider {
     var proxyAccountCache: CLIProxyAccountCache = .shared
     var proxyPlanCache: CLIProxyPlanCache = .shared
     var rateLimits: ClaudeRateLimitGate = .shared
-    /// Answers read through the proxy, kept for two minutes like the
-    /// proxy's own rows.
-    var proxyUsageCache: CLIProxyUsageCache = .shared
+    /// The account's usage request, shared with its proxy row.
+    var usageRequests: ClaudeUsageRequests = .shared
     /// Per-model limits (Fable) that the proxy's headers may lack.
     var modelLimits: ClaudeModelLimitMemory = .shared
 
@@ -65,7 +64,9 @@ struct ClaudeProvider: AccountConfigurableProvider {
             // proxy row stays hidden. It may differ from Claude Code's email
             // (`cliProxyClaudeEmails`).
             if let email = fromHeaders?.usage.accountEmail { usage.accountEmail = email }
-            await modelLimits.remember(usage, email: usage.accountEmail)
+            // A free plan's note isn't an answer from Anthropic: it must not
+            // replace the remembered per-model limits.
+            if usage.note == nil { await modelLimits.remember(usage, email: usage.accountEmail) }
             return usage
         } catch {
             // Recent numbers from the proxy beat an error; only their
@@ -102,24 +103,59 @@ struct ClaudeProvider: AccountConfigurableProvider {
         guard let config = proxyConfig() else { throw localError }
         let client = CLIProxyClient(config: config, session: session, claudeRateLimits: rateLimits)
         let account = try await proxyLogin(client)
-        // Like the proxy's own rows: one usage request per account every two
-        // minutes, so a short refresh interval doesn't trip Anthropic's limit.
-        let cacheKey = config.identity + "|local|" + id + "|" + account.authIndex
-        if !forceRefresh, let cached = await proxyUsageCache.usage(for: cacheKey) {
-            return cached
-        }
-        // The local plan describes the proxy login only if it is the same
-        // account. Otherwise ask the proxy login's own profile, next to its usage.
+        // The login's profile names its plan now; the plan saved with an
+        // expired login may be out of date (a canceled Pro still says "pro").
+        // It describes the proxy login only if it is the same account.
         let localEmail = Self.accountEmail(atPath: accountInfoPath)
         let samePlan = localEmail.map { $0.caseInsensitiveCompare(account.email) == .orderedSame } ?? false
-        let localPlan = samePlan ? plan : nil
-        // The plan waits for the usage answer: two requests at once from one
-        // login can trip Anthropic's rate limit.
-        let response = try await client.claudeUsage(account)
-        let proxyPlan = localPlan == nil ? await client.plan(for: account, cache: proxyPlanCache) : nil
-        var usage = Self.usage(from: response, plan: localPlan ?? proxyPlan, now: Date())
+        // Asked before the usage, never next to it: two requests at once from
+        // one login can trip Anthropic's rate limit. Kept for hours.
+        let proxyPlan = await Self.currentPlan(of: account, client: client, cache: proxyPlanCache, forceRefresh: forceRefresh)
+        // The login list's own numbers, also when `proxyNumbers` gave up
+        // waiting for a slow proxy.
+        if Self.showsAsFree(plan: proxyPlan, hasRecentNumbers: account.claudeQuota?.isFresh() == true) {
+            return Self.freePlanUsage(email: account.email, now: Date())
+        }
+        // Like the proxy's own rows: one usage request per account every two
+        // minutes, so a short refresh interval doesn't trip Anthropic's limit.
+        let response = try await usageRequests.response(
+            for: client.claudeRateLimitKey(account),
+            maxAge: forceRefresh ? 0 : ClaudeUsageRequests.proxyMaxAge
+        ) { try await client.claudeUsage(account) }
+        var usage = Self.usage(from: response, plan: proxyPlan ?? (samePlan ? plan : nil), now: Date())
         usage.accountEmail = account.email
-        await proxyUsageCache.store(usage, for: cacheKey)
+        return usage
+    }
+
+    /// The plan word of an account without a subscription.
+    static let freePlan = "free"
+
+    /// A proxy login's plan. Refresh asks again when it says free, so an
+    /// account that subscribes again doesn't wait hours for its limits.
+    static func currentPlan(
+        of account: CLIProxyClient.Account,
+        client: CLIProxyClient,
+        cache: CLIProxyPlanCache,
+        forceRefresh: Bool
+    ) async -> String? {
+        let plan = await client.plan(for: account, cache: cache)
+        guard forceRefresh, plan == freePlan else { return plan }
+        return await client.plan(for: account, cache: cache, recheck: true)
+    }
+
+    /// Whether an account with `plan` shows the free-plan note instead of
+    /// asking for its usage. Recent numbers from the proxy win: they come
+    /// from Claude Code messages, which a free account can't send, so the
+    /// remembered plan is out of date.
+    static func showsAsFree(plan: String?, hasRecentNumbers: Bool) -> Bool {
+        plan == freePlan && !hasRecentNumbers
+    }
+
+    /// An account without a paid plan: Anthropic refuses its usage request
+    /// and Claude Code's own requests, so it has no limits to show.
+    static func freePlanUsage(email: String?, now: Date) -> ProviderUsage {
+        var usage = ProviderUsage(planName: freePlan.capitalized, windows: [], asOf: now, accountEmail: email)
+        usage.note = L("Anthropic doesn't share Claude Code limits for free accounts")
         return usage
     }
 
@@ -149,9 +185,12 @@ struct ClaudeProvider: AccountConfigurableProvider {
         // the same account; otherwise the login's profile names it.
         let localEmail = Self.accountEmail(atPath: accountInfoPath)
         let sameAccount = localEmail.map { $0.caseInsensitiveCompare(account.email) == .orderedSame } ?? false
-        var plan = sameAccount ? (try? await loadCredentials())?.subscriptionType : nil
+        // A valid saved login's plan is current; an expired one's may not be
+        // (a canceled Pro still says "pro"), so its profile names it then.
+        let saved = sameAccount ? try? await loadCredentials() : nil
+        var plan = saved?.isExpired == false ? saved?.subscriptionType : nil
         if plan == nil {
-            plan = await client.plan(for: account, cache: proxyPlanCache)
+            plan = await client.plan(for: account, cache: proxyPlanCache) ?? saved?.subscriptionType
         }
         var numbers = await modelLimits.complete(quota, plan: plan, email: account.email, now: now)
         numbers.usage.accountEmail = account.email
@@ -309,6 +348,9 @@ struct ClaudeProvider: AccountConfigurableProvider {
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw ClaudeError.badResponse }
         if http.statusCode == 401 { throw ClaudeError.notSignedIn }
+        if http.statusCode == 403, ClaudeRateLimitGate.isRefusal(data) {
+            throw await rateLimits.unavailable(key)
+        }
         if http.statusCode == 429 {
             let wait = ClaudeRateLimitGate.retryAfter(http.value(forHTTPHeaderField: "Retry-After"))
             throw await rateLimits.limited(key, retryAfter: wait)
@@ -464,6 +506,9 @@ enum ClaudeError: LocalizedError {
     case keychainUnavailable
     /// `retryAt`: when this login asks Anthropic again.
     case rateLimited(retryAt: Date?)
+    /// Anthropic refused the account's usage (HTTP 403), as it does for
+    /// accounts without a paid plan. `retryAt`: when it asks again.
+    case usageUnavailable(retryAt: Date)
     case badResponse
     case httpStatus(Int)
 
@@ -475,6 +520,8 @@ enum ClaudeError: LocalizedError {
         case .rateLimited(let retryAt?):
             return L("Anthropic rate-limited the usage request. Trying again at \(retryAt.formatted(date: .omitted, time: .shortened))")
         case .rateLimited: return L("Anthropic rate-limited the usage request")
+        case .usageUnavailable(let retryAt):
+            return L("Anthropic doesn't share this account's usage. Trying again at \(retryAt.formatted(date: .omitted, time: .shortened))")
         case .badResponse: return L("Unexpected response from Anthropic")
         case .httpStatus(let code): return L("Anthropic returned HTTP \(code))")
         }
@@ -484,7 +531,7 @@ enum ClaudeError: LocalizedError {
     var proxyCanHelp: Bool {
         switch self {
         case .notSignedIn, .refreshRequired, .keychainUnavailable: return true
-        case .rateLimited, .badResponse, .httpStatus: return false
+        case .rateLimited, .usageUnavailable, .badResponse, .httpStatus: return false
         }
     }
 }
