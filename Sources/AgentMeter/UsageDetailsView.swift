@@ -1298,12 +1298,18 @@ struct WindowLevelSetter: NSViewRepresentable {
             defer { lastFrame = window.frame }
             guard anchorsBottomRight, compact, let old = lastFrame, frame.size != old.size else { return }
             var origin = NSPoint(x: anchorsLeft ? old.minX : old.maxX - frame.width, y: old.minY)
-            if let screen = window.screen?.visibleFrame {
+            // The resized window may already be off its screen entirely.
+            let screen = window.screen ?? NSScreen.screens.first { $0.visibleFrame.intersects(old) }
+            if let screen = screen?.visibleFrame {
                 if anchorsLeft {
                     if old.maxX <= screen.maxX { origin.x = min(origin.x, screen.maxX - frame.width) }
                 } else if old.minX >= screen.minX {
                     origin.x = max(origin.x, screen.minX)
                 }
+                // A panel dragged past an edge may stay there, but shrinking
+                // must not carry it, and its controls, off the screen.
+                let visible = min(frame.width, 40)
+                origin.x = min(max(origin.x, screen.minX - frame.width + visible), screen.maxX - visible)
                 if old.maxY <= screen.maxY { origin.y = min(origin.y, screen.maxY - frame.height) }
             }
             guard origin != frame.origin else { return }
