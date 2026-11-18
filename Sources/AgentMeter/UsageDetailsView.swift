@@ -94,12 +94,16 @@ struct UsageDetailsView: View {
         // window's own corners and outline shape every view, also the mini
         // and nano panels. Only the background extends under the expanded
         // window's title bar; its content stays in the normal safe area. The
-        // window can be a little taller than the nano panel's content (its
-        // minimum height), so the glass also reaches past the content's
-        // bottom edge; the window clips it.
+        // window can be a little taller than its content (its minimum
+        // height), so the glass also reaches past the content's
+        // bottom edge; the window clips it. The nano window has no title bar
+        // (see `WindowLevelSetter`), hence no corners of its own, so its
+        // glass is rounded like the window corners macOS draws and ends at
+        // the window's edges.
         .background(WindowGlassBackground(
-            opacity: settings.usageDetailsBackgroundOpacity
-        ).padding(.bottom, -8).ignoresSafeArea())
+            opacity: settings.usageDetailsBackgroundOpacity,
+            cornerRadius: settings.usageDetailsNano ? 16 : 0
+        ).padding(.bottom, settings.usageDetailsNano ? 0 : -8).ignoresSafeArea())
         .background(WindowLevelSetter(alwaysOnTop: settings.usageDetailsAlwaysOnTop,
                                       onAllSpaces: settings.usageDetailsOnAllSpaces,
                                       compact: settings.usageDetailsChromeless,
@@ -957,6 +961,13 @@ struct WindowLevelSetter: NSViewRepresentable {
         /// The window's toolbar while the nano panel is showing; see
         /// `applyCompactChrome`.
         private var detachedToolbar: NSToolbar?
+        /// The title bar was removed for the nano panel; see
+        /// `applyCompactChrome`.
+        private var removedTitleBar = false
+        /// When the window stops lifting itself above the Dock after leaving
+        /// nano; see `liftAboveDockIfNeeded`.
+        private var liftsAboveDockUntil: Date?
+        private var isNano: Bool { compact && anchorsBottomRight }
         private var fullSizeContentBeforeCompact: Bool?
         private var dragMonitor: Any?
         private var mouseDownLocation: NSPoint?
@@ -1001,6 +1012,8 @@ struct WindowLevelSetter: NSViewRepresentable {
                 ) { [weak self] _ in
                     MainActor.assumeIsolated {
                         self?.keepAnchorEdgesIfNeeded()
+                        self?.keepOnAScreenIfNeeded()
+                        self?.liftAboveDockIfNeeded()
                         self?.syncPointerInside()
                     }
                 })
@@ -1036,8 +1049,74 @@ struct WindowLevelSetter: NSViewRepresentable {
             window.setFrameOrigin(origin)
         }
 
+        /// macOS keeps a window with a title bar on screen when it is opened
+        /// or its saved position is restored, but not the nano window, which
+        /// has none. Restoring a position saved for another display arrangement
+        /// could leave the panel entirely off screen. Bring it back to the
+        /// nearest screen then; a panel that still touches a screen, e.g. one
+        /// the user dragged partly past an edge or beside the Dock, stays put.
+        private func keepOnAScreenIfNeeded() {
+            guard isNano, !isDragging, let window else { return }
+            let frame = window.frame
+            let screens = NSScreen.screens
+            guard !screens.isEmpty else { return }
+            if let screen = screens.max(by: {
+                $0.frame.intersection(frame).width * $0.frame.intersection(frame).height
+                    < $1.frame.intersection(frame).width * $1.frame.intersection(frame).height
+            }), screen.frame.intersects(frame), frame.minY < screen.frame.minY {
+                // A drag stops at a screen's bottom edge, so a panel below it
+                // comes from a restored position (closing the panel while its
+                // controls show saves a taller frame, and it reopens lower).
+                // Keep it flush with that edge unless another screen is below.
+                let below = NSRect(x: frame.minX, y: frame.minY,
+                                   width: frame.width, height: screen.frame.minY - frame.minY)
+                if !screens.contains(where: { $0 !== screen && $0.frame.intersects(below) }) {
+                    window.setFrameOrigin(NSPoint(x: frame.minX, y: screen.frame.minY))
+                }
+                return
+            }
+            guard !screens.contains(where: { $0.frame.intersects(frame) }) else { return }
+            let center = NSPoint(x: frame.midX, y: frame.midY)
+            func distance(to screen: NSScreen) -> CGFloat {
+                let area = screen.frame
+                let dx = max(area.minX - center.x, 0, center.x - area.maxX)
+                let dy = max(area.minY - center.y, 0, center.y - area.maxY)
+                return hypot(dx, dy)
+            }
+            guard let nearest = screens.min(by: { distance(to: $0) < distance(to: $1) }) else { return }
+            let visible = nearest.visibleFrame
+            let origin = NSPoint(
+                x: min(max(frame.minX, visible.minX), visible.maxX - frame.width),
+                y: min(max(frame.minY, visible.minY), visible.maxY - frame.height)
+            )
+            window.setFrameOrigin(origin)
+        }
+
+        /// The nano panel can rest beside the Dock or on the screen's bottom
+        /// edge. The mini and full views grow downward from there, so for a
+        /// moment after leaving nano, move the window up until its bottom
+        /// edge clears the Dock instead of opening them cut off.
+        private func liftAboveDockIfNeeded() {
+            guard let until = liftsAboveDockUntil else { return }
+            guard Date() < until, !isNano, let window,
+                  let visible = (window.screen ?? NSScreen.main)?.visibleFrame else {
+                liftsAboveDockUntil = nil
+                return
+            }
+            let frame = window.frame
+            guard frame.minY < visible.minY else { return }
+            let y = min(visible.minY, visible.maxY - frame.height)
+            window.setFrameOrigin(NSPoint(x: frame.minX, y: y))
+        }
+
         private func restoreCompactChromeIfNeeded() {
             guard compact, let window else { return }
+            if isNano {
+                // Without a title bar there is no title or buttons to drift;
+                // only the title bar itself can come back.
+                if window.styleMask.contains(.titled) { applyLevel() }
+                return
+            }
             let drifted = window.titleVisibility != .hidden
                 || !window.titlebarAppearsTransparent
                 || !window.styleMask.contains(.fullSizeContentView)
@@ -1140,10 +1219,22 @@ struct WindowLevelSetter: NSViewRepresentable {
         private func updateDragMonitor() {
             if compact, dragMonitor == nil {
                 dragMonitor = NSEvent.addLocalMonitorForEvents(
-                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+                    matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .keyDown]
                 ) { [weak self] event in
                     guard let self, let window, event.window === window else { return event }
                     switch event.type {
+                    case .keyDown:
+                        // Without a title bar, macOS disables Close (⌘W) for
+                        // the nano panel, so close it here. `performClose`
+                        // would only beep without a close button.
+                        guard isNano,
+                              event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command,
+                              // The letter typed with Command held, as menus
+                              // match it: layouts such as Russian type another
+                              // letter without Command.
+                              event.characters?.lowercased() == "w" else { return event }
+                        window.close()
+                        return nil
                     case .leftMouseDown:
                         mouseDownLocation = event.locationInWindow
                         return event
@@ -1228,12 +1319,31 @@ struct WindowLevelSetter: NSViewRepresentable {
             // hidden, which leaves an empty band of glass under the nano
             // panel. Detach the toolbar while nano and put the same one back
             // afterwards, so SwiftUI keeps its items, title and subtitle.
-            if compact && anchorsBottomRight {
+            if isNano {
                 if let toolbar = window.toolbar {
                     detachedToolbar = toolbar
                     window.toolbar = nil
                 }
-            } else if let toolbar = detachedToolbar {
+            }
+            // macOS never lets a window's title bar rest under the Dock: when
+            // a drag ends there, it moves the window up until the title bar
+            // clears the Dock. The nano panel is so short that all of it
+            // counts as title bar, so it could never sit beside or over the
+            // Dock. Without a title bar the window stays where it is dropped.
+            // Its glass draws the corners and shadow macOS no longer does.
+            if isNano {
+                if window.styleMask.contains(.titled) {
+                    BorderlessKeyWindow.allow(window)
+                    window.styleMask.remove(.titled)
+                    removedTitleBar = true
+                }
+                window.hasShadow = true
+            } else if removedTitleBar {
+                removedTitleBar = false
+                window.styleMask.insert(.titled)
+                liftsAboveDockUntil = Date().addingTimeInterval(1)
+            }
+            if !isNano, let toolbar = detachedToolbar {
                 detachedToolbar = nil
                 window.toolbar = toolbar
             }
@@ -1246,6 +1356,48 @@ struct WindowLevelSetter: NSViewRepresentable {
                 if !wasFullSize { window.styleMask.remove(.fullSizeContentView) }
                 fullSizeContentBeforeCompact = nil
             }
+        }
+    }
+}
+
+/// A window without a title bar can't become the key or main window, so
+/// VoiceOver couldn't focus the nano panel, and the mini or full view came
+/// back inactive after it. SwiftUI owns the window's class, so this adds
+/// `canBecomeKeyWindow` and `canBecomeMainWindow` overrides to that class
+/// that say yes for windows passed to `allow` while they have no title bar,
+/// and keep the class's own answer for every other window.
+@MainActor
+enum BorderlessKeyWindow {
+    private static let flag = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+    private static var patchedClasses: Set<ObjectIdentifier> = []
+
+    static func allow(_ window: NSWindow) {
+        objc_setAssociatedObject(window, flag, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        // `className` skips the subclass that key-value observing may add.
+        let windowClass: AnyClass = NSClassFromString(window.className) ?? type(of: window)
+        guard patchedClasses.insert(ObjectIdentifier(windowClass)).inserted else { return }
+        for selector in [#selector(getter: NSWindow.canBecomeKey), #selector(getter: NSWindow.canBecomeMain)] {
+            patch(selector, of: windowClass)
+        }
+    }
+
+    private static func patch(_ selector: Selector, of windowClass: AnyClass) {
+        guard let method = class_getInstanceMethod(windowClass, selector) else { return }
+        typealias Getter = @convention(c) (AnyObject, Selector) -> Bool
+        let original = unsafeBitCast(method_getImplementation(method), to: Getter.self)
+        let flag = flag
+        let override: @convention(block) (AnyObject) -> Bool = { object in
+            if let window = object as? NSWindow, !window.styleMask.contains(.titled),
+               objc_getAssociatedObject(window, flag) != nil {
+                return true
+            }
+            return original(object, selector)
+        }
+        let implementation = imp_implementationWithBlock(override)
+        // Inherited from NSWindow: add the override to this class only.
+        // Defined by the class itself: replace it, still calling the original.
+        if !class_addMethod(windowClass, selector, implementation, method_getTypeEncoding(method)) {
+            method_setImplementation(method, implementation)
         }
     }
 }
