@@ -7,6 +7,15 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Fixed
+- The nano window can now rest beside the Dock or on the bottom edge of the
+  screen. macOS used to push it back above the Dock when you let go,
+  because it never lets a window's title bar rest under the Dock, and the
+  nano window was short enough to count entirely as title bar. It no longer
+  has a title bar, so its glass now draws its own rounded corners. Switching
+  from there to the mini or full view moves the window up so that it opens
+  above the Dock.
+
 ## [2.11.0] — 2026-11-14
 
 ### Added
