@@ -1306,6 +1306,7 @@ struct WindowLevelSetter: NSViewRepresentable {
             // Its glass draws the corners and shadow macOS no longer does.
             if isNano {
                 if window.styleMask.contains(.titled) {
+                    BorderlessKeyWindow.allow(window)
                     window.styleMask.remove(.titled)
                     removedTitleBar = true
                 }
@@ -1328,6 +1329,48 @@ struct WindowLevelSetter: NSViewRepresentable {
                 if !wasFullSize { window.styleMask.remove(.fullSizeContentView) }
                 fullSizeContentBeforeCompact = nil
             }
+        }
+    }
+}
+
+/// A window without a title bar can't become the key or main window, so
+/// VoiceOver couldn't focus the nano panel, and the mini or full view came
+/// back inactive after it. SwiftUI owns the window's class, so this adds
+/// `canBecomeKeyWindow` and `canBecomeMainWindow` overrides to that class
+/// that say yes for windows passed to `allow` while they have no title bar,
+/// and keep the class's own answer for every other window.
+@MainActor
+enum BorderlessKeyWindow {
+    private static let flag = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+    private static var patchedClasses: Set<ObjectIdentifier> = []
+
+    static func allow(_ window: NSWindow) {
+        objc_setAssociatedObject(window, flag, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        // `className` skips the subclass that key-value observing may add.
+        let windowClass: AnyClass = NSClassFromString(window.className) ?? type(of: window)
+        guard patchedClasses.insert(ObjectIdentifier(windowClass)).inserted else { return }
+        for selector in [#selector(getter: NSWindow.canBecomeKey), #selector(getter: NSWindow.canBecomeMain)] {
+            patch(selector, of: windowClass)
+        }
+    }
+
+    private static func patch(_ selector: Selector, of windowClass: AnyClass) {
+        guard let method = class_getInstanceMethod(windowClass, selector) else { return }
+        typealias Getter = @convention(c) (AnyObject, Selector) -> Bool
+        let original = unsafeBitCast(method_getImplementation(method), to: Getter.self)
+        let flag = flag
+        let override: @convention(block) (AnyObject) -> Bool = { object in
+            if let window = object as? NSWindow, !window.styleMask.contains(.titled),
+               objc_getAssociatedObject(window, flag) != nil {
+                return true
+            }
+            return original(object, selector)
+        }
+        let implementation = imp_implementationWithBlock(override)
+        // Inherited from NSWindow: add the override to this class only.
+        // Defined by the class itself: replace it, still calling the original.
+        if !class_addMethod(windowClass, selector, implementation, method_getTypeEncoding(method)) {
+            method_setImplementation(method, implementation)
         }
     }
 }
