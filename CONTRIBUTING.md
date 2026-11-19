@@ -14,6 +14,25 @@ scripts/bundle.sh    # produce Allowance Bar.app in the repo root
 
 Requirements: macOS 14+ to run; building needs Xcode 26 or later (the macOS 26 SDK).
 
+## Project layout
+
+- `Sources/AgentMeter/Providers/` — one file per provider plus the `UsageProvider`
+  protocol; each reads local credentials and maps the response to `UsageWindow`s.
+  `CodexAppServerClient.swift` talks to the Codex CLI; `CodexAccountConfig.swift`
+  holds extra-account config and discovery.
+- `Sources/AgentMeter/UsageStore.swift` — dynamic provider list, refresh timer, Codex file watcher, menu bar title and spoken summary.
+- `Sources/AgentMeter/SettingsStore.swift` — visibility, refresh cadence, display/alert preferences, Codex accounts, renewal dates.
+- `Sources/AgentMeter/MenuContent.swift` + `ProviderUsageSections.swift` — dropdown UI (shared with the Usage Details window); `SettingsWindow.swift` — native tabbed Settings.
+- `Sources/AgentMeter/CredentialAssessment.swift` — key-type detection and plain-language explainers.
+- `Sources/AgentMeter/SubscriptionRenewal.swift` — renewal-date model and reminder math.
+- `Sources/AgentMeter/StatusSnapshotWriter.swift` — opt-in `status.json`; `Sources/AgentMeterStatusKit/` — shared snapshot schema, CLI parsing, embedded agent skill; `Sources/agentmeter-cli/` — the read-only CLI (built as `allowancebar`).
+- `Sources/AgentMeter/Updater.swift` — Sparkle auto-updates.
+- `docs/` — [providers](docs/PROVIDERS.md), [agent interface](docs/AGENT_INTERFACE.md), [Codex accounts guide](docs/CODEX_ACCOUNTS.md), [agent skill](docs/agent-skill/SKILL.md), [releasing](docs/RELEASING.md).
+- `scripts/bundle.sh` / `scripts/release.sh` — bundling and signed release with a Sparkle appcast.
+
+Source folders and Swift modules keep the original `AgentMeter` names so
+upstream changes stay easy to merge.
+
 ## Adding a provider
 
 Each provider is one file in `Sources/AgentMeter/Providers/` implementing the
