@@ -74,11 +74,12 @@ Nano** view stands on end along a side of the screen.
   </picture>
 </p>
 
-In the nano views, `34% (58%)` means the 5-hour limit, then the weekly
-limit in parentheses. To show every limit there, turn on **Show all limits in
-the nano window** in **Settings → Display**; it works apart from the menu
-bar's own setting. Percentages count used or remaining, as you choose in
-**Count direction**.
+The nano views show the accounts that are in the menu bar, each with its
+most constrained limit. Turn on **Show all limits in the nano window** in
+**Settings → Display** to see every limit, as in these screenshots: the nano
+view then reads `34% (58%)`, the 5-hour limit followed by the weekly limit,
+and the vertical nano view adds a meter for each limit. Percentages count
+used or remaining, as you choose in **Count direction**.
 
 Hover the compact or nano panel to close it, keep it on top, show it on
 every desktop, change its opacity or switch views. The window comes back the way you left it.
