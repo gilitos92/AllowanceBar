@@ -7,6 +7,8 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.12.3] — 2026-11-18
+
 ### Fixed
 - A three-letter account code, such as "CxW" for a second Codex account
   whose name starts with W, now shrinks to fit its badge instead of
