@@ -38,9 +38,9 @@ Exit codes:
 | Code | Meaning | What to do |
 |------|---------|------------|
 | 0 | Success | Read the JSON. |
-| 2 | No snapshot | Tell the user to turn on Settings → General → "Enable agent & CLI access" in Allowance Bar, then retry. |
+| 2 | No snapshot | Tell the user to turn on Settings → Agents → "Enable agent & CLI access" in Allowance Bar, then retry. |
 | 3 | App not running (`refresh` only) | Ask the user to launch Allowance Bar. |
-| 127 / not found | CLI not installed | Suggest the Settings → General "Install Command-Line Tool" button in Allowance Bar. |
+| 127 / not found | CLI not installed | Suggest the Settings → Agents "Install Command-Line Tool" button in Allowance Bar. |
 
 If the snapshot is unavailable, say so and proceed with the task as normal.
 Never work around a missing snapshot by reading `~/.codex`, `~/.claude`,
