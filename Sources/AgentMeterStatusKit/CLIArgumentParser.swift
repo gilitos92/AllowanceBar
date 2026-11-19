@@ -98,7 +98,7 @@ public enum CLIHelp {
     Exit codes:
       0  success
       1  usage error
-      2  no snapshot (enable agent access in Allowance Bar Settings → General)
+      2  no snapshot (enable agent access in Allowance Bar Settings → Agents)
       3  Allowance Bar app is not running
       4  refresh timed out waiting for an updated snapshot
     """

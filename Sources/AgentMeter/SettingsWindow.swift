@@ -1077,6 +1077,9 @@ private struct CLIProxySection: View {
                     Button(L("Save")) { saveKey() }
                         .disabled(draftKey.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+                // Without it the row squeezed Save to a sliver in the
+                // window's default 720 pt width.
+                .fixedSize()
             }
         }
         if let keyError {
