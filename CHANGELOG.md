@@ -7,6 +7,16 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+## [2.12.2] — 2026-11-18
+
+### Changed
+- The README shows the new look: the dropdown, the full window and the
+  compact, nano and vertical nano views, each in light and dark, with
+  sample accounts. It is shorter, with a "Buy me a coffee" button at the
+  top. How each provider is read, the Claude API setup and the CLIProxyAPI
+  guide moved to docs/PROVIDERS.md, and the project layout moved to
+  CONTRIBUTING.md.
+
 ## [2.12.1] — 2026-11-18
 
 ### Fixed

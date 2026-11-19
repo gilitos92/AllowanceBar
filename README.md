@@ -1,374 +1,182 @@
-# Allowance Bar
-
-A tiny macOS menu bar app (no Dock icon) that keeps your AI coding usage limits
-visible at a glance — Codex/ChatGPT, Cursor, Claude
-Code, Gemini, and Meta's Muse Code (one or several accounts each), Claude API spending and token usage, plus pay-as-you-go balances for OpenRouter, DeepSeek, Kimi,
-Z.ai, and Venice — with a dropdown showing detailed meters, reset countdowns,
-and balances. Keep every limit on screen in a floating window that stays
-above your work, full size, as a compact mini panel, or as a nano panel with
-just the menu bar text. Your coding agents can
-read the same numbers through a small read-only CLI.
-
 <a href="https://www.buymeacoffee.com/gilitos92">
-  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" width="217" height="60" />
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" width="174" height="48" />
 </a>
 
-If Allowance Bar saves you from a surprise rate limit, a coffee is always
-appreciated. Entirely optional.
+# Allowance Bar
 
-## Why Allowance Bar
+Your AI coding limits, always in sight. Allowance Bar is a small macOS menu
+bar app that shows how much of each Codex, Claude, Cursor, Gemini and Muse
+Code limit you have used, when it resets, and whether you are on pace, for
+every account you have. It also shows Claude API spending and pay-as-you-go
+balances.
 
-| App view | Light mode | Dark mode |
-|---|---|---|
-| Menu bar dropdown | <img src="Resources/screenshot-dropdown-light.png" alt="Allowance Bar menu bar dropdown in light mode" width="360" /> | <img src="Resources/screenshot-dropdown-dark.png" alt="Allowance Bar menu bar dropdown in dark mode" width="360" /> |
-| Full window | <img src="Resources/screenshot-details-light.png" alt="Allowance Bar full Usage Details window in light mode" width="360" /> | <img src="Resources/screenshot-details-dark.png" alt="Allowance Bar full Usage Details window in dark mode" width="360" /> |
-| Mini window | <img src="Resources/screenshot-mini-light.png" alt="Allowance Bar compact mini window in light mode" width="360" /> | <img src="Resources/screenshot-mini-dark.png" alt="Allowance Bar compact mini window in dark mode" width="360" /> |
-| Nano window | <img src="Resources/screenshot-nano-light.png" alt="Allowance Bar nano window in light mode" width="360" /> | <img src="Resources/screenshot-nano-dark.png" alt="Allowance Bar nano window in dark mode" width="360" /> |
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Resources/screenshot-dropdown-dark.png">
+    <img src="Resources/screenshot-dropdown-light.png" alt="The Allowance Bar menu bar item and its dropdown, showing two Codex accounts and three Claude accounts with their 5-hour, weekly and Fable limits" width="386">
+  </picture>
+</p>
 
-**A floating usage window that stays where you can see it.** Most usage
-meters live only in the menu bar: you click, look, and the numbers disappear.
-Allowance Bar's Usage Details window (⌘D, or `allowancebar://details`) keeps
-every limit visible while you work:
-
-- **Four views.** The full window shows every provider's meters, reset times,
-  and balances, two limits per row (three when a provider has three). The
-  small, chrome-free **mini panel** has one meter per limit (for example
-  5-hour and weekly), the time until each resets, and each account's name
-  in its own column. The **nano
-  panel** is smaller still: only the menu bar text, e.g.
-  `Cx 80% (89%) · Cl 52% (58%)`. The **vertical nano panel** is the same
-  panel standing on end, for a side of the screen. Switch views with the
-  Full, Compact, Nano and Vertical Nano buttons at the right of the full
-  window's toolbar, in the panels' hover controls, or in the menu bar dropdown, which opens the window in
-  that view. Hover a panel to show Close, Keep on Top, Show on All
-  Desktops, Opacity and the view buttons without moving it. Drag either
-  panel anywhere outside the buttons.
-- **Choose how many limits nano shows.** In **Settings → Display**, turn on
-  **Show all limits in the nano window** to show each provider's limits in
-  dropdown order. For Codex and Claude, `80% (89%)` means the 5-hour limit
-  followed by the weekly limit in parentheses. This setting is independent
-  of **Show all limits in the menu bar**, so nano can show every limit while
-  the menu bar stays brief. Percentages follow **Count direction**: used
-  or remaining. With the icon-only menu bar style, nano still
-  shows text for every provider enabled in the menu bar.
-- **Stand nano on end.** The Vertical Nano view is a narrow strip that
-  stays clear of the toolbars and input fields near the top of other
-  windows. Each account shows its dot and code, a small vertical meter for
-  each limit with the even-pace marker, the leading percent with its pace
-  arrow, and its CLIProxyAPI place.
-- **Keep on Top.** The window stays above other windows, even when you switch
-  apps.
-- **Show on All Desktops.** It follows you to every desktop (Space) and over
-  full-screen apps.
-- **Made to sit on top of your work.** On macOS 26 and later the window is
-  Liquid Glass (a frosted material on earlier versions), which keeps text
-  readable. Adjust its opacity without fading the text.
-
-Your choices are remembered, so the window comes back the way you left it.
-
-Allowance Bar is based on [AgentMeter](https://github.com/fdtorres1/AgentMeter)
-by Felix Torres (MIT License). It is an independent project, not affiliated
-with or endorsed by the original author.
-
-The menu bar shows the most constrained window per enabled provider, e.g.:
-
-```
-Cx 5% · CxW 62% · Cu 20% · Cl 40% · OR $8.06
-```
-
-## Providers
-
-| Provider | Source | How usage is read |
-|----------|--------|-------------------|
-| **Codex** (`Cx`, `CxW`, …) | Your own Codex CLI via its app-server protocol; session logs as offline fallback | Live limits, plan, and signed-in email, polled every 5 minutes through a ~1-second `codex app-server` call. **Multiple accounts**: sign in extra Codex homes and each gets its own meter. Optional subscription renewal-date tracking with reminders. See [docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md). |
-| **Cursor** (`Cu`) | `cursor.com/api/usage-summary` | Uses the session token Cursor stores locally; included/auto/API usage + billing reset. Team/enterprise pools supported. |
-| **Claude** (`Cl`) | `api.anthropic.com/api/oauth/usage` | Uses the Claude Code OAuth token (credentials file or Keychain via Apple's `security` tool); 5h and weekly limits, plus each model's own weekly limit (Fable). Can ask a [CLIProxyAPI](#cliproxyapi) server instead when that token has expired. |
-| **Claude API** (`ClA`) | Anthropic organization Usage & Cost API | Paste an organization reporting key; shows current UTC calendar-month spending and input/output/cache tokens. Prepaid credits are unavailable via the public API; a link opens Console billing. |
-| **Gemini** (`Ge`) | Cloud Code quota API | Uses the Gemini CLI OAuth token (`~/.gemini/oauth_creds.json`); Pro/Flash/Flash-Lite daily quotas. |
-| **Muse Code** (`Mu`) | Your own Muse Code CLI via its `muse serve` protocol | Meta's coding agent. Shows the subscription's 5-hour and weekly limits and plan, read every 5 minutes through a ~1-second `muse serve` call that spends no prompt. Muse Code reads its own Meta login; Allowance Bar never sees it. Only subscriptions report limits: an API key or pay-as-you-go account shows a message instead, because Meta has no balance API. |
-| **Antigravity** (`Ag…`) | Cloud Code quota summary, through [CLIProxyAPI](#cliproxyapi) | Only for Antigravity logins on a CLIProxyAPI server; 5-hour and weekly limits for each model group. |
-| **OpenRouter** (`OR`) | `openrouter.ai/api/v1/credits` + `/api/v1/key` | Connect via OAuth (provisions a dedicated, revocable key) or paste a key; shows account credits when permitted, otherwise the key's limit/remaining balance or current-month spend. |
-| **DeepSeek** (`DS`) | `api.deepseek.com/user/balance` | Paste an API key; shows prepaid balance. |
-| **Kimi** (`Ki`) | `api.moonshot.ai/v1/users/me/balance` | Paste an API key; shows available balance. |
-| **Z.ai** (`Zg`) | `api.z.ai` quota API | GLM Coding Plan only: paste the plan's API key to show time/token quota percentages. Z.ai does not expose standard pay-as-you-go balance via a public API. |
-| **Venice** (`Ve`) | Venice billing / key rate-limit APIs | Paste an Inference or Admin API key; shows USD/DIEM balance. Admin keys use the richer billing endpoint, while safer Inference keys use the rate-limits balance fallback. x402 wallet balances are not supported. |
-
-Subscription-style providers show percent-of-limit meters; pay-as-you-go
-(API-key) providers show reported balance or spending, since there is no limit
-percentage to measure.
-
-### Claude API setup
-
-In **Settings → Providers → Claude API**, save an organization Admin API key
-or an eligible personal/service-account key that is not scoped to a workspace.
-Allowance Bar stores the key in its own macOS Keychain item and only sends read-only
-report requests to Anthropic. Ordinary workspace keys and individual accounts
-cannot use the reporting API. These reports cover the organization, not just
-requests made with the saved key. Claude Code subscription limits remain in the
-separate **Claude** entry.
-
-Spending covers the current calendar month in UTC, excludes Priority Tier
-costs, and may lag the Anthropic website. Allowance Bar shows the returned report
-cutoff and flags when today's totals are not yet fully reported. "Last checked"
-means when Allowance Bar fetched the report, not how current Anthropic's data is.
-Reports are cached for five
-minutes during automatic polling. The Refresh button and `allowancebar refresh`
-bypass that cache; after an API failure, retries wait one minute. Input tokens
-exclude cache reads and cache creation, which have their
-own rows. **Prepaid credits are not inferred from spending**: use the billing
-link to see the actual credit balance. See Anthropic's
-[Usage & Cost API](https://platform.claude.com/docs/en/manage-claude/usage-cost-api)
-and [API billing guide](https://support.claude.com/en/articles/8977456-how-do-i-pay-for-my-claude-api-usage).
-
-### CLIProxyAPI
-
-If you pool accounts in
-[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), Allowance Bar
-shows every Claude, Codex, Antigravity and Gemini login on the proxy, each as
-its own row. Nothing else to set up per account:
-
-1. In **Settings → Providers → CLIProxyAPI**, enter the server address
-   (default `http://127.0.0.1:8317`) and the proxy's management key
-   (`management.secret-key` in its config). The key is saved in Allowance
-   Bar's own Keychain item.
-2. Each turned-on login appears as a row such as `Codex — you@example.com`,
-   next to that provider's other accounts. Antigravity rows follow Gemini.
-   Logins you add or remove on the proxy appear or disappear on the next
-   refresh. Each ChatGPT workspace of one email gets its own row. Proxy rows
-   stay out of the menu bar title until you turn them on there, unless no
-   other row is in it. Each row shows its plan: Claude's from the login's
-   profile, Gemini's and Antigravity's from Google's tier name (asked every
-   few hours), Codex's from the login list.
-3. A login with the same email as an account on this Mac shows only once,
-   through the local account (for Codex, the plan must match too). If the local account has no data or keeps
-   failing for 10 minutes, the proxy row shows instead. Set a proxy row to **On** to always show both.
-4. Each account shows its place among its provider's logins in the proxy's
-   order of use, from the login priorities: **Proxy #1** next to the plan, **#1** in the compact and
-   nano panels. The proxy sends new requests to the highest priority first,
-   and equal priorities share a place. Accounts on this Mac show the place
-   of the proxy login with the same email. It appears when the proxy has more
-   than one login of a provider with different priorities. Turn it off in
-   **Settings → Display**, for all views or only for the nano window.
-5. To use a proxy on another Mac, set `management.allow-remote: true` in the
-   proxy's config. Use an `https` address or the proxy Mac's Tailscale name
-   (ending in `.ts.net`). Allowance Bar refuses plain `http` to other hosts,
-   including raw `100.x` addresses, because the key could cross a network
-   unencrypted.
-
-The proxy's
-[management API](https://github.com/router-for-me/CLIProxyAPI/blob/main/internal/api/handlers/management/api_tools.go)
-sends each usage request with the login's token on the proxy's machine, so
-Allowance Bar never receives a token. These are the same requests the proxy's
-own dashboard makes: ChatGPT's Codex usage, Google's Antigravity quota summary,
-the Gemini CLI quota and Anthropic's Claude usage. Proxy rows ask at most every
-two minutes; the Refresh button asks right away. If the proxy rejects the key,
-Allowance Bar stops asking it until you change the key or address, so a wrong
-key can't get your Mac banned by the proxy.
-
-**Claude Code through the proxy.** When Claude Code sends its requests
-through CLIProxyAPI (`ANTHROPIC_BASE_URL` points at the proxy), it stops
-renewing its own login, and its token expires after a few hours. The
-**Claude** rows for accounts on this Mac then read their usage through the
-proxy login with the same email. If the emails differ, pick the proxy login
-for each account in the same Settings section.
-
-Each provider can be set to **Auto** (show only if detected on this machine),
-**On**, or **Off** in Settings, and shown or hidden in the menu bar
-independently. Refresh runs every 30s/1m/5m (configurable); Codex also
-refreshes instantly after CLI activity via a file watcher, and the app
-refreshes on wake.
+<p align="center">
+  <a href="https://github.com/gilitos92/AllowanceBar/releases/latest"><b>Download for macOS</b></a>
+  &nbsp;·&nbsp; macOS 14 or later &nbsp;·&nbsp; free and open source
+</p>
 
 ## Highlights
 
-- **Reads well before it runs out** — count usage up ("80% used") or down
-  ("20% left"), relative or exact reset times (with a remaining duration), and optional notifications when
-  a limit window or balance crosses your threshold.
-- **Shows your pace** — a line on each bar marks even pace (where usage would
-  be if spread evenly until the reset), and an arrow says if you are ahead of
-  pace (↗, may run out early), on pace (→) or under pace (↘). The nano
-  window shows the arrow after each percent. An optional alert warns when a
-  limit runs well ahead of pace.
-- **Never cries wolf** — if a provider briefly fails to respond, the last
-  known numbers stay visible (dimmed, with a "stale since…" note) instead of
-  an alarming error in your menu bar.
-- **Knows what key you pasted** — Allowance Bar detects the key type (for
-  example Venice Admin vs. Inference, OpenRouter management vs. standard) and
-  explains in plain language what it can do, always recommending the
-  least-privileged key that works.
-- **Fits your menu bar** — full, compact (most constrained provider only), or
-  icon-only styles, with color states at the same thresholds as the meters.
-- **Accessible** — full VoiceOver support: the menu bar item speaks a
-  per-provider summary, meters announce values and severity, and warning
-  states show symbols, not just color.
-- **Several accounts per provider** — personal, work, and legacy
-  subscriptions or keys each get their own meter, label, and menu bar code,
-  for every provider. In the dropdown and the Usage Details window, a
-  provider's accounts share one header, plan and "Data as of" line, and each
-  account adds only its name and limits. Logins on a [CLIProxyAPI](#cliproxyapi) server show
-  up on their own, with no setup per account, each with its place in the
-  proxy's order of use. Codex accounts can add billing-renewal reminders kept
-  strictly separate from usage windows. See
-  [docs/MULTIPLE_ACCOUNTS.md](docs/MULTIPLE_ACCOUNTS.md) and
-  [docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md).
-- **Stays current** — built-in auto-updates (Sparkle) from signed GitHub
-  releases.
-- **Your agents can read it too** — an opt-in, read-only JSON snapshot, an
-  `allowancebar` CLI, and a drop-in agent skill let scripts and coding agents
-  check remaining quota before starting a big task. See
-  [docs/AGENT_INTERFACE.md](docs/AGENT_INTERFACE.md).
-- **Bilingual** — English and Spanish, following your macOS language.
+- **Every account at a glance.** Personal, work and team accounts each get
+  their own meters, grouped under one header per provider.
+- **Pace, not just percent.** A marker on each bar shows where even use
+  would be, and an arrow says whether you are ahead of pace (↗), on pace (→)
+  or under it (↘).
+- **Clear warnings.** Limits turn orange at 60% and red at 85%, always with a
+  symbol, so color is never the only signal. Optional notifications warn
+  before you run out.
+- **Calm when a provider hiccups.** The last known numbers stay visible,
+  dimmed, instead of an error in your menu bar.
+- **Private by design.** Allowance Bar reads the logins your tools already
+  have. Tokens never leave your Mac except to the provider's own API, and
+  there is no telemetry.
+- **Made for agents too.** A read-only CLI and an agent skill let your coding
+  agents check their budget before a big task.
 
-## Privacy and trust
+## Keep your limits on screen
 
-Allowance Bar is open source (MIT) so you can verify exactly what it does:
+Press ⌘D, or pick a view in the dropdown, to open the Usage Details window.
+Turn on **Keep on Top** to keep it above your work, even when you switch
+apps. On macOS 26 and later it is made of Liquid Glass.
 
-- For Cursor, Claude, and Gemini, credentials are **read fresh on each
-  refresh** from the locations the official CLIs/apps already use. They are
-  **never written anywhere** by Allowance Bar and never leave your machine except
-  as the `Authorization`/`Cookie` header on the request to that provider's own
-  API.
-- For API-key providers (OpenRouter, DeepSeek, Kimi, Z.ai, Venice), the key you
-  provide is stored **only in your macOS Keychain** as an item private to
-  Allowance Bar, shown masked in Settings, removable with one click, and sent
-  only to that provider's own API. We recommend creating a dedicated key named
-  "Allowance Bar" so you can revoke it independently. OpenRouter can instead be
-  connected via OAuth, which provisions its own revocable key without you
-  handling one at all.
-- For Codex, Allowance Bar never touches tokens at all: it launches your own
-  `codex` CLI for about a second and asks it over its documented JSON-RPC
-  protocol; Codex handles auth and talks to OpenAI itself. Session-log
-  parsing remains as a fully offline fallback. Allowance Bar never performs
-  logins — you sign in extra accounts with `codex login` yourself.
-- Helpers run only for their query: the Codex helper exits after each
-  ~1-second query, and Apple's `/usr/bin/security` reads Claude Code's
-  Keychain item into memory with a five-second timeout. Using the same
-  trusted tool as Claude Code avoids permission prompts caused by its token
-  renewals resetting Allowance Bar's separate grant. A locked Keychain or a
-  reset grant for Apple's tool can still require authorization. The
-  `allowancebar` CLI is a read-only client that never sees credentials.
-- With CLIProxyAPI set up, Allowance Bar sends only the management key you
-  saved to your own proxy. The proxy makes each usage request to the
-  provider, and every token stays on the proxy's machine.
-- No analytics, no telemetry, no accounts.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="Resources/screenshot-details-dark.png">
+  <img src="Resources/screenshot-details-light.png" alt="The full Usage Details window with a Codex module and a Claude module side by side" width="836">
+</picture>
 
-## Requirements
+Switch to a smaller view when space is tight. The **Compact** view keeps one
+row per limit, the **Nano** view keeps only the numbers, and the **Vertical
+Nano** view stands on end along a side of the screen.
 
-- macOS 14 (Sonoma) or later
-- The CLIs/apps you want to monitor, signed in (Codex CLI, Cursor, Claude Code, Gemini CLI)
-- For live Codex data: the Codex CLI on your PATH or in `/opt/homebrew/bin`,
-  `/usr/local/bin`, or `~/.local/bin` (session logs are used otherwise)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Resources/screenshot-mini-dark.png">
+    <img src="Resources/screenshot-mini-light.png" alt="The compact view, with one row per limit for each account" width="404">
+  </picture>
+  &nbsp;&nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Resources/screenshot-nano-vertical-dark.png">
+    <img src="Resources/screenshot-nano-vertical-light.png" alt="The vertical nano view, with a small vertical meter for each limit of each account" width="150">
+  </picture>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Resources/screenshot-nano-dark.png">
+    <img src="Resources/screenshot-nano-light.png" alt="The nano view, a slim capsule with every account's percentages" width="920">
+  </picture>
+</p>
+
+The nano views show the accounts that are in the menu bar, each with its
+most constrained limit. Turn on **Show all limits in the nano window** in
+**Settings → Display** to see every limit, as in these screenshots: the nano
+view then reads `34% (58%)`, the 5-hour limit followed by the weekly limit,
+and the vertical nano view adds a meter for each limit. Percentages count
+used or remaining, as you choose in **Count direction**.
+
+Hover the compact or nano panel to close it, keep it on top, show it on
+every desktop, change its opacity or switch views. The window comes back the way you left it.
+
+## Supported providers
+
+| Shows | Providers |
+|---|---|
+| **Usage limits** | Codex · Claude Code · Cursor · Gemini · Muse Code · Antigravity (through CLIProxyAPI) |
+| **Monthly spending** | Claude API |
+| **Balances** | OpenRouter · DeepSeek · Kimi · Z.ai · Venice |
+
+Each provider can be on, off, or shown only when it is found on your Mac.
+Every provider supports several accounts. If you pool logins in
+[CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), each of its
+Claude, Codex, Gemini and Antigravity logins shows up on its own, with its
+place in the proxy's order.
+
+[How each provider is read, and how to set them up](docs/PROVIDERS.md) ·
+[Several accounts](docs/MULTIPLE_ACCOUNTS.md) ·
+[Codex accounts](docs/CODEX_ACCOUNTS.md)
 
 ## Install
 
-1. Download the latest `AllowanceBar.zip` from
-   [Releases](https://github.com/gilitos92/AllowanceBar/releases/latest).
-2. Unzip it and drag `Allowance Bar.app` to `/Applications`.
-3. Open it. Allowance Bar is signed with a Developer ID and notarized by
-   Apple, so macOS only asks whether you want to open an app downloaded from
-   the internet.
-4. The first time the app reads a saved key, macOS may ask to allow access
-   to the login keychain. Click **Always Allow**; later updates keep that
-   approval.
+1. Download `AllowanceBar.zip` from the
+   [latest release](https://github.com/gilitos92/AllowanceBar/releases/latest).
+2. Unzip it and drag `Allowance Bar.app` to Applications.
+3. Open it. The app is signed with a Developer ID and notarized by Apple.
 
-After that, the app keeps itself up to date. Updates are verified with the
-project's signing key before they install.
+The first time it reads a saved key, macOS may ask for access to the login
+keychain; click **Always Allow**. After that, the app keeps itself up to
+date with signed updates. To start it with your Mac, turn on **Launch at
+Login** in Settings.
 
-### Build from source
+## Privacy
 
-```bash
-swift build              # debug build
-swift test               # unit tests (live-network tests are opt-in)
-scripts/bundle.sh         # builds "Allowance Bar.app" in the repo root
-scripts/bundle.sh --install   # also copies it to /Applications
-open "Allowance Bar.app"
-```
+- Claude Code, Cursor and Gemini logins are read fresh on each refresh from
+  where those tools keep them. Allowance Bar never writes
+  them anywhere and sends them only to that provider's own API.
+- For Codex and Muse Code, Allowance Bar asks your own CLI for the numbers
+  and never sees a token. It never signs in for you.
+- API keys you paste are stored only in your macOS Keychain and sent only to
+  that provider. A dedicated, revocable key is recommended.
+- With CLIProxyAPI, every token stays on the proxy's machine.
+- No analytics, no telemetry, no accounts.
 
-Use the "Launch at Login" toggle in Settings → General to start it automatically.
+Details in [docs/PROVIDERS.md](docs/PROVIDERS.md#privacy-details) and
+[SECURITY.md](SECURITY.md).
 
-## Multiple Codex accounts
+## For agents and scripts
 
-Sign in another account into its own Codex home, then add it in Settings —
-Allowance Bar discovers signed-in `~/.codex-*` folders automatically:
-
-```bash
-mkdir -p ~/.codex-work && CODEX_HOME=~/.codex-work codex login
-```
-
-Each account becomes its own provider (`Codex — work`, menu bar `CxW`) with
-independent visibility and alerts. Allowance Bar never performs the login or
-reads the resulting tokens; it only asks your Codex CLI for the numbers.
-You can also record each subscription's renewal date and billing platform and
-get a reminder a few days before. Full guide:
-[docs/CODEX_ACCOUNTS.md](docs/CODEX_ACCOUNTS.md).
-
-## Agent & CLI access
-
-Turn on **Settings → General → Enable agent & CLI access** and Allowance Bar
-writes a machine-readable snapshot (usage numbers only — never credentials) to
-`~/Library/Application Support/AllowanceBar/status.json` after each refresh. The
-bundled CLI reads it:
+Turn on **Settings → Agents → Enable agent & CLI access**, then use the
+bundled command-line tool. It reads a snapshot of the numbers (never
+credentials) that the app writes after each refresh.
 
 ```bash
-allowancebar status          # human-readable table
-allowancebar status --json   # stable, versioned JSON for scripts/agents
-allowancebar refresh --wait 15
-allowancebar doctor          # redacted troubleshooting report
-allowancebar skill           # prints the agent skill (see below)
+allowancebar status          # a readable table
+allowancebar status --json   # stable JSON for scripts and agents
+allowancebar skill           # an agent skill for Codex, Claude Code and Cursor
 ```
 
-Every provider — including each Codex account — appears as its own entry with
-usage windows, balance, freshness, plan, account email, and any tracked
-renewal date.
+Install the tool from **Settings → Agents**. The schema, the skill and the
+security model are in [docs/AGENT_INTERFACE.md](docs/AGENT_INTERFACE.md).
 
-To put `allowancebar` on your PATH, use **Settings → General →
-Install Command-Line Tool…**. The app remains the only process that touches
-credentials or provider APIs — the CLI is a thin, read-only client.
-
-To teach your coding agent to check its own budget before big tasks, install
-the bundled skill (Codex, Claude Code, and Cursor all read this format):
+## Build from source
 
 ```bash
-mkdir -p ~/.codex/skills/allowancebar && allowancebar skill > ~/.codex/skills/allowancebar/SKILL.md
+swift build
+swift test
+scripts/bundle.sh --install   # builds "Allowance Bar.app" and copies it to /Applications
 ```
 
-Full schema, skill, and security model in
-[docs/AGENT_INTERFACE.md](docs/AGENT_INTERFACE.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout and how to add
+a provider.
 
-## Project layout
+## Support
 
-- `Sources/AgentMeter/Providers/` — one file per provider plus the `UsageProvider`
-  protocol; each reads local credentials and maps the response to `UsageWindow`s.
-  `CodexAppServerClient.swift` talks to the Codex CLI; `CodexAccountConfig.swift`
-  holds extra-account config and discovery.
-- `Sources/AgentMeter/UsageStore.swift` — dynamic provider list, refresh timer, Codex file watcher, menu bar title and spoken summary.
-- `Sources/AgentMeter/SettingsStore.swift` — visibility, refresh cadence, display/alert preferences, Codex accounts, renewal dates.
-- `Sources/AgentMeter/MenuContent.swift` + `ProviderUsageSections.swift` — dropdown UI (shared with the Usage Details window); `SettingsWindow.swift` — native tabbed Settings.
-- `Sources/AgentMeter/CredentialAssessment.swift` — key-type detection and plain-language explainers.
-- `Sources/AgentMeter/SubscriptionRenewal.swift` — renewal-date model and reminder math.
-- `Sources/AgentMeter/StatusSnapshotWriter.swift` — opt-in `status.json`; `Sources/AgentMeterStatusKit/` — shared snapshot schema, CLI parsing, embedded agent skill; `Sources/agentmeter-cli/` — the read-only CLI (built as `allowancebar`).
-- `Sources/AgentMeter/Updater.swift` — Sparkle auto-updates.
-- `docs/` — [agent interface](docs/AGENT_INTERFACE.md), [Codex accounts guide](docs/CODEX_ACCOUNTS.md), [agent skill](docs/agent-skill/SKILL.md), [releasing](docs/RELEASING.md).
-- `scripts/bundle.sh` / `scripts/release.sh` — bundling and signed release with a Sparkle appcast.
+If Allowance Bar saved you from a surprise rate limit, a coffee is always
+appreciated, and entirely optional.
 
-Source folders and Swift modules keep the original `AgentMeter` names so
-upstream changes stay easy to merge.
-
-## En español
-
-Allowance Bar habla español — la interfaz sigue el idioma de macOS. Translations
-for other languages are welcome: all strings live in a single
-[String Catalog](Sources/AgentMeter/Resources/Localizable.xcstrings), so adding
-a language is a JSON-only pull request.
+<a href="https://www.buymeacoffee.com/gilitos92">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" width="174" height="48" />
+</a>
 
 ## Credits
 
 Allowance Bar is a fork of [AgentMeter](https://github.com/fdtorres1/AgentMeter)
-by Felix Torres, released under the MIT License. If you like the original,
-you can [support its author](https://www.buymeacoffee.com/fdtorres).
-
-Endpoint formats were validated against the excellent open-source
+by Felix Torres, released under the MIT License. It is an independent project,
+not affiliated with or endorsed by the original author. If you like the
+original, you can [support its author](https://www.buymeacoffee.com/fdtorres).
+Endpoint formats were validated against
 [CodexBar](https://github.com/steipete/CodexBar) by Peter Steinberger.
+
+Allowance Bar speaks English and Spanish, following your macOS language.
+Translations are welcome: every string lives in one
+[String Catalog](Sources/AgentMeter/Resources/Localizable.xcstrings).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
