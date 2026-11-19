@@ -23,8 +23,14 @@ struct ProviderBadge: View {
             .fill(Self.color(for: providerID).gradient)
             .frame(width: size, height: size)
             .overlay {
+                // An extra account's code has three letters, e.g. "CxW",
+                // which is wider than a small badge: it shrinks to fit
+                // instead of truncating to "C…".
                 Text(shortCode)
                     .font(.system(size: size * 0.45, weight: .bold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .padding(.horizontal, size * 0.08)
                     .foregroundStyle(.white)
             }
             .accessibilityHidden(true)
