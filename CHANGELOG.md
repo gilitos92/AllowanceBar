@@ -7,6 +7,20 @@ through 1.12.1, then this fork's 1.12.2–1.15.0).
 
 ## [Unreleased]
 
+### Fixed
+- A three-letter account code, such as "CxW" for a second Codex account
+  whose name starts with W, now shrinks to fit its badge instead of
+  showing "C…".
+- In Settings → Providers → CLIProxyAPI, the Save button next to the
+  management key is no longer squeezed to a sliver at the window's
+  default width.
+- The CLI's help and error messages, the agent skill and
+  docs/AGENT_INTERFACE.md now say that agent access and the command-line
+  tool are in Settings → Agents, not Settings → General.
+
+### Removed
+- Three old README screenshots that no page uses anymore.
+
 ## [2.12.2] — 2026-11-18
 
 ### Changed

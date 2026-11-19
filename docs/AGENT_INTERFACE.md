@@ -4,7 +4,7 @@ Allowance Bar exposes a read-only local interface for scripts and coding agents.
 
 ## Security model
 
-- **Opt-in**: snapshot writing is disabled by default (`Settings → General → Enable agent & CLI access`).
+- **Opt-in**: snapshot writing is disabled by default (`Settings → Agents → Enable agent & CLI access`).
 - **No credentials**: the snapshot contains usage percentages, reported API spend/token counts, balances, and redacted error strings only.
 - **CLI is read-only**: `allowancebar` never imports Security/Keychain, never performs network I/O, and never reads provider credential files.
 - **App is sole handler**: only the running Allowance Bar app refreshes usage and writes `status.json`.
@@ -204,7 +204,7 @@ Bundled at `Allowance Bar.app/Contents/Helpers/allowancebar` (in `Helpers/` beca
 `allowancebar` and the `AllowanceBar` app binary would collide in `MacOS/` on
 case-insensitive filesystems).
 
-- Use **Settings → General → Install Command-Line Tool…**, or
+- Use **Settings → Agents → Install Command-Line Tool…**, or
   `ln -s "/Applications/Allowance Bar.app/Contents/Helpers/allowancebar" /usr/local/bin/allowancebar`
 
 ```

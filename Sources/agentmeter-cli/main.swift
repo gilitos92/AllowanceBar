@@ -52,7 +52,7 @@ enum AgentMeterCLI {
             fputs(
                 "error: no snapshot at \(url.path)\n" +
                 "Allowance Bar must be running with \"Enable agent & CLI access\" " +
-                "turned on in Settings → General.\n",
+                "turned on in Settings → Agents.\n",
                 stderr
             )
             return 2
