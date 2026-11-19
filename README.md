@@ -42,8 +42,9 @@ balances.
 
 ## Keep your limits on screen
 
-Press ⌘D, or pick a view in the dropdown, to open a floating window that
-stays above your work. On macOS 26 and later it is made of Liquid Glass.
+Press ⌘D, or pick a view in the dropdown, to open the Usage Details window.
+Turn on **Keep on Top** to keep it above your work, even when you switch
+apps. On macOS 26 and later it is made of Liquid Glass.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="Resources/screenshot-details-dark.png">
@@ -72,6 +73,12 @@ Nano** view stands on end along a side of the screen.
     <img src="Resources/screenshot-nano-light.png" alt="The nano view, a slim capsule with every account's percentages" width="920">
   </picture>
 </p>
+
+In the nano views, `34% (58%)` means the 5-hour limit, then the weekly
+limit in parentheses. To show every limit there, turn on **Show all limits in
+the nano window** in **Settings → Display**; it works apart from the menu
+bar's own setting. Percentages count used or remaining, as you choose in
+**Count direction**.
 
 Hover the compact or nano panel to close it, keep it on top, show it on
 every desktop, change its opacity or switch views. The window comes back the way you left it.
@@ -118,7 +125,7 @@ Login** in Settings.
 - With CLIProxyAPI, every token stays on the proxy's machine.
 - No analytics, no telemetry, no accounts.
 
-Details in [docs/PROVIDERS.md](docs/PROVIDERS.md) and
+Details in [docs/PROVIDERS.md](docs/PROVIDERS.md#privacy-details) and
 [SECURITY.md](SECURITY.md).
 
 ## For agents and scripts

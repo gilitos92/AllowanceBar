@@ -18,10 +18,10 @@ Requirements: macOS 14+ to run; building needs Xcode 26 or later (the macOS 26 S
 
 - `Sources/AgentMeter/Providers/` — one file per provider plus the `UsageProvider`
   protocol; each reads local credentials and maps the response to `UsageWindow`s.
-  `CodexAppServerClient.swift` talks to the Codex CLI; `CodexAccountConfig.swift`
-  holds extra-account config and discovery.
+  `CodexAppServerClient.swift` talks to the Codex CLI; `ProviderAccountConfig.swift`
+  holds every provider's extra-account config and discovery.
 - `Sources/AgentMeter/UsageStore.swift` — dynamic provider list, refresh timer, Codex file watcher, menu bar title and spoken summary.
-- `Sources/AgentMeter/SettingsStore.swift` — visibility, refresh cadence, display/alert preferences, Codex accounts, renewal dates.
+- `Sources/AgentMeter/SettingsStore.swift` — visibility, refresh cadence, display/alert preferences, extra accounts, renewal dates.
 - `Sources/AgentMeter/MenuContent.swift` + `ProviderUsageSections.swift` — dropdown UI (shared with the Usage Details window); `SettingsWindow.swift` — native tabbed Settings.
 - `Sources/AgentMeter/CredentialAssessment.swift` — key-type detection and plain-language explainers.
 - `Sources/AgentMeter/SubscriptionRenewal.swift` — renewal-date model and reminder math.

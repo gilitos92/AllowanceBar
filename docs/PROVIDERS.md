@@ -106,3 +106,36 @@ renewing its own login, and its token expires after a few hours. The
 **Claude** rows for accounts on this Mac then read their usage through the
 proxy login with the same email. If the emails differ, pick the proxy login
 for each account in the same Settings section.
+
+## Privacy details
+
+Allowance Bar is open source (MIT) so you can verify exactly what it does:
+
+- For Cursor, Claude, and Gemini, credentials are **read fresh on each
+  refresh** from the locations the official CLIs/apps already use. They are
+  **never written anywhere** by Allowance Bar and never leave your machine except
+  as the `Authorization`/`Cookie` header on the request to that provider's own
+  API.
+- For API-key providers (OpenRouter, DeepSeek, Kimi, Z.ai, Venice), the key you
+  provide is stored **only in your macOS Keychain** as an item private to
+  Allowance Bar, shown masked in Settings, removable with one click, and sent
+  only to that provider's own API. We recommend creating a dedicated key named
+  "Allowance Bar" so you can revoke it independently. OpenRouter can instead be
+  connected via OAuth, which provisions its own revocable key without you
+  handling one at all.
+- For Codex, Allowance Bar never touches tokens at all: it launches your own
+  `codex` CLI for about a second and asks it over its documented JSON-RPC
+  protocol; Codex handles auth and talks to OpenAI itself. Session-log
+  parsing remains as a fully offline fallback. Allowance Bar never performs
+  logins — you sign in extra accounts with `codex login` yourself.
+- Helpers run only for their query: the Codex helper exits after each
+  ~1-second query, and Apple's `/usr/bin/security` reads Claude Code's
+  Keychain item into memory with a five-second timeout. Using the same
+  trusted tool as Claude Code avoids permission prompts caused by its token
+  renewals resetting Allowance Bar's separate grant. A locked Keychain or a
+  reset grant for Apple's tool can still require authorization. The
+  `allowancebar` CLI is a read-only client that never sees credentials.
+- With CLIProxyAPI set up, Allowance Bar sends only the management key you
+  saved to your own proxy. The proxy makes each usage request to the
+  provider, and every token stays on the proxy's machine.
+- No analytics, no telemetry, no accounts.
