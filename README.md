@@ -88,7 +88,7 @@ every desktop, change its opacity or switch views. The window comes back the way
 
 | Shows | Providers |
 |---|---|
-| **Usage limits** | Codex · Claude Code · Cursor · Gemini · Muse Code · Antigravity |
+| **Usage limits** | Codex · Claude Code · Cursor · Gemini · Muse Code · Antigravity (through CLIProxyAPI) |
 | **Monthly spending** | Claude API |
 | **Balances** | OpenRouter · DeepSeek · Kimi · Z.ai · Venice |
 
